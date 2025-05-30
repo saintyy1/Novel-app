@@ -201,7 +201,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       ) : (
         <div className="text-center py-12">
-          <h3 className="text-xl font-medium mb-2">No novels found</h3>
+          <h3 className="text-xl font-medium text-gray-500 dark:text-gray-300 mb-2">No novels found</h3>
           <p className="text-gray-600 dark:text-gray-400">
             {activeTab === "pending" ? "There are no novels pending approval." : "There are no published novels."}
           </p>

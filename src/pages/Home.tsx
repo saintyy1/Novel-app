@@ -226,18 +226,13 @@ const Home = () => {
                 {/* Cover Image - Custom or Generated */}
                 {novel.coverImage && !imageErrors[novel.id] ? (
                   // Custom Cover Image
-                  <div className="h-32 relative overflow-hidden">
+                  <div className="h-32 overflow-hidden">
                     <img
                       src={novel.coverImage || "/placeholder.svg"}
                       alt={`Cover for ${novel.title}`}
                       className="w-full h-full object-cover"
                       onError={() => handleImageError(novel.id)}
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-20 flex items-end p-2">
-                      <div className="bg-black bg-opacity-60 text-white text-xs p-1 rounded">
-                        {novel.isAIGenerated ? "AI Generated" : "User Submitted"}
-                      </div>
-                    </div>
                   </div>
                 ) : (
                   // Generated Book Cover Design
