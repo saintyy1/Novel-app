@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import AdminRoute from "./components/AdminRoute";
+import AdminDashboard from "./pages/AdminDashboard";
 import GenerateNovel from "./pages/GenerateNovel";
 import LoginPage from "./pages/LoginPage";
 import Home from "./pages/Home";
@@ -20,8 +22,8 @@ import { AuthProvider } from "./context/AuthContext";
 
 function AppContent() {
   const location = useLocation();
-   const isNovelReadPage = /^\/novel\/[^/]+\/read$/.test(location.pathname);
-  
+  const isNovelReadPage = /^\/novel\/[^/]+\/read$/.test(location.pathname);
+
   return (
     <AuthProvider>
       <div className="min-h-screen bg-[#121212] flex flex-col">
@@ -41,6 +43,13 @@ function AppContent() {
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              } />
+            <Route
               path="/novel/:id/add-chapters"
               element={
                 <AddChapters />
@@ -55,7 +64,7 @@ function AppContent() {
               element={
                 <GenerateNovel />
               }
-            /> 
+            />
           </Routes>
         </main>
         {!isNovelReadPage && <Footer />}
