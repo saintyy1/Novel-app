@@ -65,6 +65,11 @@ const NovelRead = () => {
     fetchNovel()
   }, [id, currentUser, searchParams])
 
+  // Scroll to top when chapter changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [currentChapter])
+
   const handleLike = async () => {
     if (!novel || !currentUser) return
 
