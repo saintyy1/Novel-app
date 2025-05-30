@@ -1,28 +1,127 @@
 "use client"
 
-import type React from "react"
 import { useState, useEffect } from "react"
-import { collection, query, getDocs, doc, updateDoc, deleteDoc, where } from "firebase/firestore"
+import { collection, query, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
+import type { ExtendedUser } from "../context/AuthContext"
+import {
+  FaChartBar,
+  FaUsers,
+  FaBook,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaTrash,
+  FaEye,
+  FaSearch,
+  FaUserPlus,
+  FaUserMinus,
+  FaExclamationTriangle,
+  FaSync,
+  FaLightbulb,
+} from "react-icons/fa"
+import { useAuth } from "../context/AuthContext"
 
-const AdminDashboard: React.FC = () => {
+const AdminDashboard = () => {
+  const { currentUser, isAdmin } = useAuth()
+
+  // State for novels
   const [novels, setNovels] = useState<Novel[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string>("")
-  const [activeTab, setActiveTab] = useState<"pending" | "published">("pending")
+  const [filteredNovels, setFilteredNovels] = useState<Novel[]>([])
+  const [novelSearch, setNovelSearch] = useState("")
+  const [novelTab, setNovelTab] = useState<"pending" | "published">("pending")
 
+  // State for users
+  const [users, setUsers] = useState<ExtendedUser[]>([])
+  const [filteredUsers, setFilteredUsers] = useState<ExtendedUser[]>([])
+  const [userSearch, setUserSearch] = useState("")
+
+  // General state
+  const [activeSection, setActiveSection] = useState<"overview" | "novels" | "users">("overview")
+  const [loading, setLoading] = useState<{
+    novels: boolean
+    users: boolean
+    action: boolean
+  }>({
+    novels: true,
+    users: true,
+    action: false,
+  })
+  const [error, setError] = useState<string>("")
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalNovels: 0,
+    pendingNovels: 0,
+    publishedNovels: 0,
+    aiGeneratedNovels: 0,
+  })
+
+  // Add admin check at the beginning of the component
+  if (!currentUser || !isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+          <p className="text-gray-400">You need admin privileges to access this page.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Fetch data on component mount
   useEffect(() => {
     fetchNovels()
-  }, [activeTab])
+    fetchUsers()
+  }, [])
+
+  // Filter novels when search or tab changes
+  useEffect(() => {
+    if (novels.length > 0) {
+      const filtered = novels
+        .filter((novel) => novel.published === (novelTab === "published"))
+        .filter(
+          (novel) =>
+            novel.title.toLowerCase().includes(novelSearch.toLowerCase()) ||
+            novel.authorName.toLowerCase().includes(novelSearch.toLowerCase()),
+        )
+      setFilteredNovels(filtered)
+    }
+  }, [novels, novelSearch, novelTab])
+
+  // Filter users when search changes
+  useEffect(() => {
+    if (users.length > 0) {
+      const filtered = users.filter(
+        (user) =>
+          user.displayName?.toLowerCase().includes(userSearch.toLowerCase()) ||
+          user.email?.toLowerCase().includes(userSearch.toLowerCase()),
+      )
+      setFilteredUsers(filtered)
+    }
+  }, [users, userSearch])
+
+  // Calculate stats when data changes
+  useEffect(() => {
+    if (novels.length > 0 || users.length > 0) {
+      setStats({
+        totalUsers: users.length,
+        activeUsers: users.filter((user) => !user.disabled).length,
+        totalNovels: novels.length,
+        pendingNovels: novels.filter((novel) => !novel.published).length,
+        publishedNovels: novels.filter((novel) => novel.published).length,
+        aiGeneratedNovels: novels.filter((novel) => novel.isAIGenerated).length,
+      })
+    }
+  }, [novels, users])
 
   const fetchNovels = async () => {
     try {
-      setLoading(true)
+      setLoading((prev) => ({ ...prev, novels: true }))
+      setError("")
 
-      const novelQuery = query(collection(db, "novels"), where("published", "==", activeTab === "published"))
-
-      const querySnapshot = await getDocs(novelQuery)
+      const novelsQuery = query(collection(db, "novels"))
+      const querySnapshot = await getDocs(novelsQuery)
       const novelsData: Novel[] = []
 
       querySnapshot.forEach((doc) => {
@@ -34,35 +133,70 @@ const AdminDashboard: React.FC = () => {
       console.error("Error fetching novels:", error)
       setError("Failed to load novels")
     } finally {
-      setLoading(false)
+      setLoading((prev) => ({ ...prev, novels: false }))
+    }
+  }
+
+  const fetchUsers = async () => {
+    try {
+      setLoading((prev) => ({ ...prev, users: true }))
+      setError("")
+
+      const usersQuery = query(collection(db, "users"))
+      const querySnapshot = await getDocs(usersQuery)
+      const usersData: ExtendedUser[] = []
+
+      querySnapshot.forEach((doc) => {
+        usersData.push({ uid: doc.id, ...doc.data() } as ExtendedUser)
+      })
+
+      setUsers(usersData)
+      setFilteredUsers(usersData)
+    } catch (error) {
+      console.error("Error fetching users:", error)
+      setError("Failed to load users")
+    } finally {
+      setLoading((prev) => ({ ...prev, users: false }))
     }
   }
 
   const approveNovel = async (id: string) => {
     try {
+      setLoading((prev) => ({ ...prev, action: true }))
+      setError("")
+
       await updateDoc(doc(db, "novels", id), {
         published: true,
         updatedAt: new Date().toISOString(),
       })
 
-      fetchNovels()
+      // Update local state
+      setNovels((prev) => prev.map((novel) => (novel.id === id ? { ...novel, published: true } : novel)))
     } catch (error) {
       console.error("Error approving novel:", error)
       setError("Failed to approve novel")
+    } finally {
+      setLoading((prev) => ({ ...prev, action: false }))
     }
   }
 
   const unpublishNovel = async (id: string) => {
     try {
+      setLoading((prev) => ({ ...prev, action: true }))
+      setError("")
+
       await updateDoc(doc(db, "novels", id), {
         published: false,
         updatedAt: new Date().toISOString(),
       })
 
-      fetchNovels()
+      // Update local state
+      setNovels((prev) => prev.map((novel) => (novel.id === id ? { ...novel, published: false } : novel)))
     } catch (error) {
       console.error("Error unpublishing novel:", error)
       setError("Failed to unpublish novel")
+    } finally {
+      setLoading((prev) => ({ ...prev, action: false }))
     }
   }
 
@@ -72,141 +206,518 @@ const AdminDashboard: React.FC = () => {
     }
 
     try {
+      setLoading((prev) => ({ ...prev, action: true }))
+      setError("")
+
       await deleteDoc(doc(db, "novels", id))
-      fetchNovels()
+
+      // Update local state
+      setNovels((prev) => prev.filter((novel) => novel.id !== id))
     } catch (error) {
       console.error("Error deleting novel:", error)
       setError("Failed to delete novel")
+    } finally {
+      setLoading((prev) => ({ ...prev, action: false }))
     }
   }
 
+  const toggleUserStatus = async (uid: string, currentStatus: boolean) => {
+    try {
+      setLoading((prev) => ({ ...prev, action: true }))
+      setError("")
+
+      await updateDoc(doc(db, "users", uid), {
+        disabled: !currentStatus,
+        updatedAt: new Date().toISOString(),
+      })
+
+      // Update local state
+      setUsers((prev) => prev.map((user) => (user.uid === uid ? { ...user, disabled: !currentStatus } : user)))
+    } catch (error) {
+      console.error("Error updating user status:", error)
+      setError("Failed to update user status")
+    } finally {
+      setLoading((prev) => ({ ...prev, action: false }))
+    }
+  }
+
+  const toggleAdminStatus = async (uid: string, currentStatus: boolean) => {
+    try {
+      setLoading((prev) => ({ ...prev, action: true }))
+      setError("")
+
+      await updateDoc(doc(db, "users", uid), {
+        isAdmin: !currentStatus,
+        updatedAt: new Date().toISOString(),
+      })
+
+      // Update local state
+      setUsers((prev) => prev.map((user) => (user.uid === uid ? { ...user, isAdmin: !currentStatus } : user)))
+    } catch (error) {
+      console.error("Error updating admin status:", error)
+      setError("Failed to update admin status")
+    } finally {
+      setLoading((prev) => ({ ...prev, action: false }))
+    }
+  }
+
+  const refreshData = () => {
+    fetchNovels()
+    fetchUsers()
+  }
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
-
-      <div className="flex mb-6">
-        <button
-          className={`px-4 py-2 font-medium rounded-l-md ${
-            activeTab === "pending"
-              ? "bg-purple-600 text-white"
-              : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-          }`}
-          onClick={() => setActiveTab("pending")}
-        >
-          Pending Approval
-        </button>
-        <button
-          className={`px-4 py-2 font-medium rounded-r-md ${
-            activeTab === "published"
-              ? "bg-purple-600 text-white"
-              : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-          }`}
-          onClick={() => setActiveTab("published")}
-        >
-          Published
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+    <div className="min-h-screen bg-gray-900 text-white">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mt-4 mb-8">
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <button
+            onClick={refreshData}
+            disabled={loading.novels || loading.users}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg border border-gray-700 transition-colors"
+          >
+            <FaSync className={`h-4 w-4 ${loading.novels || loading.users ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
         </div>
-      ) : novels.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-            <thead className="bg-gray-100 dark:bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Title
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Author
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Chapters
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {novels.map((novel) => (
-                <tr key={novel.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500 dark:text-gray-200 font-medium">{novel.title}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500 dark:text-gray-200">{novel.authorName}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        novel.isAIGenerated
-                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                          : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+
+        {error && (
+          <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded mb-6 flex items-center">
+            <FaExclamationTriangle className="h-5 w-5 mr-2" />
+            {error}
+          </div>
+        )}
+
+        {/* Navigation Tabs */}
+        <div className="flex space-x-1 mb-8 bg-gray-800 p-1 rounded-lg">
+          <button
+            onClick={() => setActiveSection("overview")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeSection === "overview"
+                ? "bg-gray-700 text-white shadow-sm"
+                : "text-gray-300 hover:text-white hover:bg-gray-700/50"
+            }`}
+          >
+            <FaChartBar className="h-4 w-4" />
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveSection("novels")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeSection === "novels"
+                ? "bg-gray-700 text-white shadow-sm"
+                : "text-gray-300 hover:text-white hover:bg-gray-700/50"
+            }`}
+          >
+            <FaBook className="h-4 w-4" />
+            Novels
+          </button>
+          <button
+            onClick={() => setActiveSection("users")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeSection === "users"
+                ? "bg-gray-700 text-white shadow-sm"
+                : "text-gray-300 hover:text-white hover:bg-gray-700/50"
+            }`}
+          >
+            <FaUsers className="h-4 w-4" />
+            Users
+          </button>
+        </div>
+
+        {/* Overview Section */}
+        {activeSection === "overview" && (
+          <div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+              {/* Total Users Card */}
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-gray-300">Total Users</h3>
+                  <FaUsers className="h-4 w-4 text-gray-400" />
+                </div>
+                <div className="text-2xl font-bold">{stats.totalUsers}</div>
+                <p className="text-xs text-gray-400">
+                  {stats.activeUsers} active ({Math.round((stats.activeUsers / stats.totalUsers) * 100) || 0}%)
+                </p>
+              </div>
+
+              {/* Total Novels Card */}
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-gray-300">Total Novels</h3>
+                  <FaBook className="h-4 w-4 text-gray-400" />
+                </div>
+                <div className="text-2xl font-bold">{stats.totalNovels}</div>
+                <p className="text-xs text-gray-400">
+                  {stats.publishedNovels} published (
+                  {Math.round((stats.publishedNovels / stats.totalNovels) * 100) || 0}%)
+                </p>
+              </div>
+
+              {/* AI Generated Card */}
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-gray-300">AI Generated</h3>
+                  <FaLightbulb className="h-4 w-4 text-gray-400" />
+                </div>
+                <div className="text-2xl font-bold">{stats.aiGeneratedNovels}</div>
+                <p className="text-xs text-gray-400">
+                  {Math.round((stats.aiGeneratedNovels / stats.totalNovels) * 100) || 0}% of all novels
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Recent Novels */}
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold">Recent Novels</h3>
+                  <p className="text-sm text-gray-400">Latest novels submitted to the platform</p>
+                </div>
+                {loading.novels ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+                  </div>
+                ) : novels.length > 0 ? (
+                  <div className="space-y-4">
+                    {novels.slice(0, 5).map((novel) => (
+                      <div key={novel.id} className="flex items-center justify-between border-b border-gray-700 pb-2">
+                        <div>
+                          <p className="font-medium">{novel.title}</p>
+                          <p className="text-sm text-gray-400">By {novel.authorName}</p>
+                        </div>
+                        <span
+                          className={`px-2 py-1 text-xs rounded-full ${
+                            novel.published
+                              ? "bg-green-900/50 text-green-300 border border-green-700"
+                              : "bg-gray-700 text-gray-300 border border-gray-600"
+                          }`}
+                        >
+                          {novel.published ? "Published" : "Pending"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center py-8 text-gray-400">No novels found</p>
+                )}
+              </div>
+
+              {/* Recent Users */}
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold">Recent Users</h3>
+                  <p className="text-sm text-gray-400">Latest users registered on the platform</p>
+                </div>
+                {loading.users ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+                  </div>
+                ) : users.length > 0 ? (
+                  <div className="space-y-4">
+                    {users.slice(0, 5).map((user) => (
+                      <div key={user.uid} className="flex items-center justify-between border-b border-gray-700 pb-2">
+                        <div className="flex items-center">
+                          {user.photoURL ? (
+                            <img
+                              src={user.photoURL || "/placeholder.svg"}
+                              alt={user.displayName || "User"}
+                              className="h-8 w-8 rounded-full mr-2 object-cover"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-purple-600/20 flex items-center justify-center mr-2">
+                              <span className="text-xs font-medium">
+                                {user.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}
+                              </span>
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-medium">{user.displayName || "Anonymous User"}</p>
+                            <p className="text-xs text-gray-400">{user.email}</p>
+                          </div>
+                        </div>
+                        {user.isAdmin && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
+                            Admin
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center py-8 text-gray-400">No users found</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Novels Section */}
+        {activeSection === "novels" && (
+          <div className="bg-gray-800 rounded-lg border border-gray-700">
+            <div className="p-6 border-b border-gray-700">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Novel Management</h3>
+                  <p className="text-sm text-gray-400">Manage all novels on the platform</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <FaSearch className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                    <input
+                      type="search"
+                      placeholder="Search novels..."
+                      className="pl-8 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent w-full md:w-[250px]"
+                      value={novelSearch}
+                      onChange={(e) => setNovelSearch(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex">
+                    <button
+                      className={`px-4 py-2 text-sm font-medium rounded-l-lg border transition-colors ${
+                        novelTab === "pending"
+                          ? "bg-purple-600 text-white border-purple-600"
+                          : "bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600"
                       }`}
+                      onClick={() => setNovelTab("pending")}
                     >
-                      {novel.isAIGenerated ? "AI Generated" : "User Submitted"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500 dark:text-gray-200">{novel.chapters.length}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500 dark:text-gray-200">{new Date(novel.createdAt).toLocaleDateString()}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <a
-                      href={`/novel/${novel.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-600 hover:text-purple-900 mr-4"
-                    >
-                      View
-                    </a>
-
-                    {activeTab === "pending" ? (
-                      <button
-                        onClick={() => approveNovel(novel.id)}
-                        className="text-green-600 hover:text-green-900 mr-4"
-                      >
-                        Approve
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => unpublishNovel(novel.id)}
-                        className="text-yellow-600 hover:text-yellow-900 mr-4"
-                      >
-                        Unpublish
-                      </button>
-                    )}
-
-                    <button onClick={() => deleteNovel(novel.id)} className="text-red-600 hover:text-red-900">
-                      Delete
+                      Pending
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <h3 className="text-xl font-medium text-gray-500 dark:text-gray-300 mb-2">No novels found</h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            {activeTab === "pending" ? "There are no novels pending approval." : "There are no published novels."}
-          </p>
-        </div>
-      )}
+                    <button
+                      className={`px-4 py-2 text-sm font-medium rounded-r-lg border-l-0 border transition-colors ${
+                        novelTab === "published"
+                          ? "bg-purple-600 text-white border-purple-600"
+                          : "bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600"
+                      }`}
+                      onClick={() => setNovelTab("published")}
+                    >
+                      Published
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              {loading.novels ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+                </div>
+              ) : filteredNovels.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left py-3 px-4 font-medium text-gray-300">Title</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-300">Author</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-300">Type</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-300">Chapters</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-300">Date</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-300">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredNovels.map((novel) => (
+                        <tr key={novel.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                          <td className="py-3 px-4 font-medium">{novel.title}</td>
+                          <td className="py-3 px-4 text-gray-300">{novel.authorName}</td>
+                          <td className="py-3 px-4">
+                            <span
+                              className={`px-2 py-1 text-xs rounded-full ${
+                                novel.isAIGenerated
+                                  ? "bg-blue-900/50 text-blue-300 border border-blue-700"
+                                  : "bg-gray-700 text-gray-300 border border-gray-600"
+                              }`}
+                            >
+                              {novel.isAIGenerated ? "AI" : "User"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-gray-300">{novel.chapters.length}</td>
+                          <td className="py-3 px-4 text-gray-300">{new Date(novel.createdAt).toLocaleDateString()}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => window.open(`/novel/${novel.id}`, "_blank")}
+                                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                              >
+                                <FaEye className="h-4 w-4" />
+                              </button>
+
+                              {novelTab === "pending" ? (
+                                <button
+                                  onClick={() => approveNovel(novel.id)}
+                                  disabled={loading.action}
+                                  className="p-2 text-green-400 hover:text-green-300 hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+                                >
+                                  <FaCheckCircle className="h-4 w-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => unpublishNovel(novel.id)}
+                                  disabled={loading.action}
+                                  className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+                                >
+                                  <FaTimesCircle className="h-4 w-4" />
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => deleteNovel(novel.id)}
+                                disabled={loading.action}
+                                className="p-2 text-red-400 hover:text-red-300 hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+                              >
+                                <FaTrash className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FaBook className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No novels found</h3>
+                  <p className="text-sm text-gray-400">
+                    {novelTab === "pending"
+                      ? "There are no novels pending approval."
+                      : "There are no published novels."}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Users Section */}
+        {activeSection === "users" && (
+          <div className="bg-gray-800 rounded-lg border border-gray-700">
+            <div className="p-6 border-b border-gray-700">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold">User Management</h3>
+                  <p className="text-sm text-gray-400">Manage all users on the platform</p>
+                </div>
+                <div className="relative">
+                  <FaSearch className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                  <input
+                    type="search"
+                    placeholder="Search users..."
+                    className="pl-8 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent w-full md:w-[250px]"
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              {loading.users ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+                </div>
+              ) : filteredUsers.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left py-3 px-4 font-medium text-gray-300">User</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-300">Email</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-300">Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-300">Role</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-300">Joined</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-300">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map((user) => (
+                        <tr key={user.uid} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              {user.photoURL ? (
+                                <img
+                                  src={user.photoURL || "/placeholder.svg"}
+                                  alt={user.displayName || "User"}
+                                  className="h-8 w-8 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="h-8 w-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                  <span className="text-xs font-medium">
+                                    {user.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}
+                                  </span>
+                                </div>
+                              )}
+                              <span className="font-medium">{user.displayName || "Anonymous User"}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-gray-300">{user.email}</td>
+                          <td className="py-3 px-4">
+                            <span
+                              className={`px-2 py-1 text-xs rounded-full ${
+                                user.disabled
+                                  ? "bg-red-900/50 text-red-300 border border-red-700"
+                                  : "bg-green-900/50 text-green-300 border border-green-700"
+                              }`}
+                            >
+                              {user.disabled ? "Disabled" : "Active"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span
+                              className={`px-2 py-1 text-xs rounded-full ${
+                                user.isAdmin
+                                  ? "bg-purple-900/50 text-purple-300 border border-purple-700"
+                                  : "bg-gray-700 text-gray-300 border border-gray-600"
+                              }`}
+                            >
+                              {user.isAdmin ? "Admin" : "User"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-gray-300">
+                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Unknown"}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => toggleUserStatus(user.uid, user.disabled || false)}
+                                disabled={loading.action}
+                                className="p-2 hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+                              >
+                                {user.disabled ? (
+                                  <FaUserPlus className="h-4 w-4 text-green-400" />
+                                ) : (
+                                  <FaUserMinus className="h-4 w-4 text-red-400" />
+                                )}
+                              </button>
+
+                              <button
+                                onClick={() => toggleAdminStatus(user.uid, user.isAdmin || false)}
+                                disabled={loading.action}
+                                className="px-2 py-1 text-xs font-medium rounded hover:bg-gray-700 transition-colors disabled:opacity-50"
+                              >
+                                {user.isAdmin ? (
+                                  <span className="text-yellow-400">Remove Admin</span>
+                                ) : (
+                                  <span className="text-blue-400">Make Admin</span>
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FaUsers className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No users found</h3>
+                  <p className="text-sm text-gray-400">Try adjusting your search query</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

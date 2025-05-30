@@ -8,7 +8,8 @@ const Navbar = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const desktopDropdownRef = useRef<HTMLDivElement>(null)
+  const mobileDropdownRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = async () => {
     try {
@@ -31,7 +32,12 @@ const Navbar = () => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        desktopDropdownRef.current &&
+        !desktopDropdownRef.current.contains(event.target as Node) &&
+        mobileDropdownRef.current &&
+        !mobileDropdownRef.current.contains(event.target as Node)
+      ) {
         setIsUserDropdownOpen(false)
       }
     }
@@ -115,20 +121,22 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-1">
             <Link
               to="/"
-              className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/")
+              className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
+                isActive("/")
                   ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
                   : "text-[#E0E0E0]"
-                }`}
+              }`}
             >
               Home
             </Link>
 
             <Link
               to="/novels"
-              className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/novels")
+              className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
+                isActive("/novels")
                   ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
                   : "text-[#E0E0E0]"
-                }`}
+              }`}
             >
               Browse
             </Link>
@@ -137,10 +145,11 @@ const Navbar = () => {
               <>
                 <Link
                   to="/submit"
-                  className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/submit")
+                  className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
+                    isActive("/submit")
                       ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
                       : "text-[#E0E0E0]"
-                    }`}
+                  }`}
                 >
                   Submit Novel
                 </Link>
@@ -149,19 +158,21 @@ const Navbar = () => {
                   <>
                     <Link
                       to="/admin"
-                      className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/admin")
+                      className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
+                        isActive("/admin")
                           ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
                           : "text-[#E0E0E0]"
-                        }`}
+                      }`}
                     >
                       Admin
                     </Link>
                     <Link
                       to="/generate"
-                      className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/generate")
+                      className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
+                        isActive("/generate")
                           ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
                           : "text-[#E0E0E0]"
-                        }`}
+                      }`}
                     >
                       Generate Novel
                     </Link>
@@ -169,7 +180,7 @@ const Navbar = () => {
                 )}
 
                 {/* Desktop User Dropdown */}
-                <div className="relative ml-4" ref={dropdownRef}>
+                <div className="relative ml-4" ref={desktopDropdownRef}>
                   <button
                     onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
                     className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-[#E0E0E0] hover:text-white hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -279,7 +290,10 @@ const Navbar = () => {
 
             {/* Mobile Dropdown Menu */}
             {isUserDropdownOpen && (
-              <div className="absolute right-4 top-16 w-64 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50" ref={dropdownRef}>
+              <div
+                className="absolute right-4 top-16 w-64 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
+                ref={mobileDropdownRef}
+              >
                 <div className="py-1">
                   {currentUser ? (
                     <>
@@ -300,10 +314,11 @@ const Navbar = () => {
                       <Link
                         to="/"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isActive("/")
+                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                          isActive("/")
                             ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
                             : "text-gray-700 dark:text-gray-300"
-                          }`}
+                        }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,10 +336,11 @@ const Navbar = () => {
                       <Link
                         to="/novels"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isActive("/novels")
+                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                          isActive("/novels")
                             ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
                             : "text-gray-700 dark:text-gray-300"
-                          }`}
+                        }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -339,36 +355,38 @@ const Navbar = () => {
                         </div>
                       </Link>
 
+                      <Link
+                        to="/submit"
+                        onClick={closeDropdown}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                          isActive("/submit")
+                            ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
+                            : "text-gray-700 dark:text-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                            />
+                          </svg>
+                          Submit Novel
+                        </div>
+                      </Link>
+
                       {isAdmin && (
                         <>
                           <Link
-                            to="/submit"
-                            onClick={closeDropdown}
-                            className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isActive("/submit")
-                                ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
-                                : "text-gray-700 dark:text-gray-300"
-                              }`}
-                          >
-                            <div className="flex items-center">
-                              <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                />
-                              </svg>
-                              Submit Novel
-                            </div>
-                          </Link>
-
-                          <Link
                             to="/admin"
                             onClick={closeDropdown}
-                            className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isActive("/admin")
+                            className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                              isActive("/admin")
                                 ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
                                 : "text-gray-700 dark:text-gray-300"
-                              }`}
+                            }`}
                           >
                             <div className="flex items-center">
                               <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -392,10 +410,11 @@ const Navbar = () => {
                           <Link
                             to="/generate"
                             onClick={closeDropdown}
-                            className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isActive("/generate")
+                            className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                              isActive("/generate")
                                 ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
                                 : "text-gray-700 dark:text-gray-300"
-                              }`}
+                            }`}
                           >
                             <div className="flex items-center">
                               <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -416,10 +435,11 @@ const Navbar = () => {
                         <Link
                           to="/profile"
                           onClick={closeDropdown}
-                          className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isActive("/profile")
+                          className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                            isActive("/profile")
                               ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
                               : "text-gray-700 dark:text-gray-300"
-                            }`}
+                          }`}
                         >
                           <div className="flex items-center">
                             <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -458,10 +478,11 @@ const Navbar = () => {
                       <Link
                         to="/"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isActive("/")
+                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                          isActive("/")
                             ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
                             : "text-gray-700 dark:text-gray-300"
-                          }`}
+                        }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -479,10 +500,11 @@ const Navbar = () => {
                       <Link
                         to="/novels"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isActive("/novels")
+                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                          isActive("/novels")
                             ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
                             : "text-gray-700 dark:text-gray-300"
-                          }`}
+                        }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

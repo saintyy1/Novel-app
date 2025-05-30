@@ -15,10 +15,11 @@ import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore"
 import { auth, db } from "../firebase/config"
 
 // Extend the Firebase User type with our custom properties
-interface ExtendedUser extends User {
+export interface ExtendedUser extends User {
   isAdmin?: boolean
   createdAt?: string
   updatedAt?: string
+  disabled?: boolean
 }
 
 interface AuthContextType {
