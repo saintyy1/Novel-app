@@ -142,10 +142,10 @@ const AdminDashboard: React.FC = () => {
               {novels.map((novel) => (
                 <tr key={novel.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-200 font-medium">{novel.title}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-200 font-medium">{novel.title}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-200">{novel.authorName}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-200">{novel.authorName}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -159,10 +159,10 @@ const AdminDashboard: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-200">{novel.chapters.length}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-200">{novel.chapters.length}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-200">{new Date(novel.createdAt).toLocaleDateString()}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-200">{new Date(novel.createdAt).toLocaleDateString()}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <a
