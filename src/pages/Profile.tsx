@@ -188,11 +188,6 @@ const Profile = () => {
     }
   })
 
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text
-    return text.substring(0, maxLength) + "..."
-  }
-
   const getStatusBadge = (novel: Novel) => {
     if (novel.published) {
       return (
@@ -599,70 +594,7 @@ const Profile = () => {
 
                     {/* Novel Content */}
                     <div className="p-6">
-                      <p className="text-gray-300 text-sm mb-4 line-clamp-3 leading-relaxed">
-                        {truncateText(novel.summary, 120)}
-                      </p>
-
-                      {/* Genres */}
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {novel.genres.slice(0, 3).map((genre) => (
-                          <span
-                            key={genre}
-                            className="px-3 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-500/30"
-                          >
-                            {genre}
-                          </span>
-                        ))}
-                        {novel.genres.length > 3 && (
-                          <span className="px-3 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full border border-gray-500/30">
-                            +{novel.genres.length - 3} more
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Stats */}
-                      <div className="flex items-center justify-between text-sm text-gray-400 mb-6">
-                        <div className="flex items-center space-x-4">
-                          <span className="flex items-center">
-                            <svg className="h-4 w-4 mr-1 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {novel.likes || 0}
-                          </span>
-                          <span className="flex items-center">
-                            <svg className="h-4 w-4 mr-1 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                              <path
-                                fillRule="evenodd"
-                                d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {novel.views || 0}
-                          </span>
-                          <span className="flex items-center">
-                            <svg
-                              className="h-4 w-4 mr-1 text-green-400"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
-                            {novel.chapters?.length || 0}
-                          </span>
-                        </div>
-                      </div>
-
+                      
                       <div className="text-xs text-gray-500 mb-4">Created: {formatDate(novel.createdAt)}</div>
 
                       {/* Action Buttons */}
@@ -673,7 +605,7 @@ const Profile = () => {
                               to={`/novel/${novel.id}`}
                               className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-105 shadow-md"
                             >
-                              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
@@ -687,13 +619,12 @@ const Profile = () => {
                                   d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                                 />
                               </svg>
-                              View
                             </Link>
                             <Link
                               to={`/novel/${novel.id}/add-chapters`}
                               className="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30"
                             >
-                              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
@@ -701,7 +632,6 @@ const Profile = () => {
                                   d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                                 />
                               </svg>
-                              Add Chapters
                             </Link>
                           </>
                         ) : (
