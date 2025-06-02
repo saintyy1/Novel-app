@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
 import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc } from "firebase/firestore"
@@ -14,10 +16,11 @@ const NovelRead = () => {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string>("")
   const [currentChapter, setCurrentChapter] = useState<number>(0)
-  const [liked, setLiked] = useState<boolean>(false)
   const { currentUser } = useAuth()
   const [showCommentModal, setShowCommentModal] = useState(false)
-  const [comments, setComments] = useState<Array<{ id: string; text: string; userId: string; userName: string; createdAt: string }>>([])
+  const [comments, setComments] = useState<
+    Array<{ id: string; text: string; userId: string; userName: string; createdAt: string }>
+  >([])
   const [newComment, setNewComment] = useState("")
   const [chapterLiked, setChapterLiked] = useState(false)
   const [chapterLikes, setChapterLikes] = useState(0)
@@ -32,12 +35,6 @@ const NovelRead = () => {
 
         if (novelDoc.exists()) {
           const novelData = novelDoc.data()
-
-          // Check if current user has liked this novel
-          if (currentUser && novelData.likedBy && novelData.likedBy.includes(currentUser.uid)) {
-            setLiked(true)
-          }
-
           setNovel({
             id: novelDoc.id,
             ...novelData,
@@ -85,7 +82,7 @@ const NovelRead = () => {
         // Check if user has liked this chapter
         const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
         const chapterDoc = await getDoc(chapterRef)
-        
+
         if (chapterDoc.exists()) {
           const chapterData = chapterDoc.data()
           setChapterLiked(chapterData.chapterLikedBy?.includes(currentUser.uid) || false)
@@ -105,40 +102,6 @@ const NovelRead = () => {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [currentChapter])
 
-  const handleLike = async () => {
-    if (!novel || !currentUser) return
-
-    try {
-      const newLikeStatus = !liked
-      setLiked(newLikeStatus)
-
-      const novelRef = doc(db, "novels", novel.id)
-
-      if (newLikeStatus) {
-        await updateDoc(novelRef, {
-          likes: increment(1),
-          likedBy: arrayUnion(currentUser.uid),
-        })
-      } else {
-        await updateDoc(novelRef, {
-          likes: increment(-1),
-          likedBy: arrayRemove(currentUser.uid),
-        })
-      }
-
-      setNovel((prev) => {
-        if (!prev) return null
-        return {
-          ...prev,
-          likes: (prev.likes || 0) + (newLikeStatus ? 1 : -1),
-        }
-      })
-    } catch (error) {
-      console.error("Error updating likes:", error)
-      setLiked(!liked)
-    }
-  }
-
   const handleChapterLike = async () => {
     if (!novel?.id || !currentUser) return
 
@@ -153,7 +116,7 @@ const NovelRead = () => {
         await setDoc(chapterRef, {
           chapterLikes: newLikeStatus ? 1 : 0,
           chapterLikedBy: newLikeStatus ? [currentUser.uid] : [],
-          comments: []
+          comments: [],
         })
         setChapterLikes(newLikeStatus ? 1 : 0)
       } else {
@@ -161,15 +124,15 @@ const NovelRead = () => {
         if (newLikeStatus) {
           await updateDoc(chapterRef, {
             chapterLikes: increment(1),
-            chapterLikedBy: arrayUnion(currentUser.uid)
+            chapterLikedBy: arrayUnion(currentUser.uid),
           })
-          setChapterLikes(prev => prev + 1)
+          setChapterLikes((prev) => prev + 1)
         } else {
           await updateDoc(chapterRef, {
             chapterLikes: increment(-1),
-            chapterLikedBy: arrayRemove(currentUser.uid)
+            chapterLikedBy: arrayRemove(currentUser.uid),
           })
-          setChapterLikes(prev => prev - 1)
+          setChapterLikes((prev) => prev - 1)
         }
       }
     } catch (error) {
@@ -189,7 +152,7 @@ const NovelRead = () => {
         text: newComment.trim(),
         userId: currentUser.uid,
         userName: currentUser.displayName || "Anonymous",
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       }
 
       if (!chapterDoc.exists()) {
@@ -197,20 +160,42 @@ const NovelRead = () => {
         await setDoc(chapterRef, {
           chapterLikes: 0,
           chapterLikedBy: [],
-          comments: [comment]
+          comments: [comment],
         })
       } else {
         // Update existing document
         await updateDoc(chapterRef, {
-          comments: arrayUnion(comment)
+          comments: arrayUnion(comment),
         })
       }
 
-      setComments(prev => [...prev, comment])
+      setComments((prev) => [...prev, comment])
       setNewComment("")
     } catch (error) {
       console.error("Error adding comment:", error)
     }
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (newComment.trim()) {
+      handleAddComment()
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setNewComment(value)
+  }
+
+  const getUserInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
   }
 
   // Improved function to break content into readable paragraphs
@@ -278,12 +263,17 @@ const NovelRead = () => {
           }`}
           title={currentUser ? "Like this chapter" : "Login to like"}
         >
-          <svg 
-            className={`h-7 w-7 ${chapterLiked ? "text-red-500 fill-current" : "text-gray-300"}`} 
-            stroke="currentColor" 
+          <svg
+            className={`h-7 w-7 ${chapterLiked ? "text-red-500 fill-current" : "text-gray-300"}`}
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+            />
           </svg>
         </div>
         <span className="text-sm text-gray-300 mt-1">{chapterLikes}</span>
@@ -291,36 +281,48 @@ const NovelRead = () => {
 
       {/* Comment Button */}
       <div className="flex flex-col items-center">
-      <div
-        onClick={() => setShowCommentModal(true)}
-        className={`cursor-pointer transition-all transform hover:scale-110 ${
-          !currentUser ? "opacity-50 cursor-not-allowed" : ""
-        }`}
-        title={currentUser ? "View comments" : "Login to comment"}
-      >
-        <svg 
-          className={`h-7 w-7 ${comments.length > 0 ? "text-purple-500" : "text-gray-300"}`} 
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
+        <div
+          onClick={() => setShowCommentModal(true)}
+          className={`cursor-pointer transition-all transform hover:scale-110 ${
+            !currentUser ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          title={currentUser ? "View comments" : "Login to comment"}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-      </div>
+          <svg
+            className={`h-7 w-7 ${comments.length > 0 ? "text-purple-500" : "text-gray-300"}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            />
+          </svg>
+        </div>
         <span className="text-sm text-gray-300 mt-1">{comments.length}</span>
       </div>
     </div>
   )
 
   const CommentModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          setShowCommentModal(false)
+        }
+      }}
+    >
+      <div
+        className="bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-4 border-b border-gray-700 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-white">Comments</h3>
-          <button
-            onClick={() => setShowCommentModal(false)}
-            className="text-gray-400 hover:text-white"
-          >
+          <button onClick={() => setShowCommentModal(false)} className="text-gray-400 hover:text-white">
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -334,10 +336,25 @@ const NovelRead = () => {
             comments.map((comment) => (
               <div key={comment.id} className="bg-gray-700 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                  {/* Avatar */}
+                  <div className="flex-shrink-0">
+                      {currentUser?.photoURL ? (
+                        <img
+                          src={currentUser.photoURL || "/placeholder.svg"}
+                          alt={comment.userName}
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                          {getUserInitials(comment.userName)}
+                        </div>
+                    )}
+                  </div>
                   <span className="font-medium text-white">{comment.userName}</span>
-                  <span className="text-xs text-gray-400">
-                    {new Date(comment.createdAt).toLocaleDateString()}
-                  </span>
+                  </div>
+
+                  <span className="text-xs text-gray-400">{new Date(comment.createdAt).toLocaleDateString()}</span>
                 </div>
                 <p className="text-gray-300">{comment.text}</p>
               </div>
@@ -347,28 +364,31 @@ const NovelRead = () => {
 
         {currentUser && (
           <div className="p-4 border-t border-gray-700">
-            <div className="flex space-x-2">
+            <form onSubmit={handleSubmit} className="flex space-x-2">
               <input
                 type="text"
                 value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && newComment.trim()) {
-                    e.preventDefault();
-                    handleAddComment();
+                onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleSubmit(e as any)
                   }
+                  e.stopPropagation()
                 }}
                 placeholder="Write a comment..."
                 className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                autoComplete="off"
+                autoFocus
               />
               <button
-                onClick={handleAddComment}
+                type="submit"
                 disabled={!newComment.trim()}
                 className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Post
               </button>
-            </div>
+            </form>
           </div>
         )}
       </div>
