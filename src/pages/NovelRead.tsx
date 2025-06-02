@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
-import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove } from "firebase/firestore"
+import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
@@ -16,6 +16,11 @@ const NovelRead = () => {
   const [currentChapter, setCurrentChapter] = useState<number>(0)
   const [liked, setLiked] = useState<boolean>(false)
   const { currentUser } = useAuth()
+  const [showCommentModal, setShowCommentModal] = useState(false)
+  const [comments, setComments] = useState<Array<{ id: string; text: string; userId: string; userName: string; createdAt: string }>>([])
+  const [newComment, setNewComment] = useState("")
+  const [chapterLiked, setChapterLiked] = useState(false)
+  const [chapterLikes, setChapterLikes] = useState(0)
 
   useEffect(() => {
     const fetchNovel = async () => {
@@ -65,6 +70,36 @@ const NovelRead = () => {
     fetchNovel()
   }, [id, currentUser, searchParams])
 
+  useEffect(() => {
+    // Reset states when chapter changes
+    setChapterLiked(false)
+    setChapterLikes(0)
+    setComments([])
+    setShowCommentModal(false)
+    setNewComment("")
+
+    const fetchChapterData = async () => {
+      if (!novel || !currentUser) return
+
+      try {
+        // Check if user has liked this chapter
+        const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+        const chapterDoc = await getDoc(chapterRef)
+        
+        if (chapterDoc.exists()) {
+          const chapterData = chapterDoc.data()
+          setChapterLiked(chapterData.chapterLikedBy?.includes(currentUser.uid) || false)
+          setChapterLikes(chapterData.chapterLikes || 0)
+          setComments(chapterData.comments || [])
+        }
+      } catch (error) {
+        console.error("Error fetching chapter data:", error)
+      }
+    }
+
+    fetchChapterData()
+  }, [novel, currentUser, currentChapter])
+
   // Scroll to top when chapter changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -101,6 +136,80 @@ const NovelRead = () => {
     } catch (error) {
       console.error("Error updating likes:", error)
       setLiked(!liked)
+    }
+  }
+
+  const handleChapterLike = async () => {
+    if (!novel?.id || !currentUser) return
+
+    try {
+      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+      const chapterDoc = await getDoc(chapterRef)
+      const newLikeStatus = !chapterLiked
+      setChapterLiked(newLikeStatus)
+
+      if (!chapterDoc.exists()) {
+        // Create the chapter document if it doesn't exist
+        await setDoc(chapterRef, {
+          chapterLikes: newLikeStatus ? 1 : 0,
+          chapterLikedBy: newLikeStatus ? [currentUser.uid] : [],
+          comments: []
+        })
+        setChapterLikes(newLikeStatus ? 1 : 0)
+      } else {
+        // Update existing document
+        if (newLikeStatus) {
+          await updateDoc(chapterRef, {
+            chapterLikes: increment(1),
+            chapterLikedBy: arrayUnion(currentUser.uid)
+          })
+          setChapterLikes(prev => prev + 1)
+        } else {
+          await updateDoc(chapterRef, {
+            chapterLikes: increment(-1),
+            chapterLikedBy: arrayRemove(currentUser.uid)
+          })
+          setChapterLikes(prev => prev - 1)
+        }
+      }
+    } catch (error) {
+      console.error("Error updating chapter like:", error)
+      setChapterLiked(!chapterLiked)
+    }
+  }
+
+  const handleAddComment = async () => {
+    if (!novel?.id || !currentUser || !newComment.trim()) return
+
+    try {
+      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+      const chapterDoc = await getDoc(chapterRef)
+      const comment = {
+        id: Date.now().toString(),
+        text: newComment.trim(),
+        userId: currentUser.uid,
+        userName: currentUser.displayName || "Anonymous",
+        createdAt: new Date().toISOString()
+      }
+
+      if (!chapterDoc.exists()) {
+        // Create the chapter document if it doesn't exist
+        await setDoc(chapterRef, {
+          chapterLikes: 0,
+          chapterLikedBy: [],
+          comments: [comment]
+        })
+      } else {
+        // Update existing document
+        await updateDoc(chapterRef, {
+          comments: arrayUnion(comment)
+        })
+      }
+
+      setComments(prev => [...prev, comment])
+      setNewComment("")
+    } catch (error) {
+      console.error("Error adding comment:", error)
     }
   }
 
@@ -157,6 +266,114 @@ const NovelRead = () => {
 
     return formattedParagraphs.length > 0 ? formattedParagraphs : [content.trim()]
   }
+
+  const FloatingActions = () => (
+    <div className="fixed bottom-6 right-2 md:right-6 flex flex-col items-end space-y-4">
+      {/* Like Button with Count */}
+      <div className="flex flex-col items-center">
+        <div
+          onClick={handleChapterLike}
+          className={`cursor-pointer transition-all transform hover:scale-110 ${
+            !currentUser ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          title={currentUser ? "Like this chapter" : "Login to like"}
+        >
+          <svg 
+            className={`h-7 w-7 ${chapterLiked ? "text-red-500 fill-current" : "text-gray-300"}`} 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        </div>
+        <span className="text-sm text-gray-300 mt-1">{chapterLikes}</span>
+      </div>
+
+      {/* Comment Button */}
+      <div className="flex flex-col items-center">
+      <div
+        onClick={() => setShowCommentModal(true)}
+        className={`cursor-pointer transition-all transform hover:scale-110 ${
+          !currentUser ? "opacity-50 cursor-not-allowed" : ""
+        }`}
+        title={currentUser ? "View comments" : "Login to comment"}
+      >
+        <svg 
+          className={`h-7 w-7 ${comments.length > 0 ? "text-purple-500" : "text-gray-300"}`} 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      </div>
+        <span className="text-sm text-gray-300 mt-1">{comments.length}</span>
+      </div>
+    </div>
+  )
+
+  const CommentModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col">
+        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+          <h3 className="text-xl font-semibold text-white">Comments</h3>
+          <button
+            onClick={() => setShowCommentModal(false)}
+            className="text-gray-400 hover:text-white"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {comments.length === 0 ? (
+            <p className="text-gray-400 text-center py-4">No comments yet. Be the first to comment!</p>
+          ) : (
+            comments.map((comment) => (
+              <div key={comment.id} className="bg-gray-700 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-white">{comment.userName}</span>
+                  <span className="text-xs text-gray-400">
+                    {new Date(comment.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-gray-300">{comment.text}</p>
+              </div>
+            ))
+          )}
+        </div>
+
+        {currentUser && (
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && newComment.trim()) {
+                    e.preventDefault();
+                    handleAddComment();
+                  }
+                }}
+                placeholder="Write a comment..."
+                className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <button
+                onClick={handleAddComment}
+                disabled={!newComment.trim()}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Post
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 
   if (loading) {
     return (
@@ -310,58 +527,8 @@ const NovelRead = () => {
         </div>
       </div>
 
-      {/* Novel Info Footer */}
-      <div className="bg-gray-800 shadow-md py-4">
-        <div className="max-w-4xl mx-auto px-4 flex flex-wrap items-center justify-center gap-4">
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handleLike}
-              disabled={!currentUser}
-              className={`flex items-center space-x-1 px-3 py-1 rounded-full transition-colors ${
-                liked ? "bg-red-900 text-red-300" : "bg-gray-700 text-gray-300"
-              } ${!currentUser ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-600"}`}
-            >
-              <svg
-                className={`h-4 w-4 ${liked ? "text-red-500 fill-current" : "text-gray-400"}`}
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span>{novel.likes} Likes</span>
-            </button>
-          </div>
-          <div className="flex items-center space-x-1 text-gray-400">
-            <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              <path
-                fillRule="evenodd"
-                d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span>{novel.views} Views</span>
-          </div>
-          <div className="flex items-center space-x-1 text-gray-400">
-            <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M9 12l2 2 4-4m6 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>By {novel.authorName}</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {novel.genres.map((genre, index) => (
-              <span key={index} className="px-3 py-1 bg-gray-700 text-xs rounded-full text-gray-200">
-                {genre}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
+      <FloatingActions />
+      {showCommentModal && <CommentModal />}
     </div>
   )
 }
