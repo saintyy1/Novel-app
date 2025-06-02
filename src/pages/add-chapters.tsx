@@ -149,12 +149,12 @@ const AddChapters = () => {
   if (error && !novel) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+        <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg">
           {error}
         </div>
         <Link
           to="/"
-          className="inline-flex items-center mt-4 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300"
+          className="inline-flex items-center mt-4 text-purple-400 hover:text-purple-300"
         >
           ← Back to Home
         </Link>
@@ -168,21 +168,21 @@ const AddChapters = () => {
       <div className="mb-8">
         <Link
           to={`/novel/${novelId}`}
-          className="inline-flex items-center text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 mb-4"
+          className="inline-flex items-center text-purple-400 hover:text-purple-300 my-4"
         >
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
           </svg>
           Back to Novel
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Add New Chapters</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
+        <h1 className="text-3xl font-bold text-white">Add New Chapters</h1>
+        <p className="text-gray-400 mt-2">
           Continue your story by adding new chapters to "{novel?.title}"
         </p>
       </div>
 
       {/* Novel Info */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8">
+      <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-8">
         <div className="flex items-start space-x-4">
           {novel?.coverImage && (
             <img
@@ -192,19 +192,19 @@ const AddChapters = () => {
             />
           )}
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{novel?.title}</h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">By {novel?.authorName}</p>
+            <h2 className="text-xl font-bold text-white">{novel?.title}</h2>
+            <p className="text-gray-400 mt-1">By {novel?.authorName}</p>
             <div className="flex flex-wrap gap-2 mt-2">
               {novel?.genres?.map((genre) => (
                 <span
                   key={genre}
-                  className="px-2 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 text-xs rounded-full"
+                  className="px-2 py-1 bg-purple-900/40 text-purple-300 text-xs rounded-full"
                 >
                   {genre}
                 </span>
               ))}
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            <p className="text-sm text-gray-400 mt-2">
               Current chapters: {novel?.chapters?.length || 0}
             </p>
           </div>
@@ -213,14 +213,14 @@ const AddChapters = () => {
 
       {/* Success Message */}
       {success && (
-        <div className="bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-green-900/30 border border-green-800 text-green-400 px-4 py-3 rounded-lg mb-6">
           {success}
         </div>
       )}
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg mb-6">
           {error}
         </div>
       )}
@@ -229,7 +229,7 @@ const AddChapters = () => {
       <form onSubmit={handleSubmit}>
         <div className="mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">New Chapters</h2>
+            <h2 className="text-xl font-bold text-white">New Chapters</h2>
             <button
               type="button"
               onClick={addChapter}
@@ -247,14 +247,14 @@ const AddChapters = () => {
             return (
               <div
                 key={index}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500"
+                className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500"
               >
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">New Chapter {chapterNumber}</h3>
+                  <h3 className="text-lg font-bold text-white">New Chapter {chapterNumber}</h3>
                   {newChapters.length > 1 && (
                     <button
                       type="button"
-                      className="inline-flex items-center text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                      className="inline-flex items-center text-red-400 hover:text-red-300 transition-colors"
                       onClick={() => removeChapter(index)}
                     >
                       <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -273,14 +273,14 @@ const AddChapters = () => {
                 <div className="mb-4">
                   <label
                     htmlFor={`chapter-title-${index}`}
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    className="block text-sm font-medium text-gray-300 mb-1"
                   >
                     Chapter Title
                   </label>
                   <input
                     id={`chapter-title-${index}`}
                     type="text"
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
                     value={chapter.title}
                     onChange={(e) => handleChapterTitleChange(index, e.target.value)}
                     placeholder={`Chapter ${chapterNumber} title`}
@@ -291,13 +291,13 @@ const AddChapters = () => {
                 <div>
                   <label
                     htmlFor={`chapter-content-${index}`}
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    className="block text-sm font-medium text-gray-300 mb-1"
                   >
                     Chapter Content
                   </label>
                   <textarea
                     id={`chapter-content-${index}`}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[300px]"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[300px]"
                     value={chapter.content}
                     onChange={(e) => handleChapterContentChange(index, e.target.value)}
                     placeholder="Write your chapter content here..."
@@ -313,7 +313,7 @@ const AddChapters = () => {
         <div className="flex justify-end space-x-4">
           <Link
             to={`/novel/${novelId}`}
-            className="inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+            className="inline-flex items-center px-6 py-3 border border-gray-600 text-base font-medium rounded-md text-gray-300 bg-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
           >
             Cancel
           </Link>

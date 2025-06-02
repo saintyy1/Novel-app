@@ -190,15 +190,15 @@ const GenerateNovel = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="mb-8">
+      <div className="mb-8 mt-3">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
           Generate AI Novel
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">Create a complete novel with AI assistance in minutes</p>
+        <p className="text-gray-400 mt-2">Create a complete novel with AI assistance in minutes</p>
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-4 rounded-md mb-6 shadow-sm">
+        <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 text-red-300 p-4 rounded-md mb-6 shadow-sm">
           <div className="flex items-center">
             <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path
@@ -212,20 +212,20 @@ const GenerateNovel = () => {
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 mb-8 overflow-hidden">
-        <div className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 dark:from-purple-900/20 dark:to-indigo-900/20 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Generation Settings</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-700 mb-8 overflow-hidden">
+        <div className="bg-gradient-to-r from-purple-900/20 to-indigo-900/20 px-6 py-4 border-b border-gray-700">
+          <h2 className="text-xl font-bold text-gray-100">Generation Settings</h2>
         </div>
 
         <div className="p-6">
           <div className="mb-6">
-            <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="prompt" className="block text-sm font-medium text-gray-300 mb-2">
               Your Novel Idea
             </label>
             <textarea
               id="prompt"
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 
-                        bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
+              className="w-full px-4 py-3 rounded-lg border border-gray-600 
+                        bg-gray-700 text-gray-100 
                         focus:ring-2 focus:ring-purple-500 focus:border-transparent
                         transition duration-200 min-h-[120px] shadow-sm"
               value={prompt}
@@ -233,21 +233,21 @@ const GenerateNovel = () => {
               placeholder="Describe your novel idea in detail. For example: A story about a young wizard who discovers a hidden magical world..."
               disabled={generating || saving}
             />
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-sm text-gray-400">
               Be specific about characters, setting, and plot elements you want to include
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label htmlFor="genre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="genre" className="block text-sm font-medium text-gray-300 mb-2">
                 Genre
               </label>
               <div className="relative">
                 <select
                   id="genre"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 
-                            bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
+                  className="w-full px-4 py-3 rounded-lg border border-gray-600 
+                            bg-gray-700 text-gray-100 
                             focus:ring-2 focus:ring-purple-500 focus:border-transparent
                             transition duration-200 shadow-sm appearance-none"
                   value={genre}
@@ -269,14 +269,14 @@ const GenerateNovel = () => {
             </div>
 
             <div>
-              <label htmlFor="numChapters" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="numChapters" className="block text-sm font-medium text-gray-300 mb-2">
                 Number of Chapters
               </label>
               <input
                 id="numChapters"
                 type="number"
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 
-                          bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
+                className="w-full px-4 py-3 rounded-lg border border-gray-600 
+                          bg-gray-700 text-gray-100 
                           focus:ring-2 focus:ring-purple-500 focus:border-transparent
                           transition duration-200 shadow-sm"
                 value={numChapters}
@@ -285,7 +285,7 @@ const GenerateNovel = () => {
                 max={10}
                 disabled={generating || saving}
               />
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-sm text-gray-400">
                 We recommend 3-5 chapters for best results
               </p>
             </div>
@@ -342,17 +342,17 @@ const GenerateNovel = () => {
           </button>
 
           {generating && generationProgress && (
-            <div className="mt-6 p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg border border-purple-100 dark:border-purple-800">
+            <div className="mt-6 p-4 bg-purple-900/30 rounded-lg border border-purple-800">
               <div className="flex items-center">
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-600 border-t-transparent mr-3"></div>
                 <div>
-                  <p className="font-medium text-purple-700 dark:text-purple-300">{generationProgress}</p>
-                  <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
+                  <p className="font-medium text-purple-300">{generationProgress}</p>
+                  <p className="text-sm text-purple-400 mt-1">
                     This may take several minutes. Please don't close this page.
                   </p>
                 </div>
               </div>
-              <div className="w-full bg-purple-200 dark:bg-purple-800 rounded-full h-1.5 mt-4">
+              <div className="w-full bg-purple-800 rounded-full h-1.5 mt-4">
                 <div
                   className="bg-purple-600 h-1.5 rounded-full animate-pulse"
                   style={{
@@ -370,9 +370,9 @@ const GenerateNovel = () => {
       </div>
 
       {generatedNovel && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 mb-8 overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 dark:from-indigo-900/20 dark:to-purple-900/20 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Generated Novel</h2>
+        <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 mb-8 overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-900/20 to-purple-900/20 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+            <h2 className="text-xl font-bold text-gray-100">Generated Novel</h2>
             <button
               type="button"
               className={`py-2 px-4 rounded-lg font-medium text-white 
@@ -433,27 +433,27 @@ const GenerateNovel = () => {
 
           <div className="p-6">
             <div className="mb-8">
-              <h3 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-3">{generatedNovel.title}</h3>
-              <div className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 text-sm font-medium rounded-full mb-4">
+              <h3 className="text-3xl font-bold text-gray-100 mb-3">{generatedNovel.title}</h3>
+              <div className="inline-block px-3 py-1 bg-purple-900/50 text-purple-800 text-sm font-medium rounded-full mb-4">
                 {genre}
               </div>
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-100 dark:border-gray-700 italic">
-                <p className="text-gray-700 dark:text-gray-300">{generatedNovel.summary}</p>
+              <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-700 italic">
+                <p className="text-gray-300">{generatedNovel.summary}</p>
               </div>
             </div>
 
             <div className="space-y-8">
               {generatedNovel.chapters.map((chapter, index) => (
-                <div key={index} className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                  <h4 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
-                    <span className="flex items-center justify-center bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 w-8 h-8 rounded-full mr-2 text-sm font-bold">
+                <div key={index} className="border-t border-gray-700 pt-6">
+                  <h4 className="text-xl font-bold text-gray-100 mb-4 flex items-center">
+                    <span className="flex items-center justify-center bg-purple-900/50 text-purple-800 w-8 h-8 rounded-full mr-2 text-sm font-bold">
                       {index + 1}
                     </span>
                     {chapter.title}
                   </h4>
-                  <div className="prose dark:prose-invert max-w-none">
+                  <div className="prose-invert max-w-none">
                     {chapter.content.split("\n\n").map((paragraph, i) => (
-                      <p key={i} className="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
+                      <p key={i} className="text-gray-300 mb-4 leading-relaxed">
                         {paragraph}
                       </p>
                     ))}
@@ -462,7 +462,7 @@ const GenerateNovel = () => {
               ))}
 
               {generating && (
-                <div className="flex items-center space-x-3 text-gray-600 dark:text-gray-400 py-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-3 text-gray-400 py-4 border-t border-gray-700">
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-600 border-t-transparent"></div>
                   <span>Generating more content...</span>
                 </div>

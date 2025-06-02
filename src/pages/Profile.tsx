@@ -567,7 +567,8 @@ const Profile = () => {
                       ? "Your published novels will appear here."
                       : "Novels awaiting review will appear here."}
                 </p>
-                {activeTab === "all" && (
+
+                {activeTab === "all" && isOwnProfile && (
                   <div className="mt-6">
                     <Link
                       to="/submit"
