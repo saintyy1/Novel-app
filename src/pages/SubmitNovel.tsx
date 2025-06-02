@@ -177,25 +177,25 @@ const SubmitNovel = () => {
       <h1 className="text-3xl font-bold mt-2 mb-8 text-[#E0E0E0]">Submit Your Novel</h1>
 
       {error && (
-        <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg mb-6">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
         <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-8">
-          <h2 className="text-xl font-bold mb-6 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2">
+          <h2 className="text-xl font-bold mb-6 text-gray-300 border-b border-gray-700 pb-2">
             Novel Details
           </h2>
 
           <div className="mb-6">
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">
               Title
             </label>
             <input
               id="title"
               type="text"
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -204,13 +204,13 @@ const SubmitNovel = () => {
           </div>
 
           <div className="mb-6">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
               Description
             </label>
             <input
               id="description"
               type="text"
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               required
@@ -219,12 +219,12 @@ const SubmitNovel = () => {
           </div>
 
           <div className="mb-6">
-            <label htmlFor="summary" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="summary" className="block text-sm font-medium text-gray-300 mb-1">
               Summary
             </label>
             <textarea
               id="summary"
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[120px]"
+              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[120px]"
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               required
@@ -233,7 +233,7 @@ const SubmitNovel = () => {
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Cover Image (Optional)
             </label>
             <div className="mt-1 flex items-start space-x-4">
@@ -243,16 +243,15 @@ const SubmitNovel = () => {
                   ref={fileInputRef}
                   accept="image/jpeg, image/png, image/webp"
                   onChange={handleCoverImageChange}
-                  className="block w-full text-sm text-gray-500 dark:text-gray-400
+                  className="block w-full text-sm text-gray-400
                            file:mr-4 file:py-2 file:px-4
                            file:rounded-md file:border-0
                            file:text-sm file:font-medium
-                           file:bg-purple-50 file:text-purple-700
-                           dark:file:bg-purple-900 dark:file:text-purple-200
-                           hover:file:bg-purple-100 dark:hover:file:bg-purple-800
+                           file:bg-purple-900 file:text-purple-200
+                           hover:file:bg-purple-800
                            cursor-pointer"
                 />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-xs text-gray-400">
                   JPEG, PNG or WebP. Max 5MB. Recommended size: 800x600px.
                 </p>
               </div>
@@ -261,7 +260,7 @@ const SubmitNovel = () => {
                   <img
                     src={coverPreview || "/placeholder.svg"}
                     alt="Cover preview"
-                    className="h-32 w-24 object-cover rounded-md shadow-md border border-gray-200 dark:border-gray-700"
+                    className="h-32 w-24 object-cover rounded-md shadow-md border border-gray-700"
                   />
                   <button
                     type="button"
@@ -279,7 +278,7 @@ const SubmitNovel = () => {
           </div>
 
           <div className="mb-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Genres (select at least one)
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mt-2">
@@ -287,8 +286,8 @@ const SubmitNovel = () => {
                 <label
                   key={genre}
                   className={`flex items-center justify-center px-3 py-2 rounded-lg border ${genres.includes(genre)
-                      ? "bg-purple-100 border-purple-300 text-purple-800 dark:bg-purple-900/40 dark:border-purple-700 dark:text-purple-300"
-                      : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                      ? "bg-purple-900/40 border-purple-700 text-purple-300"
+                      : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
                     } cursor-pointer transition-colors text-sm`}
                 >
                   <input
@@ -306,7 +305,7 @@ const SubmitNovel = () => {
 
         <div className="mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Chapters</h2>
+            <h2 className="text-xl font-bold text-white">Chapters</h2>
             <button
               type="button"
               onClick={addChapter}
@@ -328,14 +327,14 @@ const SubmitNovel = () => {
           {chapters.map((chapter, index) => (
             <div
               key={index}
-              className="dark:bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500"
+              className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500"
             >
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Chapter {index + 1}</h3>
+                <h3 className="text-lg font-bold text-white">Chapter {index + 1}</h3>
                 {chapters.length > 1 && (
                   <button
                     type="button"
-                    className="inline-flex items-center text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                    className="inline-flex items-center text-red-400 hover:text-red-300 transition-colors"
                     onClick={() => removeChapter(index)}
                   >
                     <svg
@@ -360,14 +359,14 @@ const SubmitNovel = () => {
               <div className="mb-4">
                 <label
                   htmlFor={`chapter-title-${index}`}
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  className="block text-sm font-medium text-gray-300 mb-1"
                 >
                   Chapter Title
                 </label>
                 <input
                   id={`chapter-title-${index}`}
                   type="text"
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
                   value={chapter.title}
                   onChange={(e) => handleChapterTitleChange(index, e.target.value)}
                   required
@@ -378,13 +377,13 @@ const SubmitNovel = () => {
               <div>
                 <label
                   htmlFor={`chapter-content-${index}`}
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  className="block text-sm font-medium text-gray-300 mb-1"
                 >
                   Chapter Content
                 </label>
                 <textarea
                   id={`chapter-content-${index}`}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[250px]"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[250px]"
                   value={chapter.content}
                   onChange={(e) => handleChapterContentChange(index, e.target.value)}
                   required
