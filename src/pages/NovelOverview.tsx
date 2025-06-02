@@ -365,7 +365,15 @@ const NovelOverview = () => {
                 <div className="w-full md:w-2/3 p-4 sm:p-6 md:p-8">
                   <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">{novel.title}</h1>
                   <p className="text-sm sm:text-lg text-gray-300 mb-3 sm:mb-4">{novel.description}</p>
-                  <p className="mb-3 sm:mb-4 text-sm text-gray-200">By {novel.authorName}</p>
+                  <p className="mb-3 sm:mb-4 text-sm text-gray-200">
+                    By{" "}
+                    <Link
+                      to={`/profile/${novel.authorId}`}
+                      className="text-purple-400 hover:text-purple-300 transition-colors"
+                    >
+                      {novel.authorName}
+                    </Link>
+                  </p>
 
                   {/* Genres */}
                   <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
