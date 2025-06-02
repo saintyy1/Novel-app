@@ -218,13 +218,13 @@ const Profile = () => {
   const getStatusBadge = (novel: Novel) => {
     if (novel.published) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/30 text-green-400">
           Published
         </span>
       )
     } else {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900/30 text-yellow-400">
           Pending Review
         </span>
       )
@@ -259,12 +259,12 @@ const Profile = () => {
     <div className="min-h-screen bg-gray-900 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">
         {/* Profile Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-6 mb-8">
+        <div className="bg-gray-800 rounded-xl shadow-md p-4 sm:p-6 mb-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
             {/* Profile Picture Section */}
             <div className="relative flex-shrink-0 mx-auto sm:mx-0">
               <div
-                className="h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center cursor-pointer hover:ring-4 hover:ring-purple-200 dark:hover:ring-purple-800 transition-all"
+                className="h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center cursor-pointer hover:ring-4 hover:ring-purple-800 transition-all"
                 onClick={() => profileUser?.photoURL && setShowPhotoModal(true)}
               >
                 {profileUser?.photoURL ? (
@@ -370,10 +370,10 @@ const Profile = () => {
             </div>
 
             <div className="flex-1 text-center sm:text-left w-full sm:ml-4 ml-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white break-words">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white break-words">
                 {profileUser?.displayName || "User"}
               </h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1 break-all text-sm sm:text-base">
+              <p className="text-gray-400 mt-1 break-all text-sm sm:text-base">
                 {profileUser?.email}
               </p>
 
@@ -382,8 +382,8 @@ const Profile = () => {
                 <div
                   className={`mt-2 text-xs sm:text-sm ${
                     photoError.includes("successfully")
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
+                      ? "text-green-400"
+                      : "text-red-400"
                   }`}
                 >
                   {photoError}
@@ -391,7 +391,7 @@ const Profile = () => {
               )}
 
               {/* Photo Upload Instructions */}
-              <div className="mt-2 grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+              <div className="mt-2 grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-400">
                 <div className="flex items-center justify-center sm:justify-start">
                   <svg className="h-3 w-3 sm:h-4 sm:w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -488,16 +488,16 @@ const Profile = () => {
         )}
 
         {/* Novels Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md">
+        <div className="bg-gray-800 rounded-xl shadow-md">
           {/* Tab Navigation */}
-          <div className="border-b border-gray-200 dark:border-gray-700">
+          <div className="border-b border-gray-700">
             <nav className="flex space-x-4 px-6" aria-label="Tabs">
               <button
                 onClick={() => setActiveTab("all")}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === "all"
-                    ? "border-purple-500 text-purple-600 dark:text-purple-400"
-                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    ? "border-purple-500 text-purple-400"
+                    : "border-transparent text-gray-400 hover:text-gray-300"
                 }`}
               >
                 All Novels ({userNovels.length})
@@ -506,8 +506,8 @@ const Profile = () => {
                 onClick={() => setActiveTab("published")}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === "published"
-                    ? "border-purple-500 text-purple-600 dark:text-purple-400"
-                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    ? "border-purple-500 text-purple-400"
+                    : "border-transparent text-gray-400 hover:text-gray-300"
                 }`}
               >
                 Published ({userNovels.filter((novel) => novel.published).length})
@@ -516,8 +516,8 @@ const Profile = () => {
                 onClick={() => setActiveTab("pending")}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === "pending"
-                    ? "border-purple-500 text-purple-600 dark:text-purple-400"
-                    : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    ? "border-purple-500 text-purple-400"
+                    : "border-transparent text-gray-400 hover:text-gray-300"
                 }`}
               >
                 Pending Review ({userNovels.filter((novel) => !novel.published).length})
@@ -533,7 +533,7 @@ const Profile = () => {
               </div>
             ) : error ? (
               <div className="text-center py-12">
-                <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+                <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg">
                   {error}
                 </div>
               </div>
@@ -553,14 +553,14 @@ const Profile = () => {
                     d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
                   />
                 </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+                <h3 className="mt-2 text-sm font-medium text-white">
                   {activeTab === "all"
                     ? "No novels yet"
                     : activeTab === "published"
                       ? "No published novels"
                       : "No pending novels"}
                 </h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-sm text-gray-400">
                   {activeTab === "all"
                     ? "Get started by submitting your first novel."
                     : activeTab === "published"
