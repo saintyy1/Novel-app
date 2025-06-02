@@ -220,19 +220,49 @@ const NovelOverview = () => {
 
     switch (platform) {
       case "facebook":
-        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(novelUrl)}`
+        // Use the Facebook app URL scheme for mobile
+        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          shareUrl = `fb://share?link=${encodeURIComponent(novelUrl)}`
+        } else {
+          shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(novelUrl)}`
+        }
         break
       case "twitter":
         shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(novelUrl)}`
         break
       case "whatsapp":
-        shareUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`
+        // Use the WhatsApp app URL scheme for mobile
+        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          shareUrl = `whatsapp://send?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`
+        } else {
+          shareUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`
+        }
         break
       default:
         return
     }
 
-    window.open(shareUrl, "_blank", "width=600,height=400")
+    // For mobile apps, try to open the app first, fallback to web if it fails
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      const appWindow = window.open(shareUrl, '_blank')
+      
+      // If app window failed to open (app not installed), fallback to web version
+      if (!appWindow || appWindow.closed || typeof appWindow.closed === 'undefined') {
+        setTimeout(() => {
+          switch (platform) {
+            case "facebook":
+              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(novelUrl)}`, '_blank')
+              break
+            case "whatsapp":
+              window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`, '_blank')
+              break
+          }
+        }, 1000)
+      }
+    } else {
+      // For desktop, open in a popup window
+      window.open(shareUrl, '_blank', 'width=600,height=400')
+    }
   }
 
   const getUserInitials = (name: string) => {
