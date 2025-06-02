@@ -35,7 +35,7 @@ const Home = () => {
           collection(db, "novels"),
           where("published", "==", true),
           orderBy("createdAt", "desc"),
-          limit(20),
+          limit(3),
         )
 
         if (activeFilter === "ai") {
@@ -44,7 +44,7 @@ const Home = () => {
             where("published", "==", true),
             where("isAIGenerated", "==", true),
             orderBy("createdAt", "desc"),
-            limit(20),
+            limit(3),
           )
         } else if (activeFilter === "user") {
           novelQuery = query(
@@ -52,7 +52,7 @@ const Home = () => {
             where("published", "==", true),
             where("isAIGenerated", "==", false),
             orderBy("createdAt", "desc"),
-            limit(20),
+            limit(3),
           )
         }
 

@@ -1,10 +1,8 @@
 import type React from "react"
 import { Link } from "react-router-dom"
-import { useAuth } from "../context/AuthContext"
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear()
-  const { isAdmin } = useAuth()
 
   return (
     <footer className="border-t border-gray-200">
@@ -54,16 +52,14 @@ const Footer: React.FC = () => {
                   Browse Novels
                 </Link>
               </li>
-              {isAdmin && (
-                <li>
-                  <Link
-                    to="/submit"
-                    className="text-base text-gray-400 hover:text-purple-600 dark:hover:text-purple-400"
-                  >
-                    Submit Novel
-                  </Link>
-                </li>
-              )}
+              <li>
+                <Link
+                  to="/submit"
+                  className="text-base text-gray-400 hover:text-purple-600 dark:hover:text-purple-400"
+                >
+                  Submit Novel
+                </Link>
+              </li>
             </ul>
           </div>
 

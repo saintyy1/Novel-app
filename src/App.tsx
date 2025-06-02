@@ -36,6 +36,7 @@ function AppContent() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/:userId" element={<Profile />} />
             <Route path="/novels" element={<Novels />} />
             <Route path="/novel/:id" element={<NovelOverview />} />
             <Route path="/novel/:id/read" element={<NovelRead />} />

@@ -3,14 +3,17 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
-import { Link } from "react-router-dom"
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore"
+import { Link, useParams } from "react-router-dom"
+import { collection, query, where, getDocs, orderBy, doc, getDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
+import type { ExtendedUser } from "../context/AuthContext"
 
 const Profile = () => {
+  const { userId } = useParams()
   const { currentUser, updateUserPhoto } = useAuth()
+  const [profileUser, setProfileUser] = useState<ExtendedUser | null>(null)
   const [userNovels, setUserNovels] = useState<Novel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -20,41 +23,65 @@ const Profile = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
 
+  const isOwnProfile = !userId || userId === currentUser?.uid
+
   useEffect(() => {
-    const fetchUserNovels = async () => {
-      if (!currentUser) {
+    const fetchUserData = async () => {
+      if (!currentUser && !userId) {
         setLoading(false)
         return
       }
 
       try {
-        const novelsQuery = query(
-          collection(db, "novels"),
-          where("authorId", "==", currentUser.uid),
-          orderBy("createdAt", "desc"),
-        )
+        setLoading(true)
+        setError("")
 
-        const querySnapshot = await getDocs(novelsQuery)
-        const novels: Novel[] = []
+        // If viewing another user's profile, fetch their data
+        if (userId && userId !== currentUser?.uid) {
+          const userDoc = await getDoc(doc(db, "users", userId))
+          if (userDoc.exists()) {
+            setProfileUser({ uid: userDoc.id, ...userDoc.data() } as ExtendedUser)
+          } else {
+            setError("User not found")
+            return
+          }
+        } else {
+          // Viewing own profile
+          setProfileUser(currentUser)
+        }
 
-        querySnapshot.forEach((doc) => {
-          novels.push({
-            id: doc.id,
-            ...doc.data(),
-          } as Novel)
-        })
+        // Fetch novels for the profile user
+        const targetUserId = userId || currentUser?.uid
+        if (targetUserId) {
+          const novelsQuery = query(
+            collection(db, "novels"),
+            where("authorId", "==", targetUserId),
+            orderBy("createdAt", "desc")
+          )
 
-        setUserNovels(novels)
+          const querySnapshot = await getDocs(novelsQuery)
+          const novels: Novel[] = []
+
+          querySnapshot.forEach((doc) => {
+            novels.push({
+              id: doc.id,
+              ...doc.data(),
+            } as Novel)
+          })
+
+          setUserNovels(novels)
+        }
       } catch (err) {
-        console.error("Error fetching user novels:", err)
-        setError("Failed to load your novels")
+        console.error("Error fetching user data:", err)
+        setError("Failed to load profile data")
       } finally {
         setLoading(false)
       }
     }
 
-    fetchUserNovels()
-  }, [currentUser])
+    fetchUserData()
+  }, [currentUser, userId])
+
 
   const resizeImage = (file: File, maxWidth = 200, maxHeight = 200, quality = 0.7): Promise<string> => {
     return new Promise((resolve) => {
@@ -212,7 +239,7 @@ const Profile = () => {
     })
   }
 
-  if (!currentUser) {
+  if (!currentUser && !userId) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -238,11 +265,11 @@ const Profile = () => {
             <div className="relative flex-shrink-0 mx-auto sm:mx-0">
               <div
                 className="h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center cursor-pointer hover:ring-4 hover:ring-purple-200 dark:hover:ring-purple-800 transition-all"
-                onClick={() => currentUser.photoURL && setShowPhotoModal(true)}
+                onClick={() => profileUser?.photoURL && setShowPhotoModal(true)}
               >
-                {currentUser.photoURL ? (
+                {profileUser?.photoURL ? (
                   <img
-                    src={currentUser.photoURL || "/placeholder.svg"}
+                    src={profileUser.photoURL || "/placeholder.svg"}
                     alt="Profile"
                     className="h-full w-full object-cover"
                     onError={(e) => {
@@ -257,17 +284,18 @@ const Profile = () => {
                   />
                 ) : (
                   <span className="text-white text-lg sm:text-2xl font-bold">
-                    {getUserInitials(currentUser.displayName)}
+                    {getUserInitials(profileUser?.displayName)}
                   </span>
                 )}
-                {currentUser.photoURL && (
+                {profileUser?.photoURL && (
                   <span className="hidden text-white text-lg sm:text-2xl font-bold">
-                    {getUserInitials(currentUser.displayName)}
+                    {getUserInitials(profileUser.displayName)}
                   </span>
                 )}
               </div>
 
               {/* Upload/Remove Photo Buttons */}
+              {isOwnProfile && (
               <div className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 flex space-x-1">
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -309,7 +337,7 @@ const Profile = () => {
                   )}
                 </button>
 
-                {currentUser.photoURL && (
+                {profileUser?.photoURL && (
                   <button
                     onClick={removeProfilePicture}
                     disabled={uploadingPhoto}
@@ -327,8 +355,10 @@ const Profile = () => {
                   </button>
                 )}
               </div>
+              )}
 
               {/* Hidden file input */}
+              {isOwnProfile && (
               <input
                 ref={fileInputRef}
                 type="file"
@@ -336,18 +366,19 @@ const Profile = () => {
                 onChange={handlePhotoUpload}
                 className="hidden"
               />
+              )}
             </div>
 
             <div className="flex-1 text-center sm:text-left w-full sm:ml-4 ml-0">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white break-words">
-                {currentUser.displayName || "User"}
+                {profileUser?.displayName || "User"}
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1 break-all text-sm sm:text-base">
-                {currentUser.email}
+                {profileUser?.email}
               </p>
 
               {/* Photo Error/Success Message */}
-              {photoError && (
+              {isOwnProfile && photoError && (
                 <div
                   className={`mt-2 text-xs sm:text-sm ${
                     photoError.includes("successfully")
@@ -412,6 +443,7 @@ const Profile = () => {
               </div>
             </div>
 
+            {isOwnProfile && (
             <div className="flex justify-center sm:justify-end w-full sm:w-auto">
               <Link
                 to="/submit"
@@ -429,11 +461,12 @@ const Profile = () => {
                 <span className="sm:hidden">New Novel</span>
               </Link>
             </div>
+            )}
           </div>
         </div>
 
         {/* Photo Modal */}
-        {showPhotoModal && currentUser.photoURL && (
+        {showPhotoModal && profileUser?.photoURL && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
             <div className="max-w-4xl max-h-full">
               <button
@@ -445,7 +478,7 @@ const Profile = () => {
                 </svg>
               </button>
               <img
-                src={currentUser.photoURL || "/placeholder.svg"}
+                src={profileUser.photoURL || "/placeholder.svg"}
                 alt="Profile Picture"
                 className="max-w-full max-h-full object-contain rounded-lg"
                 onClick={() => setShowPhotoModal(false)}

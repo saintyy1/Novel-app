@@ -336,9 +336,7 @@ const AdminDashboard = () => {
                   <FaUsers className="h-4 w-4 text-gray-400" />
                 </div>
                 <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                <p className="text-xs text-gray-400">
-                  {stats.activeUsers} active ({Math.round((stats.activeUsers / stats.totalUsers) * 100) || 0}%)
-                </p>
+                
               </div>
 
               {/* Total Novels Card */}
@@ -431,10 +429,12 @@ const AdminDashboard = () => {
                               </span>
                             </div>
                           )}
-                          <div>
-                            <p className="font-medium">{user.displayName || "Anonymous User"}</p>
-                            <p className="text-xs text-gray-400">{user.email}</p>
-                          </div>
+                          <a 
+                            href={`/profile/${user.uid}`}
+                            className="font-medium hover:text-purple-400 transition-colors"
+                          >
+                            {user.displayName || "Anonymous User"}
+                          </a>
                         </div>
                         {user.isAdmin && (
                           <span className="px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
@@ -646,7 +646,12 @@ const AdminDashboard = () => {
                                   </span>
                                 </div>
                               )}
-                              <span className="font-medium">{user.displayName || "Anonymous User"}</span>
+                              <a 
+                                href={`/profile/${user.uid}`}
+                                className="font-medium hover:text-purple-400 transition-colors"
+                              >
+                                {user.displayName || "Anonymous User"}
+                              </a>
                             </div>
                           </td>
                           <td className="py-3 px-4 text-gray-300">{user.email}</td>

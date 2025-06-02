@@ -183,8 +183,8 @@ const SubmitNovel = () => {
       )}
 
       <form onSubmit={handleSubmit}>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8">
-          <h2 className="text-xl font-bold mb-6 text-[#E0E0E0] border-b border-gray-200 dark:border-gray-700 pb-2">
+        <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-8">
+          <h2 className="text-xl font-bold mb-6 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2">
             Novel Details
           </h2>
 
@@ -328,7 +328,7 @@ const SubmitNovel = () => {
           {chapters.map((chapter, index) => (
             <div
               key={index}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500"
+              className="dark:bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500"
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">Chapter {index + 1}</h3>
