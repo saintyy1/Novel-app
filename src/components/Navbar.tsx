@@ -54,34 +54,11 @@ const Navbar = () => {
   // Get user initials for avatar fallback
   const getUserInitials = (name: string | null | undefined) => {
     if (!name) return "U"
-    return name
-      .split(" ")
-      .map((word) => word.charAt(0))
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
+    return name.charAt(0).toUpperCase()
   }
 
   // User Avatar Component
   const UserAvatar = ({ size = "h-8 w-8", textSize = "text-xs" }: { size?: string; textSize?: string }) => {
-    if (currentUser?.photoURL) {
-      return (
-        <img
-          src={currentUser.photoURL || "/placeholder.svg"}
-          alt="Profile"
-          className={`${size} rounded-full object-cover`}
-          onError={(e) => {
-            const target = e.target as HTMLImageElement
-            target.style.display = "none"
-            const fallback = target.nextElementSibling as HTMLElement
-            if (fallback) {
-              fallback.classList.remove("hidden")
-            }
-          }}
-        />
-      )
-    }
-
     return (
       <div
         className={`${size} bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white ${textSize} font-bold`}

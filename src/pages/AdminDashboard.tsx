@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore"
+import { collection, query, getDocs, doc, updateDoc, deleteDoc, onSnapshot } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
 import type { ExtendedUser } from "../context/AuthContext"
@@ -72,7 +72,26 @@ const AdminDashboard = () => {
   // Fetch data on component mount
   useEffect(() => {
     fetchNovels()
-    fetchUsers()
+    // Set up real-time listener for users
+    const usersQuery = query(collection(db, "users"))
+    const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
+      const usersData: ExtendedUser[] = []
+      snapshot.forEach((doc) => {
+        usersData.push({ uid: doc.id, ...doc.data() } as ExtendedUser)
+      })
+      setUsers(usersData)
+      setFilteredUsers(usersData)
+      setLoading((prev) => ({ ...prev, users: false }))
+    }, (error) => {
+      console.error("Error listening to users:", error)
+      setError("Failed to load users")
+      setLoading((prev) => ({ ...prev, users: false }))
+    })
+
+    // Cleanup subscription on unmount
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   // Filter novels when search or tab changes
@@ -134,29 +153,6 @@ const AdminDashboard = () => {
       setError("Failed to load novels")
     } finally {
       setLoading((prev) => ({ ...prev, novels: false }))
-    }
-  }
-
-  const fetchUsers = async () => {
-    try {
-      setLoading((prev) => ({ ...prev, users: true }))
-      setError("")
-
-      const usersQuery = query(collection(db, "users"))
-      const querySnapshot = await getDocs(usersQuery)
-      const usersData: ExtendedUser[] = []
-
-      querySnapshot.forEach((doc) => {
-        usersData.push({ uid: doc.id, ...doc.data() } as ExtendedUser)
-      })
-
-      setUsers(usersData)
-      setFilteredUsers(usersData)
-    } catch (error) {
-      console.error("Error fetching users:", error)
-      setError("Failed to load users")
-    } finally {
-      setLoading((prev) => ({ ...prev, users: false }))
     }
   }
 
@@ -263,7 +259,6 @@ const AdminDashboard = () => {
 
   const refreshData = () => {
     fetchNovels()
-    fetchUsers()
   }
 
   return (
@@ -413,7 +408,14 @@ const AdminDashboard = () => {
                   </div>
                 ) : users.length > 0 ? (
                   <div className="space-y-4">
-                    {users.slice(0, 5).map((user) => (
+                    {users
+                      .sort((a, b) => {
+                        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+                        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                        return dateB - dateA // Sort in descending order (newest first)
+                      })
+                      .slice(0, 5)
+                      .map((user) => (
                       <div key={user.uid} className="flex items-center justify-between border-b border-gray-700 pb-2">
                         <div className="flex items-center">
                           {user.photoURL ? (

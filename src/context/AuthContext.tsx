@@ -10,9 +10,10 @@ import {
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
+  signInWithPopup,
 } from "firebase/auth"
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore"
-import { auth, db } from "../firebase/config"
+import { auth, db, googleProvider } from "../firebase/config"
 
 // Extend the Firebase User type with our custom properties
 export interface ExtendedUser extends User {
@@ -32,6 +33,7 @@ interface AuthContextType {
   isAdmin: boolean
   refreshUser: () => Promise<void>
   updateUserPhoto: (photoBase64: string | null) => Promise<void>
+  signInWithGoogle: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
@@ -176,6 +178,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await sendPasswordResetEmail(auth, email)
   }
 
+  const signInWithGoogle = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider)
+      const user = result.user
+
+      // Check if user document exists
+      const userDoc = await getDoc(doc(db, "users", user.uid))
+      
+      if (!userDoc.exists()) {
+        // Create new user document if it doesn't exist
+        const newUserData = {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: null,
+          isAdmin: false,
+          createdAt: new Date().toISOString(),
+        }
+
+        await setDoc(doc(db, "users", user.uid), newUserData)
+      }
+
+      // Fetch user data to update context
+      await fetchUserData(user)
+    } catch (error) {
+      console.error("Error signing in with Google:", error)
+      throw error
+    }
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -201,6 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAdmin,
     refreshUser,
     updateUserPhoto,
+    signInWithGoogle,
   }
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>
