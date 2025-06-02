@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updatedAt: data.updatedAt,
           // Always use Firestore photoURL, fallback to Firebase Auth photoURL
           photoURL: data.photoURL || user.photoURL,
-          displayName: data.displayName || user.displayName,
+          displayName: data.displayName || user.displayName || user.email?.split('@')[0] || 'User',
         }
 
         setCurrentUser(extendedUser)
@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newUserData = {
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName,
+          displayName: user.displayName || user.email?.split('@')[0] || 'User',
           photoURL: user.photoURL, // Keep original Firebase Auth photoURL if it exists
           isAdmin: false,
           createdAt: new Date().toISOString(),
@@ -87,6 +87,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...user,
           isAdmin: false,
           createdAt: newUserData.createdAt,
+          displayName: newUserData.displayName,
+          photoURL: newUserData.photoURL,
         }
 
         setCurrentUser(extendedUser)
@@ -191,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newUserData = {
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName,
+          displayName: user.displayName || user.email?.split('@')[0] || 'User',
           photoURL: null,
           isAdmin: false,
           createdAt: new Date().toISOString(),

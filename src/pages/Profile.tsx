@@ -196,12 +196,7 @@ const Profile = () => {
 
   const getUserInitials = (name: string | null | undefined) => {
     if (!name) return "U"
-    return name
-      .split(" ")
-      .map((word) => word.charAt(0))
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
+    return name.charAt(0).toUpperCase()
   }
 
   const filteredNovels = userNovels.filter((novel) => {

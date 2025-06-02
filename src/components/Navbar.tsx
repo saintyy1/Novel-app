@@ -61,9 +61,27 @@ const Navbar = () => {
   const UserAvatar = ({ size = "h-8 w-8", textSize = "text-xs" }: { size?: string; textSize?: string }) => {
     return (
       <div
-        className={`${size} bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white ${textSize} font-bold`}
+        className={`${size} bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white ${textSize} font-bold overflow-hidden`}
       >
-        {getUserInitials(currentUser?.displayName)}
+        {currentUser?.photoURL ? (
+          <img
+            src={currentUser.photoURL}
+            alt={currentUser.displayName || "User"}
+            className="h-full w-full object-cover"
+            onError={(e) => {
+              // Fallback to initials if image fails to load
+              const target = e.target as HTMLImageElement
+              target.style.display = "none"
+              const fallback = target.nextElementSibling as HTMLElement
+              if (fallback) {
+                fallback.classList.remove("hidden")
+              }
+            }}
+          />
+        ) : null}
+        <span className={currentUser?.photoURL ? "hidden" : ""}>
+          {getUserInitials(currentUser?.displayName)}
+        </span>
       </div>
     )
   }
