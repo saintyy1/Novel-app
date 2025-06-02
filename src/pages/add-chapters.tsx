@@ -194,16 +194,6 @@ const AddChapters = () => {
           <div className="flex-1">
             <h2 className="text-xl font-bold text-white">{novel?.title}</h2>
             <p className="text-gray-400 mt-1">By {novel?.authorName}</p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {novel?.genres?.map((genre) => (
-                <span
-                  key={genre}
-                  className="px-2 py-1 bg-purple-900/40 text-purple-300 text-xs rounded-full"
-                >
-                  {genre}
-                </span>
-              ))}
-            </div>
             <p className="text-sm text-gray-400 mt-2">
               Current chapters: {novel?.chapters?.length || 0}
             </p>
@@ -238,7 +228,7 @@ const AddChapters = () => {
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Add Another Chapter
+              Add Chapter
             </button>
           </div>
 

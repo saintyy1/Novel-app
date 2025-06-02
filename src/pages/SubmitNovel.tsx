@@ -15,7 +15,7 @@ const SubmitNovel = () => {
   const [description, setDescription] = useState("")
   const [summary, setSummary] = useState("")
   const [genres, setGenres] = useState<string[]>([])
-  const [chapters, setChapters] = useState([{ title: "Chapter 1", content: "" }])
+  const [chapters, setChapters] = useState([{ title: "", content: "" }])
   const [coverImage, setCoverImage] = useState<string | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
