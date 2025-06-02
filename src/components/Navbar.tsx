@@ -199,21 +199,21 @@ const Navbar = () => {
 
                   {/* Desktop Dropdown Menu */}
                   {isUserDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="absolute right-0 mt-2 w-60 bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                       <div className="py-1">
-                        <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                        <div className="px-4 py-2 text-sm text-gray-300 border-b border-gray-700">
                           <div className="flex items-center space-x-2">
                             <UserAvatar size="h-8 w-8" textSize="text-xs" />
                             <div>
                               <p className="font-medium">{currentUser.displayName || "User"}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{currentUser.email}</p>
+                              <p className="text-xs text-gray-400">{currentUser.email}</p>
                             </div>
                           </div>
                         </div>
                         <Link
                           to="/profile"
                           onClick={closeDropdown}
-                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                          className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         >
                           <div className="flex items-center">
                             <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,7 +229,7 @@ const Navbar = () => {
                         </Link>
                         <button
                           onClick={handleLogout}
-                          className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                          className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30 transition-colors"
                         >
                           <div className="flex items-center">
                             <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -252,7 +252,7 @@ const Navbar = () => {
               <>
                 <Link
                   to="/login"
-                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-purple-700 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-200 hover:text-purple-400 hover:bg-gray-800 transition-colors"
                 >
                   Login
                 </Link>
@@ -291,21 +291,21 @@ const Navbar = () => {
             {/* Mobile Dropdown Menu */}
             {isUserDropdownOpen && (
               <div
-                className="absolute right-4 top-16 w-64 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
+                className="absolute right-4 top-16 w-64 bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
                 ref={mobileDropdownRef}
               >
                 <div className="py-1">
                   {currentUser ? (
                     <>
                       {/* User Info Section */}
-                      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                      <div className="px-4 py-3 border-b border-gray-700">
                         <div className="flex items-center">
                           <UserAvatar size="h-10 w-10" textSize="text-sm" />
                           <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            <p className="text-sm font-medium text-white">
                               {currentUser.displayName || "User"}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{currentUser.email}</p>
+                            <p className="text-xs text-gray-400">{currentUser.email}</p>
                           </div>
                         </div>
                       </div>
@@ -314,10 +314,10 @@ const Navbar = () => {
                       <Link
                         to="/"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
                           isActive("/")
-                            ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
-                            : "text-gray-700 dark:text-gray-300"
+                            ? "text-purple-400 bg-purple-900/20"
+                            : "text-gray-300"
                         }`}
                       >
                         <div className="flex items-center">
@@ -336,10 +336,10 @@ const Navbar = () => {
                       <Link
                         to="/novels"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
                           isActive("/novels")
-                            ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
-                            : "text-gray-700 dark:text-gray-300"
+                            ? "text-purple-400 bg-purple-900/20"
+                            : "text-gray-300"
                         }`}
                       >
                         <div className="flex items-center">
@@ -358,10 +358,10 @@ const Navbar = () => {
                       <Link
                         to="/submit"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
                           isActive("/submit")
-                            ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
-                            : "text-gray-700 dark:text-gray-300"
+                            ? "text-purple-400 bg-purple-900/20"
+                            : "text-gray-300"
                         }`}
                       >
                         <div className="flex items-center">
@@ -382,10 +382,10 @@ const Navbar = () => {
                           <Link
                             to="/admin"
                             onClick={closeDropdown}
-                            className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                            className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
                               isActive("/admin")
-                                ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
-                                : "text-gray-700 dark:text-gray-300"
+                                ? "text-purple-400 bg-purple-900/20"
+                                : "text-gray-300"
                             }`}
                           >
                             <div className="flex items-center">
@@ -410,10 +410,10 @@ const Navbar = () => {
                           <Link
                             to="/generate"
                             onClick={closeDropdown}
-                            className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                            className={`block px-4 py-2 text-sm bg-gray-700 transition-colors ${
                               isActive("/generate")
-                                ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
-                                : "text-gray-700 dark:text-gray-300"
+                                ? "text-purple-400 bg-purple-900/20"
+                                : "text-gray-300"
                             }`}
                           >
                             <div className="flex items-center">
@@ -431,14 +431,14 @@ const Navbar = () => {
                         </>
                       )}
 
-                      <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
+                      <div className="border-t border-gray-700 mt-1 pt-1">
                         <Link
                           to="/profile"
                           onClick={closeDropdown}
-                          className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
                             isActive("/profile")
-                              ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
-                              : "text-gray-700 dark:text-gray-300"
+                              ? "text-purple-400 bg-purple-900/20"
+                              : "text-gray-300"
                           }`}
                         >
                           <div className="flex items-center">
@@ -456,7 +456,7 @@ const Navbar = () => {
 
                         <button
                           onClick={handleLogout}
-                          className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                          className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30 transition-colors"
                         >
                           <div className="flex items-center">
                             <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -478,10 +478,10 @@ const Navbar = () => {
                       <Link
                         to="/"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
                           isActive("/")
-                            ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
-                            : "text-gray-700 dark:text-gray-300"
+                            ? "text-purple-400 bg-purple-900/20"
+                            : "text-gray-300"
                         }`}
                       >
                         <div className="flex items-center">
@@ -500,10 +500,10 @@ const Navbar = () => {
                       <Link
                         to="/novels"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
                           isActive("/novels")
-                            ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
-                            : "text-gray-700 dark:text-gray-300"
+                            ? "text-purple-400 bg-purple-900/20"
+                            : "text-gray-300"
                         }`}
                       >
                         <div className="flex items-center">
@@ -519,11 +519,11 @@ const Navbar = () => {
                         </div>
                       </Link>
 
-                      <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
+                      <div className="border-t border-gray-700 mt-1 pt-1">
                         <Link
                           to="/login"
                           onClick={closeDropdown}
-                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                          className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
                         >
                           <div className="flex items-center">
                             <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
