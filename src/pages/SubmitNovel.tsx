@@ -162,7 +162,7 @@ const SubmitNovel = () => {
         views: 0,
       })
 
-      navigate("/")
+      navigate("/profile")
       alert("Your novel has been submitted for review!")
     } catch (error) {
       console.error("Error submitting novel:", error)
