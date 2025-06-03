@@ -649,6 +649,7 @@ const Profile = () => {
                                 />
                               </svg>
                             </Link>
+                            {isOwnProfile && (
                             <Link
                               to={`/novel/${novel.id}/add-chapters`}
                               className="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30"
@@ -662,6 +663,7 @@ const Profile = () => {
                                 />
                               </svg>
                             </Link>
+                            )}
                           </>
                         ) : (
                           <div className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-amber-500/20 text-amber-300 font-medium rounded-lg border border-amber-500/30 cursor-not-allowed">
