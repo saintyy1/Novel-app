@@ -69,10 +69,12 @@ const NovelOverview = () => {
             ...novelData,
           } as Novel)
 
-          // Increment view count
-          await updateDoc(doc(db, "novels", id), {
-            views: increment(1),
-          })
+          // Only increment view count for authenticated users
+          if (currentUser) {
+            await updateDoc(doc(db, "novels", id), {
+              views: increment(1),
+            })
+          }
         } else {
           setError("Novel not found")
         }
