@@ -20,6 +20,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import ForgotPassword from "./pages/ForgotPassword";
 import { AuthProvider } from "./context/AuthContext";
+import ToastContainer from "./components/ToastContainer";
 
 function AppContent() {
   const location = useLocation();
@@ -80,6 +81,7 @@ function App() {
     <Router>
       <ScrollToTop />
       <AppContent />
+      <ToastContainer />
     </Router>
   );
 }

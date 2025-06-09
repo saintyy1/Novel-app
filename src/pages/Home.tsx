@@ -1,9 +1,12 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
 import FeaturedNovel from "../components/FeaturedNovel"
+import SimpleNotificationListener from "../components/simple-notification-listener"
 
 const Home = () => {
   const [novels, setNovels] = useState<Novel[]>([])
@@ -107,6 +110,9 @@ const Home = () => {
 
   return (
     <div className="min-h-screen">
+      {/* Simple Notification Listener */}
+      <SimpleNotificationListener />
+
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white py-20 px-4 sm:px-6 lg:px-8 rounded-b-3xl shadow-xl">
         <div className="absolute inset-0 bg-black opacity-50 rounded-b-3xl"></div>
@@ -153,28 +159,31 @@ const Home = () => {
           <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
             <div className="flex rounded-md shadow-sm">
               <button
-                className={`px-4 py-2 text-sm font-medium rounded-l-md ${activeFilter === "all"
-                  ? "bg-purple-600 text-white"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  } border border-gray-300 dark:border-gray-600`}
+                className={`px-4 py-2 text-sm font-medium rounded-l-md ${
+                  activeFilter === "all"
+                    ? "bg-purple-600 text-white"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                } border border-gray-300 dark:border-gray-600`}
                 onClick={() => setActiveFilter("all")}
               >
                 All
               </button>
               <button
-                className={`px-4 py-2 text-sm font-medium ${activeFilter === "user"
-                  ? "bg-purple-600 text-white"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  } border-t border-b border-gray-300 dark:border-gray-600`}
+                className={`px-4 py-2 text-sm font-medium ${
+                  activeFilter === "user"
+                    ? "bg-purple-600 text-white"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                } border-t border-b border-gray-300 dark:border-gray-600`}
                 onClick={() => setActiveFilter("user")}
               >
                 User Submitted
               </button>
               <button
-                className={`px-4 py-2 text-sm font-medium rounded-r-md ${activeFilter === "ai"
-                  ? "bg-purple-600 text-white"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  } border border-gray-300 dark:border-gray-600`}
+                className={`px-4 py-2 text-sm font-medium rounded-r-md ${
+                  activeFilter === "ai"
+                    ? "bg-purple-600 text-white"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                } border border-gray-300 dark:border-gray-600`}
                 onClick={() => setActiveFilter("ai")}
               >
                 AI Generated
@@ -236,7 +245,9 @@ const Home = () => {
                   </div>
                 ) : (
                   // Generated Book Cover Design
-                  <div className={`h-32 bg-gradient-to-br ${getGenreColorClass(novel.genres)} relative overflow-hidden`}>
+                  <div
+                    className={`h-32 bg-gradient-to-br ${getGenreColorClass(novel.genres)} relative overflow-hidden`}
+                  >
                     {/* Book spine effect */}
                     <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
 
@@ -264,10 +275,11 @@ const Home = () => {
                 <div className="p-3 flex-grow flex flex-col">
                   <div className="flex items-center justify-between mb-2">
                     <span
-                      className={`px-2 py-1 text-xs rounded-full font-medium ${novel.isAIGenerated
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-                        : "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
-                        }`}
+                      className={`px-2 py-1 text-xs rounded-full font-medium ${
+                        novel.isAIGenerated
+                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
+                          : "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
+                      }`}
                     >
                       {novel.isAIGenerated ? "AI" : "User"}
                     </span>
@@ -285,7 +297,9 @@ const Home = () => {
                   </div>
 
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-1 line-clamp-1">{novel.title}</h3>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-2 flex-grow">{novel.summary}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-2 flex-grow">
+                    {novel.summary}
+                  </p>
 
                   <div className="flex flex-wrap gap-1 mt-auto">
                     {novel.genres.slice(0, 2).map((genre, index) => (
