@@ -47,7 +47,7 @@ const SubmitNovel = () => {
   }
 
   const addChapter = () => {
-    setChapters([...chapters, { title: `Chapter ${chapters.length + 1}`, content: "" }])
+    setChapters([...chapters, { title: "", content: "" }])
   }
 
   const removeChapter = (index: number) => {
@@ -95,8 +95,8 @@ const SubmitNovel = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
 
-      if (file.size > 5 * 1024 * 1024) {
-        setError("Cover image must be less than 5MB")
+      if (file.size > 10 * 1024 * 1024) {
+        setError("Cover image must be less than 10MB")
         return
       }
 
@@ -136,7 +136,7 @@ const SubmitNovel = () => {
       return setError("All chapters must have content")
     }
 
-    if (coverImage && coverImage.length > 2 * 1024 * 1024) { // 2MB in base64
+    if (coverImage && coverImage.length > 4 * 1024 * 1024) { // 4MB in base64
       setError("Processed cover image is too large. Please try a smaller image.");
       return;
     }
@@ -386,7 +386,7 @@ const SubmitNovel = () => {
                   value={chapter.title}
                   onChange={(e) => handleChapterTitleChange(index, e.target.value)}
                   required
-                  placeholder="Enter chapter title.."
+                  placeholder={`Enter Chapter ${index + 1} title`}
                 />
               </div>
 

@@ -79,8 +79,7 @@ const AddChapters = () => {
   }
 
   const addChapter = () => {
-    const nextChapterNumber = (novel?.chapters?.length || 0) + newChapters.length + 1
-    setNewChapters([...newChapters, { title: `Chapter ${nextChapterNumber}`, content: "" }])
+    setNewChapters([...newChapters, { title: "", content: "" }])
   }
 
   const removeChapter = (index: number) => {
@@ -273,7 +272,7 @@ const AddChapters = () => {
                     className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
                     value={chapter.title}
                     onChange={(e) => handleChapterTitleChange(index, e.target.value)}
-                    placeholder={`Chapter ${chapterNumber} title`}
+                    placeholder={`Enter Chapter ${chapterNumber} title`}
                     required
                   />
                 </div>
