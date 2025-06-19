@@ -49,10 +49,11 @@ const NovelRead = () => {
             }
           }
 
-          // Increment view count only once per session
-          await updateDoc(doc(db, "novels", id), {
-            views: increment(1),
-          })
+          if (currentUser) {
+            await updateDoc(doc(db, "novels", id), {
+              views: increment(1),
+            })
+          }
         } else {
           setError("Novel not found")
         }
@@ -76,23 +77,24 @@ const NovelRead = () => {
     setNewComment("")
 
     const fetchChapterData = async () => {
-      if (!novel || !currentUser) return
+  if (!novel) return
 
-      try {
-        // Check if user has liked this chapter
-        const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
-        const chapterDoc = await getDoc(chapterRef)
+  try {
+    const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+    const chapterDoc = await getDoc(chapterRef)
 
-        if (chapterDoc.exists()) {
-          const chapterData = chapterDoc.data()
-          setChapterLiked(chapterData.chapterLikedBy?.includes(currentUser.uid) || false)
-          setChapterLikes(chapterData.chapterLikes || 0)
-          setComments(chapterData.comments || [])
-        }
-      } catch (error) {
-        console.error("Error fetching chapter data:", error)
-      }
+    if (chapterDoc.exists()) {
+      const chapterData = chapterDoc.data()
+      setChapterLiked(
+        currentUser ? chapterData.chapterLikedBy?.includes(currentUser.uid) || false : false
+      )
+      setChapterLikes(chapterData.chapterLikes || 0)
+      setComments(chapterData.comments || [])
     }
+  } catch (error) {
+    console.error("Error fetching chapter data:", error)
+  }
+} 
 
     fetchChapterData()
   }, [novel, currentUser, currentChapter])
