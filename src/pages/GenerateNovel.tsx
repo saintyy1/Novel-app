@@ -2,9 +2,8 @@
 
 import { useState } from "react"
 import { useAuth } from "../context/AuthContext"
-import OpenAI from "openai"
-import type { ChatCompletion } from "openai/resources"
 import { addNovel } from "../services/novelService"
+import Anthropic from "@anthropic-ai/sdk"
 
 const GenerateNovel = () => {
   const { currentUser } = useAuth()
@@ -36,9 +35,9 @@ const GenerateNovel = () => {
     "Comedy",
   ]
 
-  // Initialize the OpenAI client
-  const openai = new OpenAI({
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  // Initialize the Anthropic client
+  const anthropic = new Anthropic({
+    apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
     dangerouslyAllowBrowser : true,
   })
 
@@ -53,13 +52,10 @@ const GenerateNovel = () => {
       setGenerationProgress("Generating novel structure...")
 
       // Generate novel structure with title and summary
-      const structureResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const structureResponse = await anthropic.messages.create({
+        model: "claude-3-sonnet-20240229",
+        max_tokens: 1000,
         messages: [
-          {
-            role: "system",
-            content: "You are a creative fiction writer specializing in crafting engaging novels.",
-          },
           {
             role: "user",
             content: `Generate a ${genre} novel based on this prompt: "${prompt}". 
@@ -68,14 +64,12 @@ const GenerateNovel = () => {
                        "title": "Novel Title",
                        "summary": "A compelling summary of the novel (about 150 words)",
                        "chapterTitles": ["Chapter 1 Title", "Chapter 2 Title", ...] (generate ${numChapters} chapter titles)
-                     }`,
-          },
-        ],
-        temperature: 0.8,
+                     }`
+          }
+        ]
       })
 
-      // Parse the novel structure
-      const structureContent = structureResponse.choices[0].message.content || ""
+      const structureContent = (structureResponse.content[0] as { type: 'text', text: string }).text
       let parsedStructure
       try {
         // Find JSON in the response (in case the AI added extra text)
@@ -102,24 +96,22 @@ const GenerateNovel = () => {
       for (let i = 0; i < parsedStructure.chapterTitles.length; i++) {
         const chapterTitle = parsedStructure.chapterTitles[i]
         setGenerationProgress(`Generating chapter ${i + 1} of ${parsedStructure.chapterTitles.length}: ${chapterTitle}`)
-        const chapterResponse: ChatCompletion = await openai.chat.completions.create({
-          model: "gpt-4o",
+        
+        const chapterResponse: Awaited<ReturnType<typeof anthropic.messages.create>> = await anthropic.messages.create({
+          model: "claude-3-sonnet-20240229",
+          max_tokens: 2000,
           messages: [
-            {
-              role: "system",
-              content: `You are a creative fiction writer specializing in ${genre} novels.`,
-            },
             {
               role: "user",
               content: `Write chapter ${i + 1} titled "${chapterTitle}" for a ${genre} novel titled "${parsedStructure.title}" with this summary: "${parsedStructure.summary}".
                        The novel is based on this prompt: "${prompt}".
                        Write a complete chapter with a beginning, middle, and end. The chapter should be about 1000-1500 words.
-                       Previous chapters: ${chapters.map((c) => c.title).join(", ")}`,
-            },
-          ],
-          temperature: 0.7,
+                       Previous chapters: ${chapters.map((c) => c.title).join(", ")}`
+            }
+          ]
         })
-        const chapterContent: string = chapterResponse.choices[0].message.content || ""
+
+        const chapterContent: string = (chapterResponse.content[0] as { type: 'text', text: string }).text
 
         chapters.push({
           title: chapterTitle,
@@ -161,7 +153,7 @@ const GenerateNovel = () => {
         genres: [genre],
         chapters: generatedNovel.chapters,
         authorId: currentUser?.uid,
-        authorName: "AI Assistant",
+        authorName: "Novel AI",
         isAIGenerated: true,
         published: true,
         createdAt: new Date().toISOString(),
