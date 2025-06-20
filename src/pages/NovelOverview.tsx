@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, Link } from "react-router-dom"
 import {
   doc,
@@ -17,11 +16,13 @@ import {
   orderBy,
   onSnapshot,
   addDoc,
+  deleteDoc,
 } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
-import { FaShare, FaCopy, FaFacebook, FaTwitter, FaWhatsapp, FaTimes } from "react-icons/fa"
+import { FaShare, FaCopy, FaFacebook, FaTwitter, FaWhatsapp, FaTimes, FaReply, FaTrash } from "react-icons/fa"
+import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
 
 interface Comment {
   id: string
@@ -32,6 +33,8 @@ interface Comment {
   createdAt: string
   likes: number
   likedBy: string[]
+  parentId?: string // For replies
+  replies?: Comment[]
 }
 
 const NovelOverview = () => {
@@ -46,7 +49,14 @@ const NovelOverview = () => {
   const [submittingComment, setSubmittingComment] = useState<boolean>(false)
   const [showShareModal, setShowShareModal] = useState<boolean>(false)
   const [copySuccess, setCopySuccess] = useState<boolean>(false)
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const [replyContent, setReplyContent] = useState<string>("")
+  const [submittingReply, setSubmittingReply] = useState<boolean>(false)
+  const [deletingComment, setDeletingComment] = useState<string | null>(null)
   const { currentUser } = useAuth()
+
+  const commentTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     const fetchNovel = async () => {
@@ -69,12 +79,10 @@ const NovelOverview = () => {
             ...novelData,
           } as Novel)
 
-          // Only increment view count for authenticated users
-          if (currentUser) {
-            await updateDoc(doc(db, "novels", id), {
-              views: increment(1),
-            })
-          }
+          // Increment view count
+          await updateDoc(doc(db, "novels", id), {
+            views: increment(1),
+          })
         } else {
           setError("Novel not found")
         }
@@ -102,12 +110,27 @@ const NovelOverview = () => {
           ...doc.data(),
         } as Comment)
       })
-      setComments(commentsData)
+
+      // Organize comments with replies
+      const organizedComments = organizeCommentsWithReplies(commentsData)
+      setComments(organizedComments)
       setCommentsLoading(false)
     })
 
     return () => unsubscribe()
   }, [id])
+
+  const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
+    const topLevelComments = allComments.filter((comment) => !comment.parentId)
+    const replies = allComments.filter((comment) => comment.parentId)
+
+    return topLevelComments.map((comment) => ({
+      ...comment,
+      replies: replies
+        .filter((reply) => reply.parentId === comment.id)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    }))
+  }, [])
 
   const handleLike = async () => {
     if (!novel || !currentUser) return
@@ -160,10 +183,57 @@ const NovelOverview = () => {
         likedBy: [],
       })
       setNewComment("")
+      showSuccessToast("Comment posted successfully!")
     } catch (error) {
       console.error("Error submitting comment:", error)
+      showErrorToast("Failed to post comment")
     } finally {
       setSubmittingComment(false)
+    }
+  }
+
+  const handleReplySubmit = async (parentId: string) => {
+    if (!replyContent.trim() || !currentUser || !novel) return
+
+    try {
+      setSubmittingReply(true)
+      await addDoc(collection(db, "comments"), {
+        novelId: novel.id,
+        userId: currentUser.uid,
+        userName: currentUser.displayName || "Anonymous",
+        userPhoto: currentUser.photoURL || null,
+        content: replyContent.trim(),
+        createdAt: new Date().toISOString(),
+        likes: 0,
+        likedBy: [],
+        parentId: parentId,
+      })
+      setReplyContent("")
+      setReplyingTo(null)
+      showSuccessToast("Reply posted successfully!")
+    } catch (error) {
+      console.error("Error submitting reply:", error)
+      showErrorToast("Failed to post reply")
+    } finally {
+      setSubmittingReply(false)
+    }
+  }
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!currentUser) return
+
+    const confirmDelete = window.confirm("Are you sure you want to delete this comment? This action cannot be undone.")
+    if (!confirmDelete) return
+
+    try {
+      setDeletingComment(commentId)
+      await deleteDoc(doc(db, "comments", commentId))
+      showSuccessToast("Comment deleted successfully!")
+    } catch (error) {
+      console.error("Error deleting comment:", error)
+      showErrorToast("Failed to delete comment")
+    } finally {
+      setDeletingComment(null)
     }
   }
 
@@ -246,24 +316,27 @@ const NovelOverview = () => {
 
     // For mobile apps, try to open the app first, fallback to web if it fails
     if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-      const appWindow = window.open(shareUrl, '_blank')
-      
+      const appWindow = window.open(shareUrl, "_blank")
+
       // If app window failed to open (app not installed), fallback to web version
-      if (!appWindow || appWindow.closed || typeof appWindow.closed === 'undefined') {
+      if (!appWindow || appWindow.closed || typeof appWindow.closed === "undefined") {
         setTimeout(() => {
           switch (platform) {
             case "facebook":
-              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(novelUrl)}`, '_blank')
+              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(novelUrl)}`, "_blank")
               break
             case "whatsapp":
-              window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`, '_blank')
+              window.open(
+                `https://web.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`,
+                "_blank",
+              )
               break
           }
         }, 1000)
       }
     } else {
       // For desktop, open in a popup window
-      window.open(shareUrl, '_blank', 'width=600,height=400')
+      window.open(shareUrl, "_blank", "width=600,height=400")
     }
   }
 
@@ -286,6 +359,203 @@ const NovelOverview = () => {
     if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`
     return date.toLocaleDateString()
   }
+
+  const canDeleteComment = (comment: Comment) => {
+    if (!currentUser) return false
+    // User can delete their own comments or novel author can delete any comment
+    return comment.userId === currentUser.uid || (novel && novel.authorId === currentUser.uid)
+  }
+
+  // Memoized handlers to prevent unnecessary re-renders
+  const handleNewCommentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const cursorPosition = e.target.selectionStart
+    setNewComment(e.target.value)
+
+    // Restore cursor position after state update
+    requestAnimationFrame(() => {
+      if (commentTextareaRef.current) {
+        commentTextareaRef.current.setSelectionRange(cursorPosition, cursorPosition)
+      }
+    })
+  }, [])
+
+  const handleReplyContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const cursorPosition = e.target.selectionStart
+    setReplyContent(e.target.value)
+
+    // Restore cursor position after state update
+    requestAnimationFrame(() => {
+      if (replyTextareaRef.current) {
+        replyTextareaRef.current.setSelectionRange(cursorPosition, cursorPosition)
+      }
+    })
+  }, [])
+
+  const handleReplyToggle = useCallback(
+    (commentId: string) => {
+      setReplyingTo(replyingTo === commentId ? null : commentId)
+      setReplyContent("")
+    },
+    [replyingTo],
+  )
+
+  const handleCancelReply = useCallback(() => {
+    setReplyingTo(null)
+    setReplyContent("")
+  }, [])
+
+  const CommentItem = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => (
+    <div className={`bg-white/5 rounded-lg p-4 border border-white/10 ${isReply ? "ml-8 mt-2" : ""}`}>
+      <div className="flex items-start space-x-3">
+        <div className="flex-shrink-0">
+          {comment.userPhoto ? (
+            <img
+              src={comment.userPhoto || "/placeholder.svg"}
+              alt={comment.userName}
+              className="h-8 w-8 rounded-full object-cover"
+            />
+          ) : (
+            <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+              {getUserInitials(comment.userName)}
+            </div>
+          )}
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center space-x-2 mb-1">
+            <h4 className="text-white text-sm font-semibold">{comment.userName}</h4>
+            <span className="text-gray-400 text-xs">{formatDate(comment.createdAt)}</span>
+            {comment.userId === novel?.authorId && (
+              <span className="px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
+                Author
+              </span>
+            )}
+          </div>
+          <p className="text-gray-300 text-sm leading-relaxed mb-2">{comment.content}</p>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => handleCommentLike(comment.id, comment.likedBy?.includes(currentUser?.uid || ""))}
+              disabled={!currentUser}
+              className={`inline-flex items-center text-xs ${
+                comment.likedBy?.includes(currentUser?.uid || "") ? "text-red-400" : "text-gray-400 hover:text-red-400"
+              } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
+            >
+              <svg
+                className={`h-4 w-4 mr-1 ${comment.likedBy?.includes(currentUser?.uid || "") ? "fill-current" : ""}`}
+                fill={comment.likedBy?.includes(currentUser?.uid || "") ? "currentColor" : "none"}
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+              {comment.likes || 0}
+            </button>
+
+            {/* Reply Button - Only for top-level comments */}
+            {!isReply && currentUser && (
+              <button
+                onClick={() => handleReplyToggle(comment.id)}
+                className="inline-flex items-center text-xs text-gray-400 hover:text-purple-400 transition-colors"
+              >
+                <FaReply className="h-3 w-3 mr-1" />
+                Reply
+              </button>
+            )}
+
+            {/* Delete Button */}
+            {canDeleteComment(comment) && (
+              <button
+                onClick={() => handleDeleteComment(comment.id)}
+                disabled={deletingComment === comment.id}
+                className="inline-flex items-center text-xs text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
+              >
+                {deletingComment === comment.id ? (
+                  <svg className="animate-spin h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                ) : (
+                  <FaTrash className="h-3 w-3 mr-1" />
+                )}
+                Delete
+              </button>
+            )}
+          </div>
+
+          {/* Reply Form */}
+          {replyingTo === comment.id && (
+            <div className="mt-3 p-3 bg-white/5 rounded-lg border border-white/10">
+              <div className="flex items-start space-x-2">
+                <div className="flex-shrink-0">
+                  {currentUser?.photoURL ? (
+                    <img
+                      src={currentUser.photoURL || "/placeholder.svg"}
+                      alt="Your avatar"
+                      className="h-6 w-6 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-6 w-6 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      {getUserInitials(currentUser?.displayName || "User")}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <textarea
+                    ref={replyTextareaRef}
+                    value={replyContent}
+                    onChange={handleReplyContentChange}
+                    placeholder={`Reply to ${comment.userName}...`}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm"
+                    rows={2}
+                    autoFocus
+                  />
+                  <div className="flex justify-end space-x-2 mt-2">
+                    <button
+                      onClick={handleCancelReply}
+                      className="px-3 py-1 text-xs text-gray-400 hover:text-white transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleReplySubmit(comment.id)}
+                      disabled={!replyContent.trim() || submittingReply}
+                      className="px-3 py-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
+                    >
+                      {submittingReply ? "Posting..." : "Reply"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Replies */}
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="mt-3">
+          {comment.replies.map((reply) => (
+            <CommentItem key={reply.id} comment={reply} isReply={true} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
 
   if (loading) {
     return (
@@ -367,15 +637,7 @@ const NovelOverview = () => {
                 <div className="w-full md:w-2/3 p-4 sm:p-6 md:p-8">
                   <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">{novel.title}</h1>
                   <p className="text-sm sm:text-lg text-gray-300 mb-3 sm:mb-4">{novel.description}</p>
-                  <p className="mb-3 sm:mb-4 text-sm text-gray-200">
-                    By{" "}
-                    <Link
-                      to={`/profile/${novel.authorId}`}
-                      className="text-purple-400 hover:text-purple-300 transition-colors"
-                    >
-                      {novel.authorName}
-                    </Link>
-                  </p>
+                  <p className="mb-3 sm:mb-4 text-sm text-gray-200">By {novel.authorName}</p>
 
                   {/* Genres */}
                   <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
@@ -518,12 +780,14 @@ const NovelOverview = () => {
               </h2>
               <div className="space-y-3">
                 {novel.chapters?.map((chapter, index) => (
-                  <Link
+                  <div
                     key={index}
-                    to={`/novel/${novel.id}/read?chapter=${index}`}
-                    className="block p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group"
+                    className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group"
                   >
-                    <div className="flex items-center justify-between">
+                    <Link
+                      to={`/novel/${novel.id}/read?chapter=${index}`}
+                      className="flex-1 flex items-center justify-between"
+                    >
                       <div>
                         <h3 className="text-white font-semibold group-hover:text-purple-300 transition-colors">
                           Chapter {index + 1}: {chapter.title}
@@ -537,8 +801,52 @@ const NovelOverview = () => {
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                       </svg>
-                    </div>
-                  </Link>
+                    </Link>
+
+                    {/* Edit Button for Author */}
+                    {isAuthor && (
+                      <>
+                      <Link
+                        to={`/novel/${novel.id}/edit-chapter/${index}`}
+                        className="inline-flex items-center px-1 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 hover:bg-purple-900/20 rounded-md transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </Link>
+                      <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!window.confirm("Are you sure you want to delete this chapter?")) return;
+                        try {
+                          const updatedChapters = [...novel.chapters];
+                          updatedChapters.splice(index, 1);
+                          await updateDoc(doc(db, "novels", novel.id), { chapters: updatedChapters });
+                          setNovel({ ...novel, chapters: updatedChapters });
+                        } catch (err) {
+                          alert("Failed to delete chapter.");
+                        }
+                      }}
+                      className="inline-flex items-center px-1 py-1 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-md transition-colors"
+                    >
+                      <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                    </>
+                    )}
+                  </div>
                 )) || (
                   <div className="text-center py-8">
                     <p className="text-gray-400">No chapters available yet.</p>
@@ -560,7 +868,7 @@ const NovelOverview = () => {
                     d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                   />
                 </svg>
-                Comments ({comments.length})
+                Comments ({comments.reduce((total, comment) => total + 1 + (comment.replies?.length || 0), 0)})
               </h2>
 
               {/* Comment Form */}
@@ -582,8 +890,9 @@ const NovelOverview = () => {
                     </div>
                     <div className="flex-1">
                       <textarea
+                        ref={commentTextareaRef}
                         value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
+                        onChange={handleNewCommentChange}
                         placeholder="Share your thoughts about this novel..."
                         className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                         rows={3}
@@ -653,60 +962,7 @@ const NovelOverview = () => {
                     <p className="text-gray-500 text-xs mt-1">Be the first to share your thoughts!</p>
                   </div>
                 ) : (
-                  comments.map((comment) => (
-                    <div key={comment.id} className="bg-white/5 rounded-lg p-4 border border-white/10">
-                      <div className="flex items-start space-x-3">
-                        <div className="flex-shrink-0">
-                          {comment.userPhoto ? (
-                            <img
-                              src={comment.userPhoto || "/placeholder.svg"}
-                              alt={comment.userName}
-                              className="h-8 w-8 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                              {getUserInitials(comment.userName)}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <h4 className="text-white text-sm font-semibold">{comment.userName}</h4>
-                            <span className="text-gray-400 text-xs">{formatDate(comment.createdAt)}</span>
-                          </div>
-                          <p className="text-gray-300 text-sm leading-relaxed mb-2">{comment.content}</p>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() =>
-                                handleCommentLike(comment.id, comment.likedBy?.includes(currentUser?.uid || ""))
-                              }
-                              disabled={!currentUser}
-                              className={`inline-flex items-center text-xs ${
-                                comment.likedBy?.includes(currentUser?.uid || "")
-                                  ? "text-red-400"
-                                  : "text-gray-400 hover:text-red-400"
-                              } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
-                            >
-                              <svg
-                                className={`h-4 w-4 mr-1 ${comment.likedBy?.includes(currentUser?.uid || "") ? "fill-current" : ""}`}
-                                fill={comment.likedBy?.includes(currentUser?.uid || "") ? "currentColor" : "none"}
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                                />
-                              </svg>
-                              {comment.likes || 0}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                  comments.map((comment) => <CommentItem key={comment.id} comment={comment} />)
                 )}
               </div>
             </div>
@@ -731,14 +987,14 @@ const NovelOverview = () => {
             <div className="space-y-4">
               {/* Copy Link */}
               <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 mr-3">
                     <p className="text-sm text-gray-300 mb-1">Share Link</p>
-                    <p className="text-xs text-gray-400 break-all">{`${window.location.origin}/novel/${novel.id}`}</p>
+                    <p className="text-xs text-gray-400 truncate">{`${window.location.origin}/novel/${novel.id}`}</p>
                   </div>
                   <button
                     onClick={handleCopyLink}
-                    className={`flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
                     }`}
                   >

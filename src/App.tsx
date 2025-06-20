@@ -12,6 +12,7 @@ import Novels from "./pages/Novels";
 import NovelOverview from "./pages/NovelOverview";
 import NovelRead from "./pages/NovelRead";
 import AddChapters from "./pages/add-chapters";
+import EditChapter from "./pages/EditChapter";
 import RegisterPage from "./pages/RegisterPage";
 import SubmitNovel from "./pages/SubmitNovel";
 import TermsOfService from "./pages/TermsOfService";
@@ -66,6 +67,12 @@ function AppContent() {
               path="/generate"
               element={
                 <GenerateNovel />
+              }
+            />
+            <Route
+              path="/novel/:id/edit-chapter/:chapterIndex"
+              element={
+                <EditChapter />
               }
             />
           </Routes>

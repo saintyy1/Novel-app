@@ -1,13 +1,336 @@
-"use client"
-
 import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
 import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
+
+interface Comment {
+  id: string
+  text: string
+  userId: string
+  userName: string
+  userPhoto?: string
+  createdAt: string
+  parentId?: string
+  replies?: Comment[]
+  likes?: number
+  likedBy?: string[]
+}
+
+interface CommentItemProps {
+  comment: Comment;
+  isReply?: boolean;
+  currentUser: any;
+  novel: Novel | null;
+  handleCommentLike: (id: string, liked: boolean) => void;
+  handleReplyToggle: (id: string) => void;
+  canDeleteComment: (comment: Comment) => boolean;
+  handleDeleteComment: (id: string) => void;
+  replyingTo: string | null;
+  replyContent: string;
+  setReplyContent: (v: string) => void;
+  handleReplySubmitDirect: (e: React.FormEvent, parentId: string) => void;
+  setReplyingTo: (v: string | null) => void;
+  deletingComment: string | null;
+  getUserInitials: (name: string) => string;
+  formatDate: (dateString: string) => string;
+  replyInputRef: React.RefObject<HTMLInputElement | null>;
+}
+
+const CommentItem = ({
+  comment,
+  isReply = false,
+  currentUser,
+  novel,
+  handleCommentLike,
+  handleReplyToggle,
+  canDeleteComment,
+  handleDeleteComment,
+  replyingTo,
+  replyContent,
+  setReplyContent,
+  handleReplySubmitDirect,
+  setReplyingTo,
+  deletingComment,
+  getUserInitials,
+  formatDate,
+  replyInputRef,
+}: CommentItemProps) => (
+  <div className={`bg-gray-700 rounded-lg p-3 ${isReply ? "ml-6 mt-2" : ""}`}>
+    <div className="flex items-start justify-between mb-2">
+      <div className="flex items-center space-x-2">
+        {/* Avatar - Fixed to show the comment author's photo */}
+        <div className="flex-shrink-0">
+          {comment.userPhoto ? (
+            <img
+              src={comment.userPhoto || "/placeholder.svg"}
+              alt={comment.userName}
+              className="h-8 w-8 rounded-full object-cover"
+            />
+          ) : (
+            <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+              {getUserInitials(comment.userName)}
+            </div>
+          )}
+        </div>
+        <div>
+          <span className="font-medium text-white">{comment.userName}</span>
+          {comment.userId === novel?.authorId && (
+            <span className="ml-2 px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
+              Author
+            </span>
+          )}
+        </div>
+      </div>
+      <span className="text-xs text-gray-400">{formatDate(comment.createdAt)}</span>
+    </div>
+
+    <p className="text-gray-300 mb-2">{comment.text}</p>
+
+    <div className="flex items-center space-x-4">
+      {/* Like Button */}
+      <button
+        onClick={() => handleCommentLike(comment.id, !!comment.likedBy?.includes(currentUser?.uid || ""))}
+        disabled={!currentUser}
+        className={`inline-flex items-center text-xs ${
+          comment.likedBy?.includes(currentUser?.uid || "") ? "text-red-400" : "text-gray-400 hover:text-red-400"
+        } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
+      >
+        <svg
+          className={`h-4 w-4 mr-1 ${comment.likedBy?.includes(currentUser?.uid || "") ? "fill-current" : ""}`}
+          fill={comment.likedBy?.includes(currentUser?.uid || "") ? "currentColor" : "none"}
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+          />
+        </svg>
+        {comment.likes || 0}
+      </button>
+
+      {/* Reply Button - Only for top-level comments */}
+      {!isReply && currentUser && (
+        <button
+          onClick={() => handleReplyToggle(comment.id)}
+          className="inline-flex items-center text-xs text-gray-400 hover:text-purple-400 transition-colors"
+        >
+          <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+            />
+          </svg>
+          Reply
+        </button>
+      )}
+
+      {/* Delete Button */}
+      {canDeleteComment(comment) && (
+        <button
+          onClick={() => handleDeleteComment(comment.id)}
+          disabled={deletingComment === comment.id}
+          className="inline-flex items-center text-xs text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
+        >
+          {deletingComment === comment.id ? (
+            <svg className="animate-spin h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+          ) : (
+            <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          )}
+          Delete
+        </button>
+      )}
+    </div>
+
+    {/* Reply Form */}
+    {replyingTo === comment.id && (
+      <div className="mt-3 p-3 bg-gray-600 rounded-lg">
+        <form onSubmit={(e) => handleReplySubmitDirect(e, comment.id)}>
+          <input
+            ref={replyInputRef}
+            type="text"
+            value={replyContent}
+            onChange={e => setReplyContent(e.target.value)}
+            placeholder={`Reply to ${comment.userName}...`}
+            className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 w-full"
+            autoComplete="off"
+            autoFocus
+          />
+          <div className="flex items-center space-x-2 mt-2 justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              setReplyingTo(null)
+              setReplyContent("")
+            }}
+            className="px-3 py-2 text-gray-400 hover:text-white text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={!replyContent.trim()}
+            className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              Reply
+            </button>
+          </div>
+        </form>
+      </div>
+    )}
+
+    {/* Replies */}
+    {comment.replies && comment.replies.length > 0 && (
+      <div className="mt-3">
+        {comment.replies.map((reply) => (
+          <CommentItem key={reply.id} comment={reply} isReply={true} currentUser={currentUser} novel={novel} handleCommentLike={handleCommentLike} handleReplyToggle={handleReplyToggle} canDeleteComment={canDeleteComment} handleDeleteComment={handleDeleteComment} replyingTo={replyingTo} replyContent={replyContent} setReplyContent={setReplyContent} handleReplySubmitDirect={handleReplySubmitDirect} setReplyingTo={setReplyingTo} deletingComment={deletingComment} getUserInitials={getUserInitials} formatDate={formatDate} replyInputRef={replyInputRef} />
+        ))}
+      </div>
+    )}
+  </div>
+)
+
+interface CommentModalProps {
+  comments: Comment[];
+  currentUser: any;
+  newComment: string;
+  setNewComment: (v: string) => void;
+  handleSubmitDirect: (e: React.FormEvent) => void;
+  setShowCommentModal: (v: boolean) => void;
+  CommentItem: React.FC<CommentItemProps>;
+  novel: Novel | null;
+  handleCommentLike: (id: string, liked: boolean) => void;
+  handleReplyToggle: (id: string) => void;
+  canDeleteComment: (comment: Comment) => boolean;
+  handleDeleteComment: (id: string) => void;
+  replyingTo: string | null;
+  replyContent: string;
+  setReplyContent: (v: string) => void;
+  handleReplySubmitDirect: (e: React.FormEvent, parentId: string) => void;
+  setReplyingTo: (v: string | null) => void;
+  deletingComment: string | null;
+  getUserInitials: (name: string) => string;
+  formatDate: (dateString: string) => string;
+  replyInputRef: React.RefObject<HTMLInputElement | null>;
+}
+
+const CommentModal = ({
+  comments,
+  currentUser,
+  newComment,
+  setNewComment,
+  handleSubmitDirect,
+  setShowCommentModal,
+  CommentItem,
+  novel,
+  handleCommentLike,
+  handleReplyToggle,
+  canDeleteComment,
+  handleDeleteComment,
+  replyingTo,
+  replyContent,
+  setReplyContent,
+  handleReplySubmitDirect,
+  setReplyingTo,
+  deletingComment,
+  getUserInitials,
+  formatDate,
+  replyInputRef,
+}: CommentModalProps & { getUserInitials: (name: string) => string; formatDate: (dateString: string) => string; replyInputRef: React.RefObject<HTMLInputElement | null> }) => (
+  <div
+    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    onClick={(e) => {
+      if (e.target === e.currentTarget) {
+        setShowCommentModal(false)
+        setNewComment("")
+      }
+    }}
+  >
+    <div
+      className="bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+        <h3 className="text-xl font-semibold text-white">
+          Comments ({comments.reduce((total: number, comment: Comment) => total + 1 + (comment.replies?.length || 0), 0)})
+        </h3>
+        <button onClick={() => { setShowCommentModal(false); setNewComment("") }} className="text-gray-400 hover:text-white">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {comments.length === 0 ? (
+          <p className="text-gray-400 text-center py-4">No comments yet. Be the first to comment!</p>
+        ) : (
+          comments.map((comment) => (
+            <CommentItem
+              key={comment.id}
+              comment={comment}
+              currentUser={currentUser}
+              novel={novel}
+              handleCommentLike={handleCommentLike}
+              handleReplyToggle={handleReplyToggle}
+              canDeleteComment={(comment) => Boolean(canDeleteComment(comment))}
+              handleDeleteComment={handleDeleteComment}
+              replyingTo={replyingTo}
+              replyContent={replyContent}
+              setReplyContent={setReplyContent}
+              handleReplySubmitDirect={handleReplySubmitDirect}
+              setReplyingTo={setReplyingTo}
+              deletingComment={deletingComment}
+              getUserInitials={getUserInitials}
+              formatDate={formatDate}
+              replyInputRef={replyInputRef}
+            />
+          ))
+        )}
+      </div>
+      {currentUser && (
+        <div className="p-4 border-t border-gray-700">
+          <form onSubmit={handleSubmitDirect} className="flex space-x-2">
+            <textarea
+              value={newComment}
+              onChange={e => setNewComment(e.target.value)}
+              placeholder="Write a comment..."
+              className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+              rows={2}
+            />
+            <button
+              type="submit"
+              disabled={!newComment.trim()}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Post
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  </div>
+)
 
 const NovelRead = () => {
   const { id } = useParams<{ id: string }>()
@@ -18,12 +341,15 @@ const NovelRead = () => {
   const [currentChapter, setCurrentChapter] = useState<number>(0)
   const { currentUser } = useAuth()
   const [showCommentModal, setShowCommentModal] = useState(false)
-  const [comments, setComments] = useState<
-    Array<{ id: string; text: string; userId: string; userName: string; createdAt: string }>
-  >([])
+  const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState("")
   const [chapterLiked, setChapterLiked] = useState(false)
   const [chapterLikes, setChapterLikes] = useState(0)
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const [replyContent, setReplyContent] = useState("")
+  const [deletingComment, setDeletingComment] = useState<string | null>(null)
+
+  const replyInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const fetchNovel = async () => {
@@ -73,28 +399,30 @@ const NovelRead = () => {
     setChapterLiked(false)
     setChapterLikes(0)
     setComments([])
-    setShowCommentModal(false)
-    setNewComment("")
+    setReplyingTo(null)
+    setReplyContent("")
 
     const fetchChapterData = async () => {
-  if (!novel) return
+      if (!novel) return
 
-  try {
-    const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
-    const chapterDoc = await getDoc(chapterRef)
+      try {
+        const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+        const chapterDoc = await getDoc(chapterRef)
 
-    if (chapterDoc.exists()) {
-      const chapterData = chapterDoc.data()
-      setChapterLiked(
-        currentUser ? chapterData.chapterLikedBy?.includes(currentUser.uid) || false : false
-      )
-      setChapterLikes(chapterData.chapterLikes || 0)
-      setComments(chapterData.comments || [])
+        if (chapterDoc.exists()) {
+          const chapterData = chapterDoc.data()
+          setChapterLiked(currentUser ? chapterData.chapterLikedBy?.includes(currentUser.uid) || false : false)
+          setChapterLikes(chapterData.chapterLikes || 0)
+
+          // Organize comments with replies
+          const allComments = chapterData.comments || []
+          const organizedComments = organizeCommentsWithReplies(allComments)
+          setComments(organizedComments)
+        }
+      } catch (error) {
+        console.error("Error fetching chapter data:", error)
+      }
     }
-  } catch (error) {
-    console.error("Error fetching chapter data:", error)
-  }
-} 
 
     fetchChapterData()
   }, [novel, currentUser, currentChapter])
@@ -103,6 +431,18 @@ const NovelRead = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [currentChapter])
+
+  const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
+    const topLevelComments = allComments.filter((comment) => !comment.parentId)
+    const replies = allComments.filter((comment) => comment.parentId)
+
+    return topLevelComments.map((comment) => ({
+      ...comment,
+      replies: replies
+        .filter((reply) => reply.parentId === comment.id)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    }))
+  }, [])
 
   const handleChapterLike = async () => {
     if (!novel?.id || !currentUser) return
@@ -149,14 +489,18 @@ const NovelRead = () => {
     try {
       const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
       const chapterDoc = await getDoc(chapterRef)
-      const comment = {
+      const comment: Comment = {
         id: Date.now().toString(),
         text: newComment.trim(),
         userId: currentUser.uid,
         userName: currentUser.displayName || "Anonymous",
+        userPhoto: currentUser.photoURL || undefined,
         createdAt: new Date().toISOString(),
+        likes: 0,
+        likedBy: [],
       }
 
+      let updatedComments: Comment[]
       if (!chapterDoc.exists()) {
         // Create the chapter document if it doesn't exist
         await setDoc(chapterRef, {
@@ -164,40 +508,187 @@ const NovelRead = () => {
           chapterLikedBy: [],
           comments: [comment],
         })
+        updatedComments = [comment]
       } else {
         // Update existing document
+        const existingComments = chapterDoc.data().comments || []
+        updatedComments = [...existingComments, comment]
         await updateDoc(chapterRef, {
-          comments: arrayUnion(comment),
+          comments: updatedComments,
         })
       }
 
-      setComments((prev) => [...prev, comment])
+      const organizedComments = organizeCommentsWithReplies(updatedComments)
+      setComments(organizedComments)
       setNewComment("")
     } catch (error) {
       console.error("Error adding comment:", error)
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (newComment.trim()) {
-      handleAddComment()
+  const handleAddReply = async (parentId: string) => {
+    if (!novel?.id || !currentUser || !replyContent.trim()) return
+
+    try {
+      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+      const chapterDoc = await getDoc(chapterRef)
+
+      if (!chapterDoc.exists()) return
+
+      const reply: Comment = {
+        id: Date.now().toString(),
+        text: replyContent.trim(),
+        userId: currentUser.uid,
+        userName: currentUser.displayName || "Anonymous",
+        userPhoto: currentUser.photoURL || undefined,
+        createdAt: new Date().toISOString(),
+        parentId: parentId,
+        likes: 0,
+        likedBy: [],
+      }
+
+      const existingComments = chapterDoc.data().comments || []
+      const updatedComments = [...existingComments, reply]
+
+      await updateDoc(chapterRef, {
+        comments: updatedComments,
+      })
+
+      const organizedComments = organizeCommentsWithReplies(updatedComments)
+      setComments(organizedComments)
+      setReplyContent("")
+      setReplyingTo(null)
+    } catch (error) {
+      console.error("Error adding reply:", error)
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setNewComment(value)
+  const handleDeleteComment = async (commentId: string) => {
+    if (!novel?.id || !currentUser) return
+
+    const confirmDelete = window.confirm("Are you sure you want to delete this comment? This action cannot be undone.")
+    if (!confirmDelete) return
+
+    try {
+      setDeletingComment(commentId)
+      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+      const chapterDoc = await getDoc(chapterRef)
+
+      if (!chapterDoc.exists()) return
+
+      const existingComments = chapterDoc.data().comments || []
+      // Remove the comment and its replies
+      const updatedComments = existingComments.filter(
+        (comment: Comment) => comment.id !== commentId && comment.parentId !== commentId,
+      )
+
+      await updateDoc(chapterRef, {
+        comments: updatedComments,
+      })
+
+      const organizedComments = organizeCommentsWithReplies(updatedComments)
+      setComments(organizedComments)
+    } catch (error) {
+      console.error("Error deleting comment:", error)
+    } finally {
+      setDeletingComment(null)
+    }
   }
+
+  const handleCommentLike = async (commentId: string, isLiked: boolean) => {
+    if (!novel?.id || !currentUser) return
+
+    try {
+      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+      const chapterDoc = await getDoc(chapterRef)
+
+      if (!chapterDoc.exists()) return
+
+      const existingComments = chapterDoc.data().comments || []
+      const updatedComments = existingComments.map((comment: Comment) => {
+        if (comment.id === commentId) {
+          const likedBy = comment.likedBy || []
+          if (isLiked) {
+            return {
+              ...comment,
+              likes: (comment.likes || 0) - 1,
+              likedBy: likedBy.filter((uid: string) => uid !== currentUser.uid),
+            }
+          } else {
+            return {
+              ...comment,
+              likes: (comment.likes || 0) + 1,
+              likedBy: [...likedBy, currentUser.uid],
+            }
+          }
+        }
+        return comment
+      })
+
+      await updateDoc(chapterRef, {
+        comments: updatedComments,
+      })
+
+      const organizedComments = organizeCommentsWithReplies(updatedComments)
+      setComments(organizedComments)
+    } catch (error) {
+      console.error("Error updating comment like:", error)
+    }
+  }
+
+  const canDeleteComment = (comment: Comment) => {
+    if (!currentUser) return false
+    // User can delete their own comments or novel author can delete any comment
+    return comment.userId === currentUser.uid || (novel && novel.authorId === currentUser.uid)
+  }
+
+  // Update the submit handlers to be more direct
+  const handleSubmitDirect = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      if (newComment.trim()) {
+        handleAddComment()
+      }
+    },
+    [newComment],
+  )
+
+  const handleReplySubmitDirect = useCallback(
+    (e: React.FormEvent, parentId: string) => {
+      e.preventDefault()
+      if (replyContent.trim()) {
+        handleAddReply(parentId)
+      }
+    },
+    [replyContent],
+  )
+
+  const handleReplyToggle = useCallback(
+    (commentId: string) => {
+      setReplyingTo(replyingTo === commentId ? null : commentId)
+      setReplyContent("")
+    },
+    [replyingTo],
+  )
 
   const getUserInitials = (name: string) => {
     return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
       .toUpperCase()
       .slice(0, 2)
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+
+    if (diffInHours < 1) return "Just now"
+    if (diffInHours < 24) return `${diffInHours}h ago`
+    if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`
+    return date.toLocaleDateString()
   }
 
   // Improved function to break content into readable paragraphs
@@ -304,95 +795,9 @@ const NovelRead = () => {
             />
           </svg>
         </div>
-        <span className="text-sm text-gray-300 mt-1">{comments.length}</span>
-      </div>
-    </div>
-  )
-
-  const CommentModal = () => (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          setShowCommentModal(false)
-        }
-      }}
-    >
-      <div
-        className="bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-          <h3 className="text-xl font-semibold text-white">Comments</h3>
-          <button onClick={() => setShowCommentModal(false)} className="text-gray-400 hover:text-white">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {comments.length === 0 ? (
-            <p className="text-gray-400 text-center py-4">No comments yet. Be the first to comment!</p>
-          ) : (
-            comments.map((comment) => (
-              <div key={comment.id} className="bg-gray-700 rounded-lg p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-2">
-                  {/* Avatar */}
-                  <div className="flex-shrink-0">
-                      {currentUser?.photoURL ? (
-                        <img
-                          src={currentUser.photoURL || "/placeholder.svg"}
-                          alt={comment.userName}
-                          className="h-8 w-8 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                          {getUserInitials(comment.userName)}
-                        </div>
-                    )}
-                  </div>
-                  <span className="font-medium text-white">{comment.userName}</span>
-                  </div>
-
-                  <span className="text-xs text-gray-400">{new Date(comment.createdAt).toLocaleDateString()}</span>
-                </div>
-                <p className="text-gray-300">{comment.text}</p>
-              </div>
-            ))
-          )}
-        </div>
-
-        {currentUser && (
-          <div className="p-4 border-t border-gray-700">
-            <form onSubmit={handleSubmit} className="flex space-x-2">
-              <input
-                type="text"
-                value={newComment}
-                onChange={handleInputChange}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    handleSubmit(e as any)
-                  }
-                  e.stopPropagation()
-                }}
-                placeholder="Write a comment..."
-                className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                autoComplete="off"
-                autoFocus
-              />
-              <button
-                type="submit"
-                disabled={!newComment.trim()}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Post
-              </button>
-            </form>
-          </div>
-        )}
+        <span className="text-sm text-gray-300 mt-1">
+          {comments.reduce((total, comment) => total + 1 + (comment.replies?.length || 0), 0)}
+        </span>
       </div>
     </div>
   )
@@ -550,7 +955,31 @@ const NovelRead = () => {
       </div>
 
       <FloatingActions />
-      {showCommentModal && <CommentModal />}
+      {showCommentModal && (
+        <CommentModal
+          comments={comments}
+          currentUser={currentUser}
+          newComment={newComment}
+          setNewComment={setNewComment}
+          handleSubmitDirect={handleSubmitDirect}
+          setShowCommentModal={setShowCommentModal}
+          CommentItem={CommentItem}
+          novel={novel}
+          handleCommentLike={handleCommentLike}
+          handleReplyToggle={handleReplyToggle}
+          canDeleteComment={(comment) => Boolean(canDeleteComment(comment))}
+          handleDeleteComment={handleDeleteComment}
+          replyingTo={replyingTo}
+          replyContent={replyContent}
+          setReplyContent={setReplyContent}
+          handleReplySubmitDirect={handleReplySubmitDirect}
+          setReplyingTo={setReplyingTo}
+          deletingComment={deletingComment}
+          getUserInitials={getUserInitials}
+          formatDate={formatDate}
+          replyInputRef={replyInputRef}
+        />
+      )}
     </div>
   )
 }
