@@ -79,10 +79,12 @@ const NovelOverview = () => {
             ...novelData,
           } as Novel)
 
-          // Increment view count
-          await updateDoc(doc(db, "novels", id), {
-            views: increment(1),
-          })
+          if (currentUser) {
+            // Increment view count
+            await updateDoc(doc(db, "novels", id), {
+              views: increment(1),
+            })
+          }
         } else {
           setError("Novel not found")
         }
@@ -435,9 +437,8 @@ const NovelOverview = () => {
             <button
               onClick={() => handleCommentLike(comment.id, comment.likedBy?.includes(currentUser?.uid || ""))}
               disabled={!currentUser}
-              className={`inline-flex items-center text-xs ${
-                comment.likedBy?.includes(currentUser?.uid || "") ? "text-red-400" : "text-gray-400 hover:text-red-400"
-              } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
+              className={`inline-flex items-center text-xs ${comment.likedBy?.includes(currentUser?.uid || "") ? "text-red-400" : "text-gray-400 hover:text-red-400"
+                } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
             >
               <svg
                 className={`h-4 w-4 mr-1 ${comment.likedBy?.includes(currentUser?.uid || "") ? "fill-current" : ""}`}
@@ -656,9 +657,8 @@ const NovelOverview = () => {
                     <button
                       onClick={handleLike}
                       disabled={!currentUser}
-                      className={`flex items-center transition-colors ${
-                        !currentUser ? "opacity-50 cursor-not-allowed" : "hover:scale-105 cursor-pointer"
-                      } ${liked ? "text-red-400" : "text-gray-300 hover:text-red-400"}`}
+                      className={`flex items-center transition-colors ${!currentUser ? "opacity-50 cursor-not-allowed" : "hover:scale-105 cursor-pointer"
+                        } ${liked ? "text-red-400" : "text-gray-300 hover:text-red-400"}`}
                     >
                       <svg
                         className={`h-5 w-5 mr-2 transition-colors ${liked ? "fill-current text-red-400" : ""}`}
@@ -806,52 +806,52 @@ const NovelOverview = () => {
                     {/* Edit Button for Author */}
                     {isAuthor && (
                       <>
-                      <Link
-                        to={`/novel/${novel.id}/edit-chapter/${index}`}
-                        className="inline-flex items-center px-1 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 hover:bg-purple-900/20 rounded-md transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </Link>
-                      <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        if (!window.confirm("Are you sure you want to delete this chapter?")) return;
-                        try {
-                          const updatedChapters = [...novel.chapters];
-                          updatedChapters.splice(index, 1);
-                          await updateDoc(doc(db, "novels", novel.id), { chapters: updatedChapters });
-                          setNovel({ ...novel, chapters: updatedChapters });
-                        } catch (err) {
-                          alert("Failed to delete chapter.");
-                        }
-                      }}
-                      className="inline-flex items-center px-1 py-1 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-md transition-colors"
-                    >
-                      <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                    </>
+                        <Link
+                          to={`/novel/${novel.id}/edit-chapter/${index}`}
+                          className="inline-flex items-center px-1 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 hover:bg-purple-900/20 rounded-md transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </Link>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!window.confirm("Are you sure you want to delete this chapter?")) return;
+                            try {
+                              const updatedChapters = [...novel.chapters];
+                              updatedChapters.splice(index, 1);
+                              await updateDoc(doc(db, "novels", novel.id), { chapters: updatedChapters });
+                              setNovel({ ...novel, chapters: updatedChapters });
+                            } catch (err) {
+                              alert("Failed to delete chapter.");
+                            }
+                          }}
+                          className="inline-flex items-center px-1 py-1 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-md transition-colors"
+                        >
+                          <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </>
                     )}
                   </div>
                 )) || (
-                  <div className="text-center py-8">
-                    <p className="text-gray-400">No chapters available yet.</p>
-                  </div>
-                )}
+                    <div className="text-center py-8">
+                      <p className="text-gray-400">No chapters available yet.</p>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
@@ -994,9 +994,8 @@ const NovelOverview = () => {
                   </div>
                   <button
                     onClick={handleCopyLink}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
-                    }`}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
+                      }`}
                   >
                     <FaCopy className="h-4 w-4 mr-2" />
                     {copySuccess ? "Copied!" : "Copy"}
