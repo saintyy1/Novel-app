@@ -31,7 +31,7 @@ function AppContent() {
     <AuthProvider>
       <div className="min-h-screen bg-[#121212] flex flex-col">
         {!isNovelReadPage && <Navbar />}
-        <main className={`flex-grow px-3 py-6 ${!isNovelReadPage ? "py-8" : "py-0"}`}>
+        <main className={`flex-grow ${!isNovelReadPage ? "px-3 py-8" : "px-0 py-0"}`}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<LoginPage />} />
