@@ -6,6 +6,7 @@ import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import ReactMarkdown from "react-markdown"
+import { useSwipeable } from "react-swipeable"
 
 interface Comment {
   id: string
@@ -350,6 +351,45 @@ const NovelRead = () => {
   const [replyContent, setReplyContent] = useState("")
   const [deletingComment, setDeletingComment] = useState<string | null>(null)
   const replyInputRef = useRef<HTMLInputElement>(null)
+  const [readingMode, setReadingMode] = useState<'scroll' | 'book'>('scroll')
+  const [currentPage, setCurrentPage] = useState(0)
+
+  // Helper: Split content into pages (250 words per page)
+  const getPages = (content: string, wordsPerPage = 250) => {
+    if (!content) return []
+    const words = content.split(/\s+/)
+    const pages = []
+    for (let i = 0; i < words.length; i += wordsPerPage) {
+      pages.push(words.slice(i, i + wordsPerPage).join(' '))
+    }
+    return pages
+  }
+
+  // Reset page on chapter change or mode change
+  useEffect(() => {
+    setCurrentPage(0)
+  }, [currentChapter, readingMode])
+
+  // Keyboard navigation for book mode
+  useEffect(() => {
+    if (readingMode !== 'book') return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') setCurrentPage((p) => Math.max(0, p - 1))
+      if (e.key === 'ArrowRight') setCurrentPage((p) => Math.min(pages.length - 1, p + 1))
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [readingMode, currentPage, novel, currentChapter])
+
+  // Prepare pages for book mode
+  const pages = readingMode === 'book' && novel ? getPages(novel.chapters[currentChapter].content) : []
+
+  // Swipe handlers for book mode
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: () => setCurrentPage((p) => Math.min(pages.length - 1, p + 1)),
+    onSwipedRight: () => setCurrentPage((p) => Math.max(0, p - 1)),
+    trackMouse: true,
+  })
 
   useEffect(() => {
     const fetchNovel = async () => {
@@ -877,6 +917,16 @@ const NovelRead = () => {
         </div>
       </div>
 
+      {/* Reading Mode Toggle */}
+      <div className="flex justify-end max-w-4xl mx-auto px-4 mb-2">
+        <button
+          className="px-4 py-2 rounded-md text-sm font-medium bg-gray-700 text-gray-200 hover:bg-purple-700 transition-colors"
+          onClick={() => setReadingMode(readingMode === 'scroll' ? 'book' : 'scroll')}
+        >
+          {readingMode === 'scroll' ? 'Switch to Book Mode' : 'Switch to Scroll Mode'}
+        </button>
+      </div>
+
       {/* Chapter Content */}
       <div className="flex-grow py-4">
         <div className="max-w-4xl mx-auto px-4">
@@ -885,18 +935,66 @@ const NovelRead = () => {
               {novel.chapters[currentChapter].title}
             </h2>
 
-            <div className="prose dark:prose-invert max-w-none mx-auto">
-              {formatContent(novel.chapters[currentChapter].content).map((paragraph, index) => (
+            {readingMode === 'scroll' ? (
+              <div className="prose dark:prose-invert max-w-none mx-auto">
+                {formatContent(novel.chapters[currentChapter].content).map((paragraph, index) => (
+                  <div
+                    key={index}
+                    className="mb-6 text-gray-300 leading-relaxed text-base indent-8 text-justify"
+                  >
+                    <ReactMarkdown>
+                      {paragraph}
+                    </ReactMarkdown>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div {...swipeHandlers} className="relative flex flex-col items-center min-h-[300px] w-full">
                 <div
-                  key={index}
-                  className="mb-6 text-gray-300 leading-relaxed text-base indent-8 text-justify"
+                  className="prose dark:prose-invert max-w-none mx-auto w-full"
+                  style={{ minHeight: 250 }}
                 >
-                  <ReactMarkdown>
-                    {paragraph}
-                  </ReactMarkdown>
+                  {/* Render paragraphs with same spacing/indent as scroll mode */}
+                  {pages[currentPage]
+                    ? formatContent(pages[currentPage]).map((paragraph, idx) => (
+                        <div
+                          key={idx}
+                          className="mb-6 text-gray-300 leading-relaxed text-base indent-8 text-justify"
+                        >
+                          <ReactMarkdown>{paragraph}</ReactMarkdown>
+                        </div>
+                      ))
+                    : null}
                 </div>
-              ))}
-            </div>
+                <div className="flex justify-between items-center w-full mt-6">
+                  <button
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 0 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-purple-900 text-purple-200 hover:bg-purple-800'}`}
+                    disabled={currentPage === 0}
+                    onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                  >
+                    <span className="flex items-center">
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  </button>
+                  <span className="px-4 py-2 bg-gray-700 text-gray-300 rounded-md text-sm font-medium">
+                    Page {currentPage + 1} of {pages.length}
+                  </span>
+                  <button
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === pages.length - 1 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-purple-900 text-purple-200 hover:bg-purple-800'}`}
+                    disabled={currentPage === pages.length - 1}
+                    onClick={() => setCurrentPage((p) => Math.min(pages.length - 1, p + 1))}
+                  >
+                    <span className="flex items-center">
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row justify-center items-center mt-12 space-y-4 sm:space-y-0 sm:space-x-4">
               <button
