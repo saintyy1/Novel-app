@@ -8,6 +8,8 @@ import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
+import MDEditor from "@uiw/react-md-editor"
+import rehypeSanitize from "rehype-sanitize"
 
 const EditChapter = () => {
   const { id: novelId, chapterIndex } = useParams<{ id: string; chapterIndex: string }>()
@@ -285,13 +287,18 @@ const EditChapter = () => {
             <label htmlFor="chapter-content" className="block text-sm font-medium text-gray-300 mb-2">
               Chapter Content
             </label>
-            <textarea
-              id="chapter-content"
-              className="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[400px] resize-y"
+            <MDEditor
               value={chapterContent}
-              onChange={(e) => setChapterContent(e.target.value)}
-              placeholder="Write your chapter content here..."
-              required
+              onChange={(val) => setChapterContent(val || "")}
+              height={400}
+              textareaProps={{
+                id: "chapter-content",
+                required: true,
+                placeholder: "Write your chapter content here..."
+              }}
+              previewOptions={{
+                rehypePlugins: [[rehypeSanitize]]
+              }}
             />
             <div className="mt-2 flex justify-between text-sm text-gray-400">
               <span>Characters: {chapterContent.length}</span>

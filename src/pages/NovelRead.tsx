@@ -5,6 +5,7 @@ import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc } fr
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
+import ReactMarkdown from "react-markdown"
 
 interface Comment {
   id: string
@@ -348,7 +349,6 @@ const NovelRead = () => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState("")
   const [deletingComment, setDeletingComment] = useState<string | null>(null)
-
   const replyInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -887,9 +887,14 @@ const NovelRead = () => {
 
             <div className="prose dark:prose-invert max-w-none mx-auto">
               {formatContent(novel.chapters[currentChapter].content).map((paragraph, index) => (
-                <p key={index} className="mb-6 text-gray-300 leading-relaxed text-base indent-8 text-justify">
-                  {paragraph}
-                </p>
+                <div
+                  key={index}
+                  className="mb-6 text-gray-300 leading-relaxed text-base indent-8 text-justify"
+                >
+                  <ReactMarkdown>
+                    {paragraph}
+                  </ReactMarkdown>
+                </div>
               ))}
             </div>
 

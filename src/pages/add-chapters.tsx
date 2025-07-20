@@ -7,6 +7,8 @@ import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
+import MDEditor from "@uiw/react-md-editor"
+import rehypeSanitize from "rehype-sanitize"
 
 interface Chapter {
   title: string
@@ -278,21 +280,26 @@ const AddChapters = () => {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor={`chapter-content-${index}`}
-                    className="block text-sm font-medium text-gray-300 mb-1"
-                  >
-                    Chapter Content
-                  </label>
-                  <textarea
-                    id={`chapter-content-${index}`}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[300px]"
-                    value={chapter.content}
-                    onChange={(e) => handleChapterContentChange(index, e.target.value)}
-                    placeholder="Write your chapter content here..."
-                    required
-                  />
-                </div>
+                <label
+                  htmlFor={`chapter-content-${index}`}
+                  className="block text-sm font-medium text-gray-300 mb-1"
+                >
+                  Chapter Content
+                </label>
+                <MDEditor
+                  value={chapter.content}
+                  onChange={(val) => handleChapterContentChange(index, val || "")}
+                  height={250}
+                  textareaProps={{
+                    id: `chapter-content-${index}`,
+                    required: true,
+                    placeholder: "Write your chapter content here..."
+                  }}
+                  previewOptions={{
+                    rehypePlugins: [[rehypeSanitize]]
+                  }}
+                />
+              </div>
               </div>
             )
           })}

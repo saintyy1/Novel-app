@@ -5,6 +5,8 @@ import { useNavigate, Link } from "react-router-dom"
 import { collection, addDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
+import MDEditor from "@uiw/react-md-editor"
+import rehypeSanitize from "rehype-sanitize"
 
 const SubmitNovel = () => {
   const { currentUser } = useAuth()
@@ -397,13 +399,18 @@ const SubmitNovel = () => {
                 >
                   Chapter Content
                 </label>
-                <textarea
-                  id={`chapter-content-${index}`}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[250px]"
+                <MDEditor
                   value={chapter.content}
-                  onChange={(e) => handleChapterContentChange(index, e.target.value)}
-                  required
-                  placeholder="Write your chapter content here..."
+                  onChange={(val) => handleChapterContentChange(index, val || "")}
+                  height={250}
+                  textareaProps={{
+                    id: `chapter-content-${index}`,
+                    required: true,
+                    placeholder: "Write your chapter content here..."
+                  }}
+                  previewOptions={{
+                    rehypePlugins: [[rehypeSanitize]]
+                  }}
                 />
               </div>
             </div>
