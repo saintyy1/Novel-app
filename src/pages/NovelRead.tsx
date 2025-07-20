@@ -1,5 +1,4 @@
-import type React from "react"
-import { useState, useEffect, useCallback, useRef } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
 import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
@@ -7,6 +6,7 @@ import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import ReactMarkdown from "react-markdown"
 import { useSwipeable } from "react-swipeable"
+import { useRef as useReactRef } from "react"
 
 interface Comment {
   id: string
@@ -353,6 +353,9 @@ const NovelRead = () => {
   const replyInputRef = useRef<HTMLInputElement>(null)
   const [readingMode, setReadingMode] = useState<'scroll' | 'book'>('scroll')
   const [currentPage, setCurrentPage] = useState(0)
+  const [pageFade, setPageFade] = useState(false)
+  const lastSwipeTime = useReactRef(0)
+  const bookContentRef = useReactRef<HTMLDivElement>(null)
 
   // Helper: Split content into pages (250 words per page)
   const getPages = (content: string, wordsPerPage = 250) => {
@@ -370,6 +373,11 @@ const NovelRead = () => {
     setCurrentPage(0)
   }, [currentChapter, readingMode])
 
+  // Remove fade if switching to scroll mode
+  useEffect(() => {
+    if (readingMode !== 'book') setPageFade(false)
+  }, [readingMode])
+
   // Keyboard navigation for book mode
   useEffect(() => {
     if (readingMode !== 'book') return
@@ -384,12 +392,41 @@ const NovelRead = () => {
   // Prepare pages for book mode
   const pages = readingMode === 'book' && novel ? getPages(novel.chapters[currentChapter].content) : []
 
-  // Swipe handlers for book mode
+  // Book mode: handle animated page transitions
+  const changeBookPage = (newPage: number) => {
+    if (newPage === currentPage) return
+    setPageFade(true)
+    setTimeout(() => {
+      setCurrentPage(newPage)
+      setTimeout(() => setPageFade(false), 300)
+    }, 300)
+  }
+
+  // Swipe handlers for book mode (debounced, with animation)
   const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => setCurrentPage((p) => Math.min(pages.length - 1, p + 1)),
-    onSwipedRight: () => setCurrentPage((p) => Math.max(0, p - 1)),
+    onSwipedLeft: () => {
+      const now = Date.now()
+      if (now - lastSwipeTime.current > 350 && currentPage < pages.length - 1) {
+        lastSwipeTime.current = now
+        changeBookPage(currentPage + 1)
+      }
+    },
+    onSwipedRight: () => {
+      const now = Date.now()
+      if (now - lastSwipeTime.current > 350 && currentPage > 0) {
+        lastSwipeTime.current = now
+        changeBookPage(currentPage - 1)
+      }
+    },
     trackMouse: true,
   })
+
+  // Scroll to top when book page changes (in book mode)
+  useEffect(() => {
+    if (readingMode === 'book' && bookContentRef.current) {
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+  }, [currentPage, readingMode])
 
   useEffect(() => {
     const fetchNovel = async () => {
@@ -951,26 +988,33 @@ const NovelRead = () => {
             ) : (
               <div {...swipeHandlers} className="relative flex flex-col items-center min-h-[300px] w-full">
                 <div
-                  className="prose dark:prose-invert max-w-none mx-auto w-full"
+                  ref={bookContentRef}
+                  className={`prose dark:prose-invert max-w-none mx-auto w-full transition-opacity duration-300 ${pageFade ? 'opacity-0' : 'opacity-100'}`}
                   style={{ minHeight: 250 }}
                 >
-                  {/* Render paragraphs with same spacing/indent as scroll mode */}
-                  {pages[currentPage]
-                    ? formatContent(pages[currentPage]).map((paragraph, idx) => (
-                        <div
-                          key={idx}
-                          className="mb-6 text-gray-300 leading-relaxed text-base indent-8 text-justify"
-                        >
-                          <ReactMarkdown>{paragraph}</ReactMarkdown>
-                        </div>
-                      ))
-                    : null}
+                  {pages[currentPage] && formatContent(pages[currentPage]).length > 0 ? (
+                    formatContent(pages[currentPage]).map((paragraph, idx) => (
+                      <div
+                        key={idx}
+                        className="mb-6 text-gray-300 leading-relaxed text-base indent-8 text-justify"
+                      >
+                        <ReactMarkdown>{paragraph}</ReactMarkdown>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-60 text-gray-400">
+                      <svg className="h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                      <span className="text-lg">No content on this page</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-between items-center w-full mt-6">
                   <button
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 0 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-purple-900 text-purple-200 hover:bg-purple-800'}`}
                     disabled={currentPage === 0}
-                    onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                    onClick={() => changeBookPage(currentPage - 1)}
                   >
                     <span className="flex items-center">
                       <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -984,7 +1028,7 @@ const NovelRead = () => {
                   <button
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === pages.length - 1 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-purple-900 text-purple-200 hover:bg-purple-800'}`}
                     disabled={currentPage === pages.length - 1}
-                    onClick={() => setCurrentPage((p) => Math.min(pages.length - 1, p + 1))}
+                    onClick={() => changeBookPage(currentPage + 1)}
                   >
                     <span className="flex items-center">
                       <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
