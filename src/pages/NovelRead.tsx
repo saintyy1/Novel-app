@@ -357,16 +357,59 @@ const NovelRead = () => {
   const lastSwipeTime = useReactRef(0)
   const bookContentRef = useReactRef<HTMLDivElement>(null)
 
-  // Helper: Split content into pages (250 words per page)
-  const getPages = (content: string, wordsPerPage = 250) => {
+  // Helper: Split content into readable paragraphs (used for both modes)
+  const formatContent = (content: string) => {
     if (!content) return []
-    const words = content.split(/\s+/)
-    const pages = []
-    for (let i = 0; i < words.length; i += wordsPerPage) {
-      pages.push(words.slice(i, i + wordsPerPage).join(' '))
+    // First, split by existing paragraph breaks (double newlines, <br>, </n>, etc.)
+    const paragraphs = content
+      .split(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi)
+      .filter((para) => para.trim() && !para.match(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi))
+    const formattedParagraphs: string[] = []
+    paragraphs.forEach((paragraph) => {
+      const cleanPara = paragraph.trim()
+      if (!cleanPara) return
+      // Split long paragraphs by sentences
+      const sentences = cleanPara.split(/(?<=[.!?])\s+/).filter((s) => s.trim())
+      if (sentences.length <= 6) {
+        // If 6 or fewer sentences, keep as one paragraph
+        formattedParagraphs.push(cleanPara)
+      } else {
+        // Break into chunks of 4-6 sentences for better readability
+        for (let i = 0; i < sentences.length; i += 5) {
+          const chunk = sentences.slice(i, i + 5).join(" ").trim()
+          if (chunk) {
+            formattedParagraphs.push(chunk)
+          }
+        }
+      }
+    })
+    // If no paragraphs were created (single long text), split by character count
+    if (formattedParagraphs.length === 0 && content.trim()) {
+      const words = content.trim().split(/\s+/)
+      const wordsPerParagraph = 100 // Approximately 6-8 lines
+      for (let i = 0; i < words.length; i += wordsPerParagraph) {
+        const chunk = words.slice(i, i + wordsPerParagraph).join(" ").trim()
+        if (chunk) {
+          formattedParagraphs.push(chunk)
+        }
+      }
+    }
+    return formattedParagraphs.length > 0 ? formattedParagraphs : [content.trim()]
+  }
+
+  // Helper: Paginate paragraphs (for book mode)
+  const paginateParagraphs = (paragraphs: string[], paragraphsPerPage = 5) => {
+    const pages: string[][] = []
+    for (let i = 0; i < paragraphs.length; i += paragraphsPerPage) {
+      pages.push(paragraphs.slice(i, i + paragraphsPerPage))
     }
     return pages
   }
+
+  // Prepare paragraphs and pages for both modes
+  const chapterContent = novel ? novel.chapters[currentChapter].content : ""
+  const formattedParagraphs = formatContent(chapterContent)
+  const paginatedParagraphs = paginateParagraphs(formattedParagraphs, 5) // 5 paragraphs per page
 
   // Reset page on chapter change or mode change
   useEffect(() => {
@@ -389,8 +432,8 @@ const NovelRead = () => {
     return () => window.removeEventListener('keydown', handleKey)
   }, [readingMode, currentPage, novel, currentChapter])
 
-  // Prepare pages for book mode
-  const pages = readingMode === 'book' && novel ? getPages(novel.chapters[currentChapter].content) : []
+  // Prepare pages for book mode (now paginated paragraphs)
+  const pages = readingMode === 'book' ? paginatedParagraphs : []
 
   // Book mode: handle animated page transitions
   const changeBookPage = (newPage: number) => {
@@ -427,6 +470,7 @@ const NovelRead = () => {
       window.scrollTo({ top: 0, behavior: "smooth" })
     }
   }, [currentPage, readingMode])
+
 
   useEffect(() => {
     const fetchNovel = async () => {
@@ -768,69 +812,14 @@ const NovelRead = () => {
     return date.toLocaleDateString()
   }
 
-  // Improved function to break content into readable paragraphs
-  const formatContent = (content: string) => {
-    if (!content) return []
-
-    // First, split by existing paragraph breaks (double newlines, <br>, </n>, etc.)
-    const paragraphs = content
-      .split(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi)
-      .filter((para) => para.trim() && !para.match(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi))
-
-    const formattedParagraphs: string[] = []
-
-    paragraphs.forEach((paragraph) => {
-      const cleanPara = paragraph.trim()
-      if (!cleanPara) return
-
-      // Split long paragraphs by sentences
-      const sentences = cleanPara.split(/(?<=[.!?])\s+/).filter((s) => s.trim())
-
-      if (sentences.length <= 6) {
-        // If 6 or fewer sentences, keep as one paragraph
-        formattedParagraphs.push(cleanPara)
-      } else {
-        // Break into chunks of 4-6 sentences for better readability
-        for (let i = 0; i < sentences.length; i += 5) {
-          const chunk = sentences
-            .slice(i, i + 5)
-            .join(" ")
-            .trim()
-          if (chunk) {
-            formattedParagraphs.push(chunk)
-          }
-        }
-      }
-    })
-
-    // If no paragraphs were created (single long text), split by character count
-    if (formattedParagraphs.length === 0 && content.trim()) {
-      const words = content.trim().split(/\s+/)
-      const wordsPerParagraph = 100 // Approximately 6-8 lines
-
-      for (let i = 0; i < words.length; i += wordsPerParagraph) {
-        const chunk = words
-          .slice(i, i + wordsPerParagraph)
-          .join(" ")
-          .trim()
-        if (chunk) {
-          formattedParagraphs.push(chunk)
-        }
-      }
-    }
-
-    return formattedParagraphs.length > 0 ? formattedParagraphs : [content.trim()]
-  }
-
+  // Re-add FloatingActions component
   const FloatingActions = () => (
     <div className="fixed bottom-6 right-2 md:right-6 flex flex-col items-end space-y-4">
       {/* Like Button with Count */}
       <div className="flex flex-col items-center">
         <div
           onClick={handleChapterLike}
-          className={`cursor-pointer transition-all transform hover:scale-110 ${
-            !currentUser ? "opacity-50 cursor-not-allowed" : ""
-          }`}
+          className={`cursor-pointer transition-all transform hover:scale-110 ${!currentUser ? "opacity-50 cursor-not-allowed" : ""}`}
           title={currentUser ? "Like this chapter" : "Login to like"}
         >
           <svg
@@ -853,9 +842,7 @@ const NovelRead = () => {
       <div className="flex flex-col items-center">
         <div
           onClick={() => setShowCommentModal(true)}
-          className={`cursor-pointer transition-all transform hover:scale-110 ${
-            !currentUser ? "opacity-50 cursor-not-allowed" : ""
-          }`}
+          className={`cursor-pointer transition-all transform hover:scale-110 ${!currentUser ? "opacity-50 cursor-not-allowed" : ""}`}
           title={currentUser ? "View comments" : "Login to comment"}
         >
           <svg
@@ -974,7 +961,7 @@ const NovelRead = () => {
 
             {readingMode === 'scroll' ? (
               <div className="prose dark:prose-invert max-w-none mx-auto">
-                {formatContent(novel.chapters[currentChapter].content).map((paragraph, index) => (
+                {formattedParagraphs.map((paragraph, index) => (
                   <div
                     key={index}
                     className="mb-6 text-gray-300 leading-relaxed text-base indent-8 text-justify"
@@ -992,8 +979,8 @@ const NovelRead = () => {
                   className={`prose dark:prose-invert max-w-none mx-auto w-full transition-opacity duration-300 ${pageFade ? 'opacity-0' : 'opacity-100'}`}
                   style={{ minHeight: 250 }}
                 >
-                  {pages[currentPage] && formatContent(pages[currentPage]).length > 0 ? (
-                    formatContent(pages[currentPage]).map((paragraph, idx) => (
+                  {pages[currentPage] && pages[currentPage].length > 0 ? (
+                    pages[currentPage].map((paragraph, idx) => (
                       <div
                         key={idx}
                         className="mb-6 text-gray-300 leading-relaxed text-base indent-8 text-justify"
