@@ -25,6 +25,16 @@ const EditChapter = () => {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [hasChanges, setHasChanges] = useState(false)
+  const [showPreview, setShowPreview] = useState(() => window.innerWidth >= 768)
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) setShowPreview(false)
+      else setShowPreview(true)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const chapterIdx = chapterIndex ? Number.parseInt(chapterIndex, 10) : 0
 
@@ -287,6 +297,13 @@ const EditChapter = () => {
             <label htmlFor="chapter-content" className="block text-sm font-medium text-gray-300 mb-2">
               Chapter Content
             </label>
+            <button
+              type="button"
+              className="mb-2 px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              onClick={() => setShowPreview((prev) => !prev)}
+            >
+              {showPreview ? 'Show Preview' : 'Hide Preview'}
+            </button>
             <MDEditor
               value={chapterContent}
               onChange={(val) => setChapterContent(val || "")}
@@ -299,17 +316,12 @@ const EditChapter = () => {
               previewOptions={{
                 rehypePlugins: [[rehypeSanitize]]
               }}
+              preview={showPreview ? 'edit' : 'preview'}
             />
             <div className="mt-2 flex justify-between text-sm text-gray-400">
               <span>Characters: {chapterContent.length}</span>
               <span>
-                Words:{" "}
-                {
-                  chapterContent
-                    .trim()
-                    .split(/\s+/)
-                    .filter((word) => word.length > 0).length
-                }
+                Words: {chapterContent.trim().split(/\s+/).filter((word) => word.length > 0).length}
               </span>
             </div>
           </div>

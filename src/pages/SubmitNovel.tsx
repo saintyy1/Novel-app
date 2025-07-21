@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { collection, addDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
@@ -22,6 +22,16 @@ const SubmitNovel = () => {
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showPreview, setShowPreview] = useState(() => window.innerWidth >= 768)
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) setShowPreview(false)
+      else setShowPreview(true)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const availableGenres = [
     "Fantasy", "Sci-Fi", "Romance", "Mystery", "Horror",
@@ -399,6 +409,13 @@ const SubmitNovel = () => {
                 >
                   Chapter Content
                 </label>
+                <button
+                  type="button"
+                  className="mb-2 px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  onClick={() => setShowPreview((prev) => !prev)}
+                >
+                  {showPreview ? 'Show Preview' : 'Hide Preview'}
+                </button>
                 <MDEditor
                   value={chapter.content}
                   onChange={(val) => handleChapterContentChange(index, val || "")}
@@ -411,6 +428,7 @@ const SubmitNovel = () => {
                   previewOptions={{
                     rehypePlugins: [[rehypeSanitize]]
                   }}
+                  preview={showPreview ? 'edit' : 'preview'}
                 />
               </div>
             </div>
