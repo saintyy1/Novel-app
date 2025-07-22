@@ -4,79 +4,67 @@ import { Link } from "react-router-dom"
 import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
-import FeaturedNovel from "../components/FeaturedNovel"
 import SimpleNotificationListener from "../components/simple-notification-listener"
+import NovelCarousel from "../components/NovelCarousel"
 
 const Home = () => {
-  const [novels, setNovels] = useState<Novel[]>([])
-  const [featuredNovel, setFeaturedNovel] = useState<Novel | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
-  const [activeFilter, setActiveFilter] = useState<string>("all")
-  const [activeGenre, setActiveGenre] = useState<string>("all")
-  const [searchQuery] = useState<string>("")
+  const [trendingNovels, setTrendingNovels] = useState<Novel[]>([])
+  const [newReleaseNovels, setNewReleaseNovels] = useState<Novel[]>([])
+  const [loadingTrending, setLoadingTrending] = useState<boolean>(true)
+  const [loadingNewReleases, setLoadingNewReleases] = useState<boolean>(true)
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
 
-  const genres = [
-    "Fantasy",
-    "Sci-Fi",
-    "Romance",
-    "Mystery",
-    "Horror",
-    "Adventure",
-    "Thriller",
-    "Historical",
-    "Comedy",
-    "Drama",
-  ]
-
+  // Fetch Trending Novels
   useEffect(() => {
-    const fetchNovels = async () => {
-      setLoading(true)
+    const fetchTrendingNovels = async () => {
+      setLoadingTrending(true)
       try {
-        let novelQuery = query(
+        const trendingQuery = query(
           collection(db, "novels"),
           where("published", "==", true),
-          orderBy("createdAt", "desc"),
+          orderBy("views", "desc"), // Order by views for trending
           limit(7),
         )
-        if (activeFilter === "ai") {
-          novelQuery = query(
-            collection(db, "novels"),
-            where("published", "==", true),
-            where("isAIGenerated", "==", true),
-            orderBy("createdAt", "desc"),
-            limit(7),
-          )
-        } else if (activeFilter === "user") {
-          novelQuery = query(
-            collection(db, "novels"),
-            where("published", "==", true),
-            where("isAIGenerated", "==", false),
-            orderBy("createdAt", "desc"),
-            limit(7),
-          )
-        }
-        const querySnapshot = await getDocs(novelQuery)
-        const novelsData: Novel[] = []
+        const querySnapshot = await getDocs(trendingQuery)
+        const trendingData: Novel[] = []
         querySnapshot.forEach((doc) => {
-          novelsData.push({ id: doc.id, ...doc.data() } as Novel)
+          trendingData.push({ id: doc.id, ...doc.data() } as Novel)
         })
-        // Filter by genre if a specific genre is selected
-        const filteredNovels =
-          activeGenre === "all" ? novelsData : novelsData.filter((novel) => novel.genres.includes(activeGenre))
-        // Set featured novel (first one or random)
-        if (filteredNovels.length > 0) {
-          setFeaturedNovel(filteredNovels[0])
-        }
-        setNovels(filteredNovels)
+        setTrendingNovels(trendingData)
       } catch (error) {
-        console.error("Error fetching novels:", error)
+        console.error("Error fetching trending novels:", error)
       } finally {
-        setLoading(false)
+        setLoadingTrending(false)
       }
     }
-    fetchNovels()
-  }, [activeFilter, activeGenre])
+    fetchTrendingNovels()
+  }, [])
+
+  // Fetch New Release Novels
+  useEffect(() => {
+    const fetchNewReleaseNovels = async () => {
+      setLoadingNewReleases(true)
+      try {
+        const newReleaseQuery = query(
+          collection(db, "novels"),
+          where("published", "==", true),
+          orderBy("createdAt", "desc"), // Order by createdAt for new releases
+          limit(7),
+        )
+        const querySnapshot = await getDocs(newReleaseQuery)
+        const newReleaseData: Novel[] = []
+        querySnapshot.forEach((doc) => {
+          newReleaseData.push({ id: doc.id, ...doc.data() } as Novel)
+        })
+        setNewReleaseNovels(newReleaseData)
+      } catch (error) {
+        console.error("Error fetching new release novels:", error)
+      } finally {
+        setLoadingNewReleases(false)
+      }
+    }
+    fetchNewReleaseNovels()
+  }, [])
 
   const handleImageError = (novelId: string) => {
     setImageErrors((prev) => ({
@@ -85,7 +73,6 @@ const Home = () => {
     }))
   }
 
-  // Function to get genre-based color class
   const getGenreColorClass = (genres: string[]) => {
     if (genres.includes("Fantasy")) return "from-purple-500 to-indigo-600"
     if (genres.includes("Sci-Fi")) return "from-blue-500 to-cyan-600"
@@ -102,9 +89,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen">
-      {/* Simple Notification Listener */}
       <SimpleNotificationListener />
-      {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white py-20 px-4 sm:px-6 lg:px-8 rounded-b-3xl shadow-xl">
         <div className="absolute inset-0 bg-black opacity-50 rounded-b-3xl"></div>
         <div className="relative max-w-7xl mx-auto">
@@ -132,185 +117,29 @@ const Home = () => {
           </div>
         </div>
       </section>
-      {/* Featured Novel */}
-      {featuredNovel && (
-        <section className="py-16 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8 text-center text-[#E0E0E0]">Featured Novel</h2>
-          {/* Featured Novel */}
-          {featuredNovel && <FeaturedNovel novel={featuredNovel} />}
-        </section>
-      )}
-      {/* Novel Filters */}
-      <section className="py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <h2 className="text-3xl font-bold text-[#E0E0E0]">Discover Novels</h2>
-          <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-            <div className="flex rounded-md shadow-sm">
-              <button
-                className={`px-4 py-2 text-sm font-medium rounded-l-md ${
-                  activeFilter === "all"
-                    ? "bg-purple-600 text-white"
-                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                } border border-gray-300 dark:border-gray-600`}
-                onClick={() => setActiveFilter("all")}
-              >
-                All
-              </button>
-              <button
-                className={`px-4 py-2 text-sm font-medium ${
-                  activeFilter === "user"
-                    ? "bg-purple-600 text-white"
-                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                } border-t border-b border-gray-300 dark:border-gray-600`}
-                onClick={() => setActiveFilter("user")}
-              >
-                User Submitted
-              </button>
-              <button
-                className={`px-4 py-2 text-sm font-medium rounded-r-md ${
-                  activeFilter === "ai"
-                    ? "bg-purple-600 text-white"
-                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                } border border-gray-300 dark:border-gray-600`}
-                onClick={() => setActiveFilter("ai")}
-              >
-                AI Generated
-              </button>
-            </div>
-            <select
-              className="block w-full sm:w-auto rounded-md border-gray-300 dark:border-gray-600 py-2 pl-3 pr-10 text-base focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-              value={activeGenre}
-              onChange={(e) => setActiveGenre(e.target.value)}
-            >
-              <option value="all">All Genres</option>
-              {genres.map((genre) => (
-                <option key={genre} value={genre}>
-                  {genre}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        {/* Novels Grid */}
-        {loading ? (
-          // Skeleton loading state for horizontal scroll
-          <div className="flex overflow-x-auto space-x-4 py-4 scrollbar-hide" style={{
-            scrollbarWidth: 'none',        // Firefox
-            msOverflowStyle: 'none'        // IE/Edge
-          }}
-        >
-          <style>
-            {`
-              /* Hide scrollbar for Chrome, Safari, and Opera */
-              div::-webkit-scrollbar {
-                display: none;
-              }
-            `}
-          </style>
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="flex-shrink-0 w-40 h-64 bg-gray-800 rounded-lg shadow-md overflow-hidden animate-pulse"
-              >
-                {/* Placeholder for cover */}
-                <div className="w-full h-full bg-gray-700"></div>
-              </div>
-            ))}
-          </div>
-        ) : novels.length > 0 ? (
-          // Actual novels, horizontally scrollable
-          <div className="flex overflow-x-auto space-x-4 py-2 scrollbar-hide" style={{
-            scrollbarWidth: 'none',        // Firefox
-            msOverflowStyle: 'none'        // IE/Edge
-          }}
-        >
-          <style>
-            {`
-              /* Hide scrollbar for Chrome, Safari, and Opera */
-              div::-webkit-scrollbar {
-                display: none;
-              }
-            `}
-          </style>
-            {novels.map((novel) => (
-              <Link
-                to={`/novel/${novel.id}`}
-                key={novel.id}
-                className="flex-shrink-0 w-40 h-64 relative rounded-lg shadow-md overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300"
-              >
-                {novel.coverImage && !imageErrors[novel.id] ? (
-                  // Custom Cover Image
-                  <img
-                    src={novel.coverImage || "/placeholder.svg"}
-                    alt={`Cover for ${novel.title}`}
-                    className="w-full h-full object-cover"
-                    onError={() => handleImageError(novel.id)}
-                  />
-                ) : (
-                  // Generated Book Cover Design
-                  <div
-                    className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(
-                      novel.genres,
-                    )} relative overflow-hidden`}
-                  >
-                    {/* Book spine effect */}
-                    <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
-                    {/* Background pattern */}
-                    <div className="absolute inset-0 opacity-10">
-                      <div className="absolute top-2 left-2 w-4 h-4 border border-white rounded-full"></div>
-                      <div className="absolute top-6 right-3 w-2 h-2 bg-white rounded-full"></div>
-                      <div className="absolute bottom-3 left-3 w-3 h-3 border border-white"></div>
-                    </div>
-                    {/* Title on cover */}
-                    <div className="absolute inset-0 flex flex-col justify-center items-center p-3 text-center">
-                      <h3 className="text-white text-sm font-bold leading-tight line-clamp-2 mb-1">{novel.title}</h3>
-                      <div className="w-8 h-px bg-white opacity-50 mb-1"></div>
-                      <p className="text-white text-xs opacity-75 truncate w-full">{novel.authorName}</p>
-                    </div>
-                    {/* Book pages effect */}
-                    <div className="absolute right-0 top-1 w-px h-full bg-white opacity-20"></div>
-                    <div className="absolute right-1 top-1 w-px h-full bg-white opacity-15"></div>
-                  </div>
-                )}
 
-              </Link>
-            ))}
-          </div>
-        ) : (
-          // No novels found state
-          <div className="text-center py-16 bg-gray-800 rounded-xl shadow-md">
-            <svg
-              className="mx-auto h-16 w-16 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              />
-            </svg>
-            <h3 className="mt-2 text-xl font-medium text-white">No novels found</h3>
-            <p className="mt-1 text-gray-400">
-              {searchQuery || activeGenre !== "all"
-                ? "Try adjusting your filters to find more novels"
-                : "Be the first to submit a novel!"}
-            </p>
-            <div className="mt-6">
-              <Link
-                to="/submit"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700"
-              >
-                Submit a Novel
-              </Link>
-            </div>
-          </div>
-        )}
-      </section>
-      {/* Call to Action */}
+      {/* Trending Novels Section */}
+      <NovelCarousel
+        title="Trending Novels"
+        novels={trendingNovels}
+        loading={loadingTrending}
+        seeAllLink="/novels"
+        imageErrors={imageErrors}
+        handleImageError={handleImageError}
+        getGenreColorClass={getGenreColorClass}
+      />
+
+      {/* New Releases Section */}
+      <NovelCarousel
+        title="New Releases"
+        novels={newReleaseNovels}
+        loading={loadingNewReleases}
+        seeAllLink="/novels"
+        imageErrors={imageErrors}
+        handleImageError={handleImageError}
+        getGenreColorClass={getGenreColorClass}
+      />
+
       <section className="py-8 sm:px-6 lg:px-8 max-w-5xl mx-auto">
         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl shadow-xl overflow-hidden">
           <div className="px-6 py-12 md:py-16 md:px-12 text-center text-white">
