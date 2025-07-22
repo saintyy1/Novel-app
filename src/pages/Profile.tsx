@@ -1,10 +1,8 @@
 "use client"
-
 import type React from "react"
-
 import { useState, useEffect, useRef } from "react"
 import { Link, useParams } from "react-router-dom"
-import { collection, query, where, getDocs, orderBy, doc, getDoc } from "firebase/firestore"
+import { collection, query, where, getDocs, orderBy, doc, getDoc, updateDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
@@ -23,6 +21,13 @@ const Profile = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
 
+  // New state for novel cover management
+  const [selectedNovelForCover, setSelectedNovelForCover] = useState<Novel | null>(null)
+  const [showNovelCoverModal, setShowNovelCoverModal] = useState(false)
+  const [uploadingNovelCover, setUploadingNovelCover] = useState(false)
+  const [novelCoverError, setNovelCoverError] = useState("")
+  const novelCoverFileInputRef = useRef<HTMLInputElement>(null)
+
   const isOwnProfile = !userId || userId === currentUser?.uid
 
   useEffect(() => {
@@ -31,11 +36,9 @@ const Profile = () => {
         setLoading(false)
         return
       }
-
       try {
         setLoading(true)
         setError("")
-
         // If viewing another user's profile, fetch their data
         if (userId && userId !== currentUser?.uid) {
           const userDoc = await getDoc(doc(db, "users", userId))
@@ -49,26 +52,22 @@ const Profile = () => {
           // Viewing own profile
           setProfileUser(currentUser)
         }
-
         // Fetch novels for the profile user
         const targetUserId = userId || currentUser?.uid
         if (targetUserId) {
           const novelsQuery = query(
             collection(db, "novels"),
             where("authorId", "==", targetUserId),
-            orderBy("createdAt", "desc")
+            orderBy("createdAt", "desc"),
           )
-
           const querySnapshot = await getDocs(novelsQuery)
           const novels: Novel[] = []
-
           querySnapshot.forEach((doc) => {
             novels.push({
               id: doc.id,
               ...doc.data(),
             } as Novel)
           })
-
           setUserNovels(novels)
         }
       } catch (err) {
@@ -78,21 +77,17 @@ const Profile = () => {
         setLoading(false)
       }
     }
-
     fetchUserData()
   }, [currentUser, userId])
-
 
   const resizeImage = (file: File, maxWidth = 200, maxHeight = 200, quality = 0.7): Promise<string> => {
     return new Promise((resolve) => {
       const canvas = document.createElement("canvas")
       const ctx = canvas.getContext("2d")!
       const img = new Image()
-
       img.onload = () => {
         // Calculate new dimensions
         let { width, height } = img
-
         if (width > height) {
           if (width > maxWidth) {
             height = (height * maxWidth) / width
@@ -104,16 +99,13 @@ const Profile = () => {
             height = maxHeight
           }
         }
-
         canvas.width = width
         canvas.height = height
-
         // Draw and compress
         ctx.drawImage(img, 0, 0, width, height)
         const base64 = canvas.toDataURL("image/jpeg", quality)
         resolve(base64)
       }
-
       img.src = URL.createObjectURL(file)
     })
   }
@@ -128,7 +120,6 @@ const Profile = () => {
       setPhotoError("Profile picture must be less than 10MB")
       return
     }
-
     if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
       setPhotoError("Profile picture must be JPEG, PNG, or WebP format")
       return
@@ -137,10 +128,8 @@ const Profile = () => {
     try {
       setUploadingPhoto(true)
       setPhotoError("")
-
       // Resize and compress the image more aggressively for Firestore storage
       const resizedBase64 = await resizeImage(file, 200, 200, 0.7)
-
       // Check if the compressed image is reasonable size for Firestore
       // Firestore has a 1MB document limit, so we need to be conservative
       if (resizedBase64.length > 200000) {
@@ -148,12 +137,9 @@ const Profile = () => {
         setPhotoError("Image is too large even after compression. Please use a smaller image.")
         return
       }
-
       // Update user photo in Firestore only
       await updateUserPhoto(resizedBase64)
-
       setPhotoError("Profile picture updated successfully!")
-
       // Clear success message after 3 seconds
       setTimeout(() => {
         setPhotoError("")
@@ -172,16 +158,12 @@ const Profile = () => {
 
   const removeProfilePicture = async () => {
     if (!currentUser) return
-
     try {
       setUploadingPhoto(true)
       setPhotoError("")
-
       // Remove photo from Firestore
       await updateUserPhoto(null)
-
       setPhotoError("Profile picture removed successfully!")
-
       // Clear success message after 3 seconds
       setTimeout(() => {
         setPhotoError("")
@@ -192,6 +174,93 @@ const Profile = () => {
     } finally {
       setUploadingPhoto(false)
     }
+  }
+
+  // New functions for novel cover management
+  const handleNovelCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !selectedNovelForCover) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      setNovelCoverError("Cover image must be less than 10MB")
+      return
+    }
+    if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
+      setNovelCoverError("Cover image must be JPEG, PNG, or WebP format")
+      return
+    }
+
+    try {
+      setUploadingNovelCover(true)
+      setNovelCoverError("")
+
+      const resizedBase64 = await resizeImage(file, 400, 600, 0.8) // Adjust dimensions for novel covers
+      if (resizedBase64.length > 500000) {
+        // ~400KB limit for novel covers
+        setNovelCoverError("Image is too large even after compression. Please use a smaller image.")
+        return
+      }
+
+      // Update novel document in Firestore
+      const novelRef = doc(db, "novels", selectedNovelForCover.id)
+      await updateDoc(novelRef, { coverImage: resizedBase64 })
+
+      // Update local state
+      setUserNovels((prevNovels) =>
+        prevNovels.map((novel) =>
+          novel.id === selectedNovelForCover.id ? { ...novel, coverImage: resizedBase64 } : novel,
+        ),
+      )
+      setSelectedNovelForCover((prev) => (prev ? { ...prev, coverImage: resizedBase64 } : null))
+
+      setNovelCoverError("Novel cover updated successfully!")
+      setTimeout(() => setNovelCoverError(""), 3000)
+    } catch (err) {
+      console.error("Error uploading novel cover:", err)
+      setNovelCoverError("Failed to upload novel cover. Please try again.")
+    } finally {
+      setUploadingNovelCover(false)
+      if (novelCoverFileInputRef.current) {
+        novelCoverFileInputRef.current.value = ""
+      }
+    }
+  }
+
+  const removeNovelCover = async () => {
+    if (!selectedNovelForCover) return
+
+    try {
+      setUploadingNovelCover(true)
+      setNovelCoverError("")
+
+      const novelRef = doc(db, "novels", selectedNovelForCover.id)
+      await updateDoc(novelRef, { coverImage: null })
+
+      // Update local state
+      setUserNovels((prevNovels) =>
+        prevNovels.map((novel) => (novel.id === selectedNovelForCover.id ? { ...novel, coverImage: null } : novel)),
+      )
+      setSelectedNovelForCover((prev) => (prev ? { ...prev, coverImage: null } : null))
+
+      setNovelCoverError("Novel cover removed successfully!")
+      setTimeout(() => setNovelCoverError(""), 3000)
+    } catch (err) {
+      console.error("Error removing novel cover:", err)
+      setNovelCoverError("Failed to remove novel cover. Please try again.")
+    } finally {
+      setUploadingNovelCover(false)
+    }
+  }
+
+  const openNovelCoverModal = (novel: Novel) => {
+    setSelectedNovelForCover(novel)
+    setShowNovelCoverModal(true)
+  }
+
+  const closeNovelCoverModal = () => {
+    setShowNovelCoverModal(false)
+    setSelectedNovelForCover(null)
+    setNovelCoverError("") // Clear any previous errors
   }
 
   const getUserInitials = (name: string | null | undefined) => {
@@ -288,103 +357,93 @@ const Profile = () => {
                   </span>
                 )}
               </div>
-
               {/* Upload/Remove Photo Buttons */}
               {isOwnProfile && (
-              <div className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 flex space-x-1">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingPhoto}
-                  className="bg-purple-600 hover:bg-purple-700 text-white p-1.5 sm:p-2 rounded-full shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Upload profile picture"
-                >
-                  {uploadingPhoto ? (
-                    <svg className="animate-spin h-3 w-3 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                  ) : (
-                    <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                  )}
-                </button>
-
-                {profileUser?.photoURL && (
+                <div className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 flex space-x-1">
                   <button
-                    onClick={removeProfilePicture}
+                    onClick={() => fileInputRef.current?.click()}
                     disabled={uploadingPhoto}
-                    className="bg-red-600 hover:bg-red-700 text-white p-1.5 sm:p-2 rounded-full shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Remove profile picture"
+                    className="bg-purple-600 hover:bg-purple-700 text-white p-1.5 sm:p-2 rounded-full shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Upload profile picture"
                   >
-                    <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
+                    {uploadingPhoto ? (
+                      <svg className="animate-spin h-3 w-3 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                    ) : (
+                      <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                    )}
                   </button>
-                )}
-              </div>
+                  {profileUser?.photoURL && (
+                    <button
+                      onClick={removeProfilePicture}
+                      disabled={uploadingPhoto}
+                      className="bg-red-600 hover:bg-red-700 text-white p-1.5 sm:p-2 rounded-full shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Remove profile picture"
+                    >
+                      <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               )}
-
               {/* Hidden file input */}
               {isOwnProfile && (
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/webp"
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
               )}
             </div>
-
             <div className="flex-1 text-center sm:text-left w-full sm:ml-4 ml-0">
               <h1 className="text-2xl sm:text-3xl font-bold text-white break-words">
                 {profileUser?.displayName || "User"}
               </h1>
-              <p className="text-gray-400 mt-1 break-all text-sm sm:text-base">
-                {profileUser?.email}
-              </p>
-
+              <p className="text-gray-400 mt-1 break-all text-sm sm:text-base">{profileUser?.email}</p>
               {/* Photo Error/Success Message */}
               {isOwnProfile && photoError && (
                 <div
                   className={`mt-2 text-xs sm:text-sm ${
-                    photoError.includes("successfully")
-                      ? "text-green-400"
-                      : "text-red-400"
+                    photoError.includes("successfully") ? "text-green-400" : "text-red-400"
                   }`}
                 >
                   {photoError}
                 </div>
               )}
-
               {/* Photo Upload Instructions */}
               <div className="mt-2 grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-400">
                 <div className="flex items-center justify-center sm:justify-start">
@@ -437,29 +496,27 @@ const Profile = () => {
                 </div>
               </div>
             </div>
-
             {isOwnProfile && (
-            <div className="flex justify-center sm:justify-end w-full sm:w-auto">
-              <Link
-                to="/submit"
-                className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors"
-              >
-                <svg
-                  className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              <div className="flex justify-center sm:justify-end w-full sm:w-auto">
+                <Link
+                  to="/submit"
+                  className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                <span className="hidden sm:inline">Submit New Novel</span>
-                <span className="sm:hidden">New Novel</span>
-              </Link>
-            </div>
+                  <svg
+                    className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  <span className="hidden sm:inline">Submit New Novel</span>
+                  <span className="sm:hidden">New Novel</span>
+                </Link>
+              </div>
             )}
           </div>
         </div>
-
         {/* Photo Modal */}
         {showPhotoModal && profileUser?.photoURL && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -481,7 +538,6 @@ const Profile = () => {
             </div>
           </div>
         )}
-
         {/* Novels Section */}
         <div className="bg-gray-800 rounded-xl shadow-md">
           {/* Tab Navigation */}
@@ -519,7 +575,6 @@ const Profile = () => {
               </button>
             </nav>
           </div>
-
           {/* Content */}
           <div className="p-6">
             {loading ? (
@@ -528,9 +583,7 @@ const Profile = () => {
               </div>
             ) : error ? (
               <div className="text-center py-12">
-                <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg">
-                  {error}
-                </div>
+                <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg">{error}</div>
               </div>
             ) : filteredNovels.length === 0 ? (
               <div className="text-center py-12">
@@ -562,7 +615,6 @@ const Profile = () => {
                       ? "Your published novels will appear here."
                       : "Novels awaiting review will appear here."}
                 </p>
-
                 {activeTab === "all" && isOwnProfile && (
                   <div className="mt-6">
                     <Link
@@ -619,13 +671,35 @@ const Profile = () => {
                       <div className="absolute bottom-4 left-4 right-4">
                         <h3 className="text-xl font-bold text-white mb-1 line-clamp-2">{novel.title}</h3>
                       </div>
+                      {isOwnProfile && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation() // Prevent opening novel detail page
+                            openNovelCoverModal(novel)
+                          }}
+                          className="absolute top-2 left-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full shadow-lg transition-colors z-10"
+                          title="Edit novel cover"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                          </svg>
+                        </button>
+                      )}
                     </div>
-
                     {/* Novel Content */}
                     <div className="p-6">
-                      
                       <div className="text-xs text-gray-500 mb-4">Created: {formatDate(novel.createdAt)}</div>
-
                       {/* Action Buttons */}
                       <div className="flex space-x-3">
                         {novel.published ? (
@@ -650,19 +724,19 @@ const Profile = () => {
                               </svg>
                             </Link>
                             {isOwnProfile && (
-                            <Link
-                              to={`/novel/${novel.id}/add-chapters`}
-                              className="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30"
-                            >
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                />
-                              </svg>
-                            </Link>
+                              <Link
+                                to={`/novel/${novel.id}/add-chapters`}
+                                className="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30"
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                  />
+                                </svg>
+                              </Link>
                             )}
                           </>
                         ) : (
@@ -686,6 +760,121 @@ const Profile = () => {
           </div>
         </div>
       </div>
+      {/* Novel Cover Modal */}
+      {showNovelCoverModal && selectedNovelForCover && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-lg p-6 max-w-lg w-full relative">
+            <button
+              onClick={closeNovelCoverModal}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
+              title="Close"
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h2 className="text-xl font-bold text-white mb-4">Edit Cover for "{selectedNovelForCover.title}"</h2>
+            <div className="flex flex-col items-center space-y-4">
+              <div className="relative w-48 h-72 bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center overflow-hidden rounded-lg">
+                {selectedNovelForCover.coverImage ? (
+                  <img
+                    src={selectedNovelForCover.coverImage || "/placeholder.svg"}
+                    alt={selectedNovelForCover.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <svg className="h-24 w-24 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                    />
+                  </svg>
+                )}
+              </div>
+              {isOwnProfile && (
+                <div className="flex space-x-2 mt-4">
+                  <button
+                    onClick={() => novelCoverFileInputRef.current?.click()}
+                    disabled={uploadingNovelCover}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {uploadingNovelCover ? (
+                      <svg className="animate-spin h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                    )}
+                    Upload New Cover
+                  </button>
+                  {selectedNovelForCover.coverImage && (
+                    <button
+                      onClick={removeNovelCover}
+                      disabled={uploadingNovelCover}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                      Remove Cover
+                    </button>
+                  )}
+                </div>
+              )}
+              {novelCoverError && (
+                <div
+                  className={`mt-2 text-xs sm:text-sm ${
+                    novelCoverError.includes("successfully") ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  {novelCoverError}
+                </div>
+              )}
+              {isOwnProfile && (
+                <input
+                  ref={novelCoverFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleNovelCoverUpload}
+                  className="hidden"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -18,5 +18,5 @@ export interface Novel {
   likes?: number
   views?: number
   likedBy?: string[] // Array of user IDs who liked the novel
-  coverImage?: string 
+  coverImage?: string | null
 }
