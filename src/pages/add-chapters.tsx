@@ -26,16 +26,7 @@ const AddChapters = () => {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
-  const [showPreview, setShowPreview] = useState(() => window.innerWidth >= 768)
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) setShowPreview(false)
-      else setShowPreview(true)
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const [showPreview, setShowPreview] = useState(true)
 
   useEffect(() => {
     const fetchNovel = async () => {

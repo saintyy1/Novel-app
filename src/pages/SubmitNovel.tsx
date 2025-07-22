@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { collection, addDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
@@ -22,16 +22,7 @@ const SubmitNovel = () => {
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [showPreview, setShowPreview] = useState(() => window.innerWidth >= 768)
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) setShowPreview(false)
-      else setShowPreview(true)
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const [showPreview, setShowPreview] = useState(true)
 
   const availableGenres = [
     "Fantasy", "Sci-Fi", "Romance", "Mystery", "Horror",

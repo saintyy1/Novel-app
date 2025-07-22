@@ -25,16 +25,7 @@ const EditChapter = () => {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [hasChanges, setHasChanges] = useState(false)
-  const [showPreview, setShowPreview] = useState(() => window.innerWidth >= 768)
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) setShowPreview(false)
-      else setShowPreview(true)
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const [showPreview, setShowPreview] = useState(true)
 
   const chapterIdx = chapterIndex ? Number.parseInt(chapterIndex, 10) : 0
 
