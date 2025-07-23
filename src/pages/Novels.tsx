@@ -222,13 +222,25 @@ const Novels: React.FC = () => {
                     onError={() => handleImageError(novel.id)}
                   />
                 ) : (
-                  <div
-                    className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(
-                      novel.genres,
-                    )} flex items-center justify-center p-2 text-center`}
-                  >
-                    <h3 className="text-white text-sm font-bold leading-tight line-clamp-4">{novel.title}</h3>
+                <div
+                  className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(
+                    novel.genres,
+                  )} relative overflow-hidden`}
+                >
+                  <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
+                  <div className="absolute inset-0 opacity-10">
+                    <div className="absolute top-2 left-2 w-4 h-4 border border-white rounded-full"></div>
+                    <div className="absolute top-6 right-3 w-2 h-2 bg-white rounded-full"></div>
+                    <div className="absolute bottom-3 left-3 w-3 h-3 border border-white"></div>
                   </div>
+                  <div className="absolute inset-0 flex flex-col justify-center items-center p-3 text-center">
+                    <h3 className="text-white text-sm font-bold leading-tight line-clamp-2 mb-1">{novel.title}</h3>
+                    <div className="w-8 h-px bg-white opacity-50 mb-1"></div>
+                    <p className="text-white text-xs opacity-75 truncate w-full">{novel.authorName}</p>
+                  </div>
+                  <div className="absolute right-0 top-1 w-px h-full bg-white opacity-20"></div>
+                  <div className="absolute right-1 top-1 w-px h-full bg-white opacity-15"></div>
+                </div>
                 )}
                 {/* Likes and Views - positioned at the very bottom right within the image section */}
                 <span className="absolute bottom-2 right-2 z-10 flex flex-col items-end space-y-0.5 text-white text-xs drop-shadow-sm">
