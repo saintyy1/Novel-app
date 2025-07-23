@@ -1,301 +1,435 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
+import { Link } from "react-router-dom"
+import { collection, addDoc } from "firebase/firestore"
+import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
-import { addNovel } from "../services/novelService"
-import Anthropic from "@anthropic-ai/sdk"
+import MDEditor from "@uiw/react-md-editor"
+import rehypeSanitize from "rehype-sanitize"
 
 const GenerateNovel = () => {
   const { currentUser } = useAuth()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [prompt, setPrompt] = useState("")
-  const [genre, setGenre] = useState("Fantasy")
-  const [numChapters, setNumChapters] = useState(3)
-  const [generating, setGenerating] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [summary, setSummary] = useState("")
+  const [genres, setGenres] = useState<string[]>([])
+  const [chapters, setChapters] = useState([{ title: "", content: "" }])
+  const [coverImage, setCoverImage] = useState<string | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [generatedNovel, setGeneratedNovel] = useState<{
-    title: string
-    description: string
-    summary: string
-    chapters: { title: string; content: string }[]
-  } | null>(null)
-  const [generationProgress, setGenerationProgress] = useState<string>("")
-  const [structure, setStructure] = useState<any | null>(null)
+  const [showPreview, setShowPreview] = useState(true)
 
   const availableGenres = [
-    "Fantasy",
-    "Sci-Fi",
-    "Romance",
-    "Mystery",
-    "Horror",
-    "Adventure",
-    "Thriller",
-    "Historical",
-    "Comedy",
+    "Fantasy", "Sci-Fi", "Romance", "Mystery", "Horror",
+    "Adventure", "Thriller", "Historical", "Comedy", "Drama"
   ]
 
-  // Initialize the Anthropic client
-  const anthropic = new Anthropic({
-    apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
-    dangerouslyAllowBrowser : true,
-  })
-
-  const generateNovel = async () => {
-    if (!prompt.trim()) {
-      return setError("Please enter a prompt")
-    }
-
-    try {
-      setError("")
-      setGenerating(true)
-      setGenerationProgress("Generating novel structure...")
-
-      // Generate novel structure with title and summary
-      const structureResponse = await anthropic.messages.create({
-        model: "claude-3-sonnet-20240229",
-        max_tokens: 1000,
-        messages: [
-          {
-            role: "user",
-            content: `Generate a ${genre} novel based on this prompt: "${prompt}". 
-                     Return a JSON object with the following structure:
-                     {
-                       "title": "Novel Title",
-                       "summary": "A compelling summary of the novel (about 150 words)",
-                       "chapterTitles": ["Chapter 1 Title", "Chapter 2 Title", ...] (generate ${numChapters} chapter titles)
-                     }`
-          }
-        ]
-      })
-
-      const structureContent = (structureResponse.content[0] as { type: 'text', text: string }).text
-      let parsedStructure
-      try {
-        // Find JSON in the response (in case the AI added extra text)
-        const jsonMatch = structureContent.match(/\{[\s\S]*\}/)
-        const jsonString = jsonMatch ? jsonMatch[0] : structureContent
-        parsedStructure = JSON.parse(jsonString)
-      } catch (parseError) {
-        console.error("Error parsing JSON:", parseError, structureContent)
-        throw new Error("Failed to parse the AI response. Please try again.")
-      }
-
-      setStructure(parsedStructure)
-
-      // Initialize chapters array and novel state
-      const chapters = []
-      setGeneratedNovel({
-        title: parsedStructure.title,
-        description: parsedStructure.description,
-        summary: parsedStructure.summary,
-        chapters: [],
-      })
-
-      // Generate each chapter
-      for (let i = 0; i < parsedStructure.chapterTitles.length; i++) {
-        const chapterTitle = parsedStructure.chapterTitles[i]
-        setGenerationProgress(`Generating chapter ${i + 1} of ${parsedStructure.chapterTitles.length}: ${chapterTitle}`)
-        
-        const chapterResponse: Awaited<ReturnType<typeof anthropic.messages.create>> = await anthropic.messages.create({
-          model: "claude-3-sonnet-20240229",
-          max_tokens: 2000,
-          messages: [
-            {
-              role: "user",
-              content: `Write chapter ${i + 1} titled "${chapterTitle}" for a ${genre} novel titled "${parsedStructure.title}" with this summary: "${parsedStructure.summary}".
-                       The novel is based on this prompt: "${prompt}".
-                       Write a complete chapter with a beginning, middle, and end. The chapter should be about 1000-1500 words.
-                       Previous chapters: ${chapters.map((c) => c.title).join(", ")}`
-            }
-          ]
-        })
-
-        const chapterContent: string = (chapterResponse.content[0] as { type: 'text', text: string }).text
-
-        chapters.push({
-          title: chapterTitle,
-          content: chapterContent,
-        })
-
-        // Update the UI after each chapter is generated
-        setGeneratedNovel({
-          title: parsedStructure.title,
-          description: parsedStructure.description,
-          summary: parsedStructure.summary,
-          chapters: [...chapters],
-        })
-      }
-
-      setGenerationProgress("Novel generation complete!")
-    } catch (error: any) {
-      console.error("Error generating novel:", error)
-      setError(`Failed to generate novel: ${error.message || "Unknown error"}`)
-    } finally {
-      setGenerating(false)
+  const handleGenreChange = (genre: string) => {
+    if (genres.includes(genre)) {
+      setGenres(genres.filter((g) => g !== genre))
+    } else {
+      setGenres([...genres, genre])
     }
   }
 
-  const saveNovel = async () => {
-    if (!generatedNovel || !currentUser) {
-      setError("You must be logged in to save a novel")
-      return
+  const handleChapterTitleChange = (index: number, title: string) => {
+    const newChapters = [...chapters]
+    newChapters[index].title = title
+    setChapters(newChapters)
+  }
+
+  const handleChapterContentChange = (index: number, content: string) => {
+    const newChapters = [...chapters]
+    newChapters[index].content = content
+    setChapters(newChapters)
+  }
+
+  const addChapter = () => {
+    setChapters([...chapters, { title: "", content: "" }])
+  }
+
+  const removeChapter = (index: number) => {
+    if (chapters.length > 1) {
+      const newChapters = [...chapters]
+      newChapters.splice(index, 1)
+      setChapters(newChapters)
+    }
+  }
+
+  const MAX_WIDTH = 600
+
+  const resizeAndConvertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+
+      reader.onload = (event) => {
+        const img = new Image()
+        img.src = event.target?.result as string
+
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const scaleFactor = MAX_WIDTH / img.width
+          canvas.width = MAX_WIDTH
+          canvas.height = img.height * scaleFactor
+
+          const ctx = canvas.getContext('2d')
+          if (!ctx) return reject("Canvas context not found")
+
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+          const base64 = canvas.toDataURL('image/jpeg', 0.7)
+          resolve(base64)
+        }
+
+        img.onerror = reject
+      }
+
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+
+      if (file.size > 10 * 1024 * 1024) {
+        setError("Cover image must be less than 10MB")
+        return
+      }
+
+      if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
+        setError("Cover image must be JPEG, PNG or WebP format")
+        return
+      }
+
+      try {
+        const base64 = await resizeAndConvertToBase64(file)
+        setCoverImage(base64)
+        setCoverPreview(base64)
+        setError("")
+      } catch (err) {
+        console.error("Image processing failed:", err)
+        setError("Failed to process image")
+      }
+    }
+  }
+
+  const removeCoverImage = () => {
+    setCoverImage(null)
+    setCoverPreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (genres.length === 0) {
+      return setError("Please select at least one genre")
+    }
+
+    if (chapters.some((chapter) => !chapter.content.trim())) {
+      return setError("All chapters must have content")
+    }
+
+    if (coverImage && coverImage.length > 4 * 1024 * 1024) { // 4MB in base64
+      setError("Processed cover image is too large. Please try a smaller image.");
+      return;
     }
 
     try {
-      setSaving(true)
+      setLoading(true)
       setError("")
 
-      const novelData = {
-        title: generatedNovel.title,
-        description: generatedNovel.description,
-        summary: generatedNovel.summary,
-        genres: [genre],
-        chapters: generatedNovel.chapters,
-        authorId: currentUser?.uid,
-        authorName: "Novel AI",
+      await addDoc(collection(db, "novels"), {
+        title,
+        description,
+        summary,
+        genres,
+        chapters,
+        authorId: "system",
+        authorName: "NovelAI",
         isAIGenerated: true,
-        published: true,
+        published: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        generationPrompt: prompt,
-        views: 0,
+        coverImage: coverImage || null, // base64 string
         likes: 0,
-      }
-
-      await addNovel(novelData)
-      alert("Novel saved successfully!")
-
-      // Reset form
-      setPrompt("")
-      setGenre("Fantasy")
-      setNumChapters(3)
-      setGeneratedNovel(null)
-      setStructure(null)
+        views: 0,
+      })
+      alert("AI novel has been submitted for review!")
     } catch (error) {
-      console.error("Error saving novel:", error)
-      setError("Failed to save novel. Please try again.")
+      console.error("Error submitting novel:", error)
+      setError("Failed to submit novel. Please try again.")
     } finally {
-      setSaving(false)
+      setLoading(false)
     }
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Please log in to submit a novel</h2>
+          <Link
+            to="/login"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
+          >
+            Go to Login
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="mb-8 mt-3">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-          Generate AI Novel
-        </h1>
-        <p className="text-gray-400 mt-2">Create a complete novel with AI assistance in minutes</p>
-      </div>
+    <div className="max-w-4xl mx-auto py-8">
+      <h1 className="text-3xl font-bold mt-2 mb-8 text-[#E0E0E0]">Submit AI Novel</h1>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 text-red-300 p-4 rounded-md mb-6 shadow-sm">
-          <div className="flex items-center">
-            <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <p>{error}</p>
-          </div>
+        <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg mb-6">
+          {error}
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-700 mb-8 overflow-hidden">
-        <div className="bg-gradient-to-r from-purple-900/20 to-indigo-900/20 px-6 py-4 border-b border-gray-700">
-          <h2 className="text-xl font-bold text-gray-100">Generation Settings</h2>
-        </div>
+      <form onSubmit={handleSubmit}>
+        <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-8">
+          <h2 className="text-xl font-bold mb-6 text-gray-300 border-b border-gray-700 pb-2">
+            Novel Details
+          </h2>
 
-        <div className="p-6">
           <div className="mb-6">
-            <label htmlFor="prompt" className="block text-sm font-medium text-gray-300 mb-2">
-              Your Novel Idea
+            <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">
+              Title
+            </label>
+            <input
+              id="title"
+              type="text"
+              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              placeholder="Enter novel's title"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
+              Description
+            </label>
+            <input
+              id="description"
+              type="text"
+              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+              placeholder="Enter novel's description"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label htmlFor="summary" className="block text-sm font-medium text-gray-300 mb-1">
+              Summary
             </label>
             <textarea
-              id="prompt"
-              className="w-full px-4 py-3 rounded-lg border border-gray-600 
-                        bg-gray-700 text-gray-100 
-                        focus:ring-2 focus:ring-purple-500 focus:border-transparent
-                        transition duration-200 min-h-[120px] shadow-sm"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe your novel idea in detail. For example: A story about a young wizard who discovers a hidden magical world..."
-              disabled={generating || saving}
+              id="summary"
+              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[120px]"
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              required
+              placeholder="Write a compelling summary of novel"
             />
-            <p className="mt-1 text-sm text-gray-400">
-              Be specific about characters, setting, and plot elements you want to include
-            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label htmlFor="genre" className="block text-sm font-medium text-gray-300 mb-2">
-                Genre
-              </label>
-              <div className="relative">
-                <select
-                  id="genre"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-600 
-                            bg-gray-700 text-gray-100 
-                            focus:ring-2 focus:ring-purple-500 focus:border-transparent
-                            transition duration-200 shadow-sm appearance-none"
-                  value={genre}
-                  onChange={(e) => setGenre(e.target.value)}
-                  disabled={generating || saving}
-                >
-                  {availableGenres.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
-                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                  </svg>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Cover Image (Optional)
+            </label>
+            <div className="mt-1 flex items-start space-x-4">
+              <div className="flex-1">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/jpeg, image/png, image/webp"
+                  onChange={handleCoverImageChange}
+                  className="block w-full text-sm text-gray-400
+                           file:mr-4 file:py-2 file:px-4
+                           file:rounded-md file:border-0
+                           file:text-sm file:font-medium
+                           file:bg-purple-900 file:text-purple-200
+                           hover:file:bg-purple-800
+                           cursor-pointer"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  JPEG, PNG or WebP. Max 5MB. Recommended size: 800x600px.
+                </p>
+              </div>
+              {coverPreview && (
+                <div className="relative">
+                  <img
+                    src={coverPreview || "/placeholder.svg"}
+                    alt="Cover preview"
+                    className="h-32 w-24 object-cover rounded-md shadow-md border border-gray-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeCoverImage}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition-colors"
+                    aria-label="Remove cover image"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Genres (select at least one)
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mt-2">
+              {availableGenres.map((genre) => (
+                <label
+                  key={genre}
+                  className={`flex items-center justify-center px-3 py-2 rounded-lg border ${genres.includes(genre)
+                      ? "bg-purple-900/40 border-purple-700 text-purple-300"
+                      : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+                    } cursor-pointer transition-colors text-sm`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={genres.includes(genre)}
+                    onChange={() => handleGenreChange(genre)}
+                    className="sr-only"
+                  />
+                  <span>{genre}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-white">Chapters</h2>
+            <button
+              type="button"
+              onClick={addChapter}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+            >
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Add Chapter
+            </button>
+          </div>
+
+          {chapters.map((chapter, index) => (
+            <div
+              key={index}
+              className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white">Chapter {index + 1}</h3>
+                {chapters.length > 1 && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center text-red-400 hover:text-red-300 transition-colors"
+                    onClick={() => removeChapter(index)}
+                  >
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                    Remove
+                  </button>
+                )}
+              </div>
+
+              <div className="mb-4">
+                <label
+                  htmlFor={`chapter-title-${index}`}
+                  className="block text-sm font-medium text-gray-300 mb-1"
+                >
+                  Chapter Title
+                </label>
+                <input
+                  id={`chapter-title-${index}`}
+                  type="text"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                  value={chapter.title}
+                  onChange={(e) => handleChapterTitleChange(index, e.target.value)}
+                  required
+                  placeholder={`Enter Chapter ${index + 1} title`}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor={`chapter-content-${index}`}
+                  className="block text-sm font-medium text-gray-300 mb-1"
+                >
+                  Chapter Content
+                </label>
+                <button
+                  type="button"
+                  className="mb-2 px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  onClick={() => setShowPreview((prev) => !prev)}
+                >
+                  {showPreview ? 'Show Preview' : 'Hide Preview'}
+                </button>
+                <MDEditor
+                  value={chapter.content}
+                  onChange={(val) => handleChapterContentChange(index, val || "")}
+                  height={250}
+                  textareaProps={{
+                    id: `chapter-content-${index}`,
+                    required: true,
+                    placeholder: "Write chapter content here..."
+                  }}
+                  previewOptions={{
+                    rehypePlugins: [[rehypeSanitize]]
+                  }}
+                  preview={showPreview ? 'edit' : 'preview'}
+                />
               </div>
             </div>
+          ))}
+        </div>
 
-            <div>
-              <label htmlFor="numChapters" className="block text-sm font-medium text-gray-300 mb-2">
-                Number of Chapters
-              </label>
-              <input
-                id="numChapters"
-                type="number"
-                className="w-full px-4 py-3 rounded-lg border border-gray-600 
-                          bg-gray-700 text-gray-100 
-                          focus:ring-2 focus:ring-purple-500 focus:border-transparent
-                          transition duration-200 shadow-sm"
-                value={numChapters}
-                onChange={(e) => setNumChapters(Number.parseInt(e.target.value))}
-                min={1}
-                max={10}
-                disabled={generating || saving}
-              />
-              <p className="mt-1 text-sm text-gray-400">
-                We recommend 3-5 chapters for best results
-              </p>
-            </div>
-          </div>
-
+        <div className="flex justify-end">
           <button
-            type="button"
-            className={`w-full py-3 px-6 rounded-lg font-medium text-white 
-                      transition-all duration-200 shadow-md flex items-center justify-center
-                      ${
-                        generating || saving
-                          ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                          : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
-                      }`}
-            onClick={generateNovel}
-            disabled={generating || saving}
+            type="submit"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
           >
-            {generating ? (
+            {loading ? (
               <>
                 <svg
                   className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
@@ -310,7 +444,7 @@ const GenerateNovel = () => {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                Generating...
+                Submitting...
               </>
             ) : (
               <>
@@ -325,144 +459,15 @@ const GenerateNovel = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   ></path>
                 </svg>
-                Generate Novel
+                Submit Novel
               </>
             )}
           </button>
-
-          {generating && generationProgress && (
-            <div className="mt-6 p-4 bg-purple-900/30 rounded-lg border border-purple-800">
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-600 border-t-transparent mr-3"></div>
-                <div>
-                  <p className="font-medium text-purple-300">{generationProgress}</p>
-                  <p className="text-sm text-purple-400 mt-1">
-                    This may take several minutes. Please don't close this page.
-                  </p>
-                </div>
-              </div>
-              <div className="w-full bg-purple-800 rounded-full h-1.5 mt-4">
-                <div
-                  className="bg-purple-600 h-1.5 rounded-full animate-pulse"
-                  style={{
-                    width: generationProgress.includes("complete")
-                      ? "100%"
-                      : generationProgress.includes("chapter") && structure
-                        ? `${(Number.parseInt(generationProgress.split(" ")[2]) / structure.chapterTitles.length) * 100}%`
-                        : "10%",
-                  }}
-                ></div>
-              </div>
-            </div>
-          )}
         </div>
-      </div>
-
-      {generatedNovel && (
-        <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 mb-8 overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-900/20 to-purple-900/20 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
-            <h2 className="text-xl font-bold text-gray-100">Generated Novel</h2>
-            <button
-              type="button"
-              className={`py-2 px-4 rounded-lg font-medium text-white 
-                        transition-all duration-200 shadow-sm flex items-center
-                        ${
-                          saving
-                            ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed"
-                            : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                        }`}
-              onClick={saveNovel}
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="w-4 h-4 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
-                    ></path>
-                  </svg>
-                  Save Novel
-                </>
-              )}
-            </button>
-          </div>
-
-          <div className="p-6">
-            <div className="mb-8">
-              <h3 className="text-3xl font-bold text-gray-100 mb-3">{generatedNovel.title}</h3>
-              <div className="inline-block px-3 py-1 bg-purple-900/50 text-purple-800 text-sm font-medium rounded-full mb-4">
-                {genre}
-              </div>
-              <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-700 italic">
-                <p className="text-gray-300">{generatedNovel.summary}</p>
-              </div>
-            </div>
-
-            <div className="space-y-8">
-              {generatedNovel.chapters.map((chapter, index) => (
-                <div key={index} className="border-t border-gray-700 pt-6">
-                  <h4 className="text-xl font-bold text-gray-100 mb-4 flex items-center">
-                    <span className="flex items-center justify-center bg-purple-900/50 text-purple-800 w-8 h-8 rounded-full mr-2 text-sm font-bold">
-                      {index + 1}
-                    </span>
-                    {chapter.title}
-                  </h4>
-                  <div className="prose-invert max-w-none">
-                    {chapter.content.split("\n\n").map((paragraph, i) => (
-                      <p key={i} className="text-gray-300 mb-4 leading-relaxed">
-                        {paragraph}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {generating && (
-                <div className="flex items-center space-x-3 text-gray-400 py-4 border-t border-gray-700">
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-600 border-t-transparent"></div>
-                  <span>Generating more content...</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      </form>
     </div>
   )
 }

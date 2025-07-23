@@ -123,7 +123,7 @@ const Home = () => {
         title="Trending Novels"
         novels={trendingNovels}
         loading={loadingTrending}
-        seeAllLink="/novels"
+        seeAllLink="/novels/trending"
         imageErrors={imageErrors}
         handleImageError={handleImageError}
         getGenreColorClass={getGenreColorClass}
@@ -134,7 +134,7 @@ const Home = () => {
         title="New Releases"
         novels={newReleaseNovels}
         loading={loadingNewReleases}
-        seeAllLink="/novels"
+        seeAllLink="/novels/new-releases"
         imageErrors={imageErrors}
         handleImageError={handleImageError}
         getGenreColorClass={getGenreColorClass}

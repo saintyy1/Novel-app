@@ -1,7 +1,7 @@
 "use client"
 import type React from "react"
 import { Link } from "react-router-dom"
-import type { Novel } from "../types/novel" 
+import type { Novel } from "../types/novel"
 
 interface NovelCarouselProps {
   title: string
@@ -25,25 +25,25 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
   return (
     <section className="py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6 px-4 sm:px-0">
-        <h2 className="text-2xl md:text-3xl font-bold text-[#E0E0E0]">{title}</h2>
+        <h2 className="text-3xl font-bold text-[#E0E0E0]">{title}</h2>
         <Link to={seeAllLink} className="text-purple-400 hover:text-purple-300 transition-colors text-lg font-medium">
           See All
         </Link>
       </div>
       {loading ? (
         <div className="flex overflow-x-auto space-x-4 py-4 px-4 sm:px-0 scrollbar-hide" style={{
-          scrollbarWidth: 'none',        // Firefox
-          msOverflowStyle: 'none'        // IE/Edge
-        }}
-      >
-        <style>
-          {`
-            /* Hide scrollbar for Chrome, Safari, and Opera */
-            div::-webkit-scrollbar {
-              display: none;
-            }
-          `}
-        </style>
+    scrollbarWidth: 'none',        // Firefox
+    msOverflowStyle: 'none'        // IE/Edge
+  }}
+>
+  <style>
+    {`
+      /* Hide scrollbar for Chrome, Safari, and Opera */
+      div::-webkit-scrollbar {
+        display: none;
+      }
+    `}
+  </style>
           {[...Array(7)].map((_, i) => (
             <div
               key={i}
@@ -54,19 +54,19 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
           ))}
         </div>
       ) : novels.length > 0 ? (
-        <div className="flex overflow-x-auto space-x-4 py-2 px-4 sm:px-0 scrollbar-hide"style={{
-          scrollbarWidth: 'none',        // Firefox
-          msOverflowStyle: 'none'        // IE/Edge
-        }}
-      >
-        <style>
-          {`
-            /* Hide scrollbar for Chrome, Safari, and Opera */
-            div::-webkit-scrollbar {
-              display: none;
-            }
-          `}
-        </style>
+        <div className="flex overflow-x-auto space-x-4 py-2 px-4 sm:px-0 scrollbar-hide" style={{
+    scrollbarWidth: 'none',        // Firefox
+    msOverflowStyle: 'none'        // IE/Edge
+  }}
+>
+  <style>
+    {`
+      /* Hide scrollbar for Chrome, Safari, and Opera */
+      div::-webkit-scrollbar {
+        display: none;
+      }
+    `}
+  </style>
           {novels.map((novel) => (
             <Link
               to={`/novel/${novel.id}`}
@@ -101,6 +101,30 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
                   <div className="absolute right-1 top-1 w-px h-full bg-white opacity-15"></div>
                 </div>
               )}
+              {/* Likes and Views */}
+              <div className="absolute bottom-2 right-2 z-10 flex flex-col items-end space-y-0.5 text-white text-xs drop-shadow-sm">
+                <div className="flex items-center">
+                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path
+                      fillRule="evenodd"
+                      d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {novel.views || 0}
+                </div>
+                <div className="flex items-center">
+                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {novel.likes || 0}
+                </div>
+              </div>
             </Link>
           ))}
         </div>

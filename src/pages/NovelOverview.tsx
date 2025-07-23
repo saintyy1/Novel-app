@@ -52,6 +52,7 @@ const NovelOverview = () => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState<string>("")
   const [submittingReply, setSubmittingReply] = useState<boolean>(false)
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [deletingComment, setDeletingComment] = useState<string | null>(null)
   const { currentUser } = useAuth()
 
@@ -590,9 +591,10 @@ const NovelOverview = () => {
 
   const isAuthor = currentUser && novel.authorId === currentUser.uid
 
-  return (
-    <div className="min-h-screen bg-gray-900 py-4 sm:py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">
+  return (  // Add this with your other state declarations
+  
+    <div className="min-h-screen py-4 sm:py-8">
+      <div className="max-w-7xl mx-auto px-2 lg:px-8 pt-3">
         {/* Header */}
         <div>
           <Link
@@ -749,7 +751,7 @@ const NovelOverview = () => {
               </div>
             </div>
 
-            {/* Summary */}
+            {/* Summary Section */}
             <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-8">
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4 flex items-center">
                 <svg className="h-6 w-6 mr-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -762,7 +764,59 @@ const NovelOverview = () => {
                 </svg>
                 Summary
               </h2>
-              <p className="text-gray-300 leading-relaxed text-base sm:text-lg">{novel.summary}</p>
+              <div className="relative">
+                <p 
+                  className={`text-gray-300 leading-relaxed text-base sm:text-lg ${
+                    !isSummaryExpanded ? 'line-clamp-6' : ''
+                  }`}
+                >
+                  {novel.summary}
+                </p>
+                
+                {/* Only show button if summary is long enough */}
+                {novel.summary.length > 300 && (
+                  <button
+                    onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+                    className="mt-2 text-purple-400 hover:text-purple-300 text-sm font-medium transition-colors flex items-center cursor-pointer"
+                  >
+                    {isSummaryExpanded ? (
+                      <>
+                        Show Less
+                        <svg 
+                          className="h-4 w-4 ml-1" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth="2" 
+                            d="M5 15l7-7 7 7"
+                          />
+                        </svg>
+                      </>
+                    ) : (
+                      <>
+                        Show More
+                        <svg 
+                          className="h-4 w-4 ml-1" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth="2" 
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Chapters List */}
@@ -778,7 +832,7 @@ const NovelOverview = () => {
                 </svg>
                 Chapters ({novel.chapters?.length || 0})
               </h2>
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[50vh] overflow-y-auto">
                 {novel.chapters?.map((chapter, index) => (
                   <div
                     key={index}

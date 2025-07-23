@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from "react"
+"use client"
+
+import type React from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
 import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
@@ -7,6 +10,7 @@ import type { Novel } from "../types/novel"
 import ReactMarkdown from "react-markdown"
 import { useSwipeable } from "react-swipeable"
 import { useRef as useReactRef } from "react"
+import { BookOpen, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Trash2, Reply } from "lucide-react"
 
 interface Comment {
   id: string
@@ -22,23 +26,23 @@ interface Comment {
 }
 
 interface CommentItemProps {
-  comment: Comment;
-  isReply?: boolean;
-  currentUser: any;
-  novel: Novel | null;
-  handleCommentLike: (id: string, liked: boolean) => void;
-  handleReplyToggle: (id: string) => void;
-  canDeleteComment: (comment: Comment) => boolean;
-  handleDeleteComment: (id: string) => void;
-  replyingTo: string | null;
-  replyContent: string;
-  setReplyContent: (v: string) => void;
-  handleReplySubmitDirect: (e: React.FormEvent, parentId: string) => void;
-  setReplyingTo: (v: string | null) => void;
-  deletingComment: string | null;
-  getUserInitials: (name: string) => string;
-  formatDate: (dateString: string) => string;
-  replyInputRef: React.RefObject<HTMLInputElement | null>;
+  comment: Comment
+  isReply?: boolean
+  currentUser: any
+  novel: Novel | null
+  handleCommentLike: (id: string, liked: boolean) => void
+  handleReplyToggle: (id: string) => void
+  canDeleteComment: (comment: Comment) => boolean
+  handleDeleteComment: (id: string) => void
+  replyingTo: string | null
+  replyContent: string
+  setReplyContent: (v: string) => void
+  handleReplySubmitDirect: (e: React.FormEvent, parentId: string) => void
+  setReplyingTo: (v: string | null) => void
+  deletingComment: string | null
+  getUserInitials: (name: string) => string
+  formatDate: (dateString: string) => string
+  replyInputRef: React.RefObject<HTMLInputElement | null>
 }
 
 const CommentItem = ({
@@ -88,9 +92,7 @@ const CommentItem = ({
       </div>
       <span className="text-xs text-gray-400">{formatDate(comment.createdAt)}</span>
     </div>
-
     <p className="text-gray-300 mb-2">{comment.text}</p>
-
     <div className="flex items-center space-x-4">
       {/* Like Button */}
       <button
@@ -100,40 +102,22 @@ const CommentItem = ({
           comment.likedBy?.includes(currentUser?.uid || "") ? "text-red-400" : "text-gray-400 hover:text-red-400"
         } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
       >
-        <svg
+        <Heart
           className={`h-4 w-4 mr-1 ${comment.likedBy?.includes(currentUser?.uid || "") ? "fill-current" : ""}`}
           fill={comment.likedBy?.includes(currentUser?.uid || "") ? "currentColor" : "none"}
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-          />
-        </svg>
+        />
         {comment.likes || 0}
       </button>
-
       {/* Reply Button - Only for top-level comments */}
       {!isReply && currentUser && (
         <button
           onClick={() => handleReplyToggle(comment.id)}
           className="inline-flex items-center text-xs text-gray-400 hover:text-purple-400 transition-colors"
         >
-          <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-            />
-          </svg>
+          <Reply className="h-3 w-3 mr-1" />
           Reply
         </button>
       )}
-
       {/* Delete Button */}
       {canDeleteComment(comment) && (
         <button
@@ -151,20 +135,12 @@ const CommentItem = ({
               ></path>
             </svg>
           ) : (
-            <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
-            </svg>
+            <Trash2 className="h-3 w-3 mr-1" />
           )}
           Delete
         </button>
       )}
     </div>
-
     {/* Reply Form */}
     {replyingTo === comment.id && (
       <div className="mt-3 p-3 bg-gray-600 rounded-lg">
@@ -173,27 +149,27 @@ const CommentItem = ({
             ref={replyInputRef}
             type="text"
             value={replyContent}
-            onChange={e => setReplyContent(e.target.value)}
+            onChange={(e) => setReplyContent(e.target.value)}
             placeholder={`Reply to ${comment.userName}...`}
             className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 w-full"
             autoComplete="off"
             autoFocus
           />
           <div className="flex items-center space-x-2 mt-2 justify-end">
-          <button
-            type="button"
-            onClick={() => {
-              setReplyingTo(null)
-              setReplyContent("")
-            }}
-            className="px-3 py-2 text-gray-400 hover:text-white text-sm"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={!replyContent.trim()}
-            className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            <button
+              type="button"
+              onClick={() => {
+                setReplyingTo(null)
+                setReplyContent("")
+              }}
+              className="px-3 py-2 text-gray-400 hover:text-white text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!replyContent.trim()}
+              className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               Reply
             </button>
@@ -201,12 +177,30 @@ const CommentItem = ({
         </form>
       </div>
     )}
-
     {/* Replies */}
     {comment.replies && comment.replies.length > 0 && (
       <div className="mt-3">
         {comment.replies.map((reply) => (
-          <CommentItem key={reply.id} comment={reply} isReply={true} currentUser={currentUser} novel={novel} handleCommentLike={handleCommentLike} handleReplyToggle={handleReplyToggle} canDeleteComment={canDeleteComment} handleDeleteComment={handleDeleteComment} replyingTo={replyingTo} replyContent={replyContent} setReplyContent={setReplyContent} handleReplySubmitDirect={handleReplySubmitDirect} setReplyingTo={setReplyingTo} deletingComment={deletingComment} getUserInitials={getUserInitials} formatDate={formatDate} replyInputRef={replyInputRef} />
+          <CommentItem
+            key={reply.id}
+            comment={reply}
+            isReply={true}
+            currentUser={currentUser}
+            novel={novel}
+            handleCommentLike={handleCommentLike}
+            handleReplyToggle={handleReplyToggle}
+            canDeleteComment={canDeleteComment}
+            handleDeleteComment={handleDeleteComment}
+            replyingTo={replyingTo}
+            replyContent={replyContent}
+            setReplyContent={setReplyContent}
+            handleReplySubmitDirect={handleReplySubmitDirect}
+            setReplyingTo={setReplyingTo}
+            deletingComment={deletingComment}
+            getUserInitials={getUserInitials}
+            formatDate={formatDate}
+            replyInputRef={replyInputRef}
+          />
         ))}
       </div>
     )}
@@ -214,27 +208,27 @@ const CommentItem = ({
 )
 
 interface CommentModalProps {
-  comments: Comment[];
-  currentUser: any;
-  newComment: string;
-  setNewComment: (v: string) => void;
-  handleSubmitDirect: (e: React.FormEvent) => void;
-  setShowCommentModal: (v: boolean) => void;
-  CommentItem: React.FC<CommentItemProps>;
-  novel: Novel | null;
-  handleCommentLike: (id: string, liked: boolean) => void;
-  handleReplyToggle: (id: string) => void;
-  canDeleteComment: (comment: Comment) => boolean;
-  handleDeleteComment: (id: string) => void;
-  replyingTo: string | null;
-  replyContent: string;
-  setReplyContent: (v: string) => void;
-  handleReplySubmitDirect: (e: React.FormEvent, parentId: string) => void;
-  setReplyingTo: (v: string | null) => void;
-  deletingComment: string | null;
-  getUserInitials: (name: string) => string;
-  formatDate: (dateString: string) => string;
-  replyInputRef: React.RefObject<HTMLInputElement | null>;
+  comments: Comment[]
+  currentUser: any
+  newComment: string
+  setNewComment: (v: string) => void
+  handleSubmitDirect: (e: React.FormEvent) => void
+  setShowCommentModal: (v: boolean) => void
+  CommentItem: React.FC<CommentItemProps>
+  novel: Novel | null
+  handleCommentLike: (id: string, liked: boolean) => void
+  handleReplyToggle: (id: string) => void
+  canDeleteComment: (comment: Comment) => boolean
+  handleDeleteComment: (id: string) => void
+  replyingTo: string | null
+  replyContent: string
+  setReplyContent: (v: string) => void
+  handleReplySubmitDirect: (e: React.FormEvent, parentId: string) => void
+  setReplyingTo: (v: string | null) => void
+  deletingComment: string | null
+  getUserInitials: (name: string) => string
+  formatDate: (dateString: string) => string
+  replyInputRef: React.RefObject<HTMLInputElement | null>
 }
 
 const CommentModal = ({
@@ -259,80 +253,112 @@ const CommentModal = ({
   getUserInitials,
   formatDate,
   replyInputRef,
-}: CommentModalProps & { getUserInitials: (name: string) => string; formatDate: (dateString: string) => string; replyInputRef: React.RefObject<HTMLInputElement | null> }) => (
-  <div
-    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-    onClick={(e) => {
-      if (e.target === e.currentTarget) {
+}: CommentModalProps) => {
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // Focus the modal when it opens for accessibility
+    if (modalRef.current) {
+      modalRef.current.focus()
+    }
+
+    // Handle Escape key to close the modal
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
         setShowCommentModal(false)
         setNewComment("")
       }
-    }}
-  >
+    }
+    document.addEventListener("keydown", handleEscape)
+    return () => {
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [setShowCommentModal, setNewComment])
+
+  return (
     <div
-      className="bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col"
-      onClick={(e) => e.stopPropagation()}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          setShowCommentModal(false)
+          setNewComment("")
+        }
+      }}
+      aria-modal="true"
+      role="dialog"
+      tabIndex={-1} // Make the div focusable
+      ref={modalRef}
     >
-      <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-        <h3 className="text-xl font-semibold text-white">
-          Comments ({comments.reduce((total: number, comment: Comment) => total + 1 + (comment.replies?.length || 0), 0)})
-        </h3>
-        <button onClick={() => { setShowCommentModal(false); setNewComment("") }} className="text-gray-400 hover:text-white">
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {comments.length === 0 ? (
-          <p className="text-gray-400 text-center py-4">No comments yet. Be the first to comment!</p>
-        ) : (
-          comments.map((comment) => (
-            <CommentItem
-              key={comment.id}
-              comment={comment}
-              currentUser={currentUser}
-              novel={novel}
-              handleCommentLike={handleCommentLike}
-              handleReplyToggle={handleReplyToggle}
-              canDeleteComment={(comment) => Boolean(canDeleteComment(comment))}
-              handleDeleteComment={handleDeleteComment}
-              replyingTo={replyingTo}
-              replyContent={replyContent}
-              setReplyContent={setReplyContent}
-              handleReplySubmitDirect={handleReplySubmitDirect}
-              setReplyingTo={setReplyingTo}
-              deletingComment={deletingComment}
-              getUserInitials={getUserInitials}
-              formatDate={formatDate}
-              replyInputRef={replyInputRef}
-            />
-          ))
+      <div
+        className="bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+          <h3 className="text-xl font-semibold text-white">
+            Comments (
+            {comments.reduce((total: number, comment: Comment) => total + 1 + (comment.replies?.length || 0), 0)})
+          </h3>
+          <button
+            onClick={() => {
+              setShowCommentModal(false)
+              setNewComment("")
+            }}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {comments.length === 0 ? (
+            <p className="text-gray-400 text-center py-4">No comments yet. Be the first to comment!</p>
+          ) : (
+            comments.map((comment) => (
+              <CommentItem
+                key={comment.id}
+                comment={comment}
+                currentUser={currentUser}
+                novel={novel}
+                handleCommentLike={handleCommentLike}
+                handleReplyToggle={handleReplyToggle}
+                canDeleteComment={canDeleteComment} // Removed redundant Boolean()
+                handleDeleteComment={handleDeleteComment}
+                replyingTo={replyingTo}
+                replyContent={replyContent}
+                setReplyContent={setReplyContent}
+                handleReplySubmitDirect={handleReplySubmitDirect}
+                setReplyingTo={setReplyingTo}
+                deletingComment={deletingComment}
+                getUserInitials={getUserInitials}
+                formatDate={formatDate}
+                replyInputRef={replyInputRef}
+              />
+            ))
+          )}
+        </div>
+        {currentUser && (
+          <div className="p-4 border-t border-gray-700">
+            <form onSubmit={handleSubmitDirect} className="flex space-x-2">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Write a comment..."
+                className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                rows={2}
+              />
+              <button
+                type="submit"
+                disabled={!newComment.trim()}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Post
+              </button>
+            </form>
+          </div>
         )}
       </div>
-      {currentUser && (
-        <div className="p-4 border-t border-gray-700">
-          <form onSubmit={handleSubmitDirect} className="flex space-x-2">
-            <textarea
-              value={newComment}
-              onChange={e => setNewComment(e.target.value)}
-              placeholder="Write a comment..."
-              className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-              rows={2}
-            />
-            <button
-              type="submit"
-              disabled={!newComment.trim()}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Post
-            </button>
-          </form>
-        </div>
-      )}
     </div>
-  </div>
-)
+  )
+}
 
 const NovelRead = () => {
   const { id } = useParams<{ id: string }>()
@@ -351,13 +377,13 @@ const NovelRead = () => {
   const [replyContent, setReplyContent] = useState("")
   const [deletingComment, setDeletingComment] = useState<string | null>(null)
   const replyInputRef = useRef<HTMLInputElement>(null)
-  const [readingMode, setReadingMode] = useState<'scroll' | 'book'>('scroll')
+
   const [currentPage, setCurrentPage] = useState(0)
   const [pageFade, setPageFade] = useState(false)
   const lastSwipeTime = useReactRef(0)
   const bookContentRef = useReactRef<HTMLDivElement>(null)
 
-  // Helper: Split content into readable paragraphs (used for both modes)
+  // Helper: Split content into readable paragraphs
   const formatContent = (content: string) => {
     if (!content) return []
     // First, split by existing paragraph breaks (double newlines, <br>, </n>, etc.)
@@ -376,7 +402,10 @@ const NovelRead = () => {
       } else {
         // Break into chunks of 4-6 sentences for better readability
         for (let i = 0; i < sentences.length; i += 5) {
-          const chunk = sentences.slice(i, i + 5).join(" ").trim()
+          const chunk = sentences
+            .slice(i, i + 5)
+            .join(" ")
+            .trim()
           if (chunk) {
             formattedParagraphs.push(chunk)
           }
@@ -388,7 +417,10 @@ const NovelRead = () => {
       const words = content.trim().split(/\s+/)
       const wordsPerParagraph = 100 // Approximately 6-8 lines
       for (let i = 0; i < words.length; i += wordsPerParagraph) {
-        const chunk = words.slice(i, i + wordsPerParagraph).join(" ").trim()
+        const chunk = words
+          .slice(i, i + wordsPerParagraph)
+          .join(" ")
+          .trim()
         if (chunk) {
           formattedParagraphs.push(chunk)
         }
@@ -397,43 +429,30 @@ const NovelRead = () => {
     return formattedParagraphs.length > 0 ? formattedParagraphs : [content.trim()]
   }
 
-  // Helper: Paginate paragraphs (for book mode)
-  const paginateParagraphs = (paragraphs: string[], paragraphsPerPage = 5) => {
-    const pages: string[][] = []
+  // Helper: Paginate paragraphs into pages
+  const paginateContentIntoPages = (paragraphs: string[], paragraphsPerPage = 8) => {
+    const contentPages: string[][] = []
     for (let i = 0; i < paragraphs.length; i += paragraphsPerPage) {
-      pages.push(paragraphs.slice(i, i + paragraphsPerPage))
+      contentPages.push(paragraphs.slice(i, i + paragraphsPerPage))
     }
-    return pages
+    return contentPages
   }
 
-  // Prepare paragraphs and pages for both modes
-  const chapterContent = novel ? novel.chapters[currentChapter].content : ""
+  // Prepare pages for the current chapter, including the title page
+  const chapterContent = novel?.chapters[currentChapter]?.content || ""
   const formattedParagraphs = formatContent(chapterContent)
-  const paginatedParagraphs = paginateParagraphs(formattedParagraphs, 5) // 5 paragraphs per page
+  const contentPages = paginateContentIntoPages(formattedParagraphs, 8) // 8 paragraphs per page
 
-  // Reset page on chapter change or mode change
+  const chapterPages: ("title" | string[])[] = []
+  if (novel) {
+    chapterPages.push("title") // First page is always the chapter title page
+    contentPages.forEach((page) => chapterPages.push(page))
+  }
+
+  // Reset page on chapter change
   useEffect(() => {
     setCurrentPage(0)
-  }, [currentChapter, readingMode])
-
-  // Remove fade if switching to scroll mode
-  useEffect(() => {
-    if (readingMode !== 'book') setPageFade(false)
-  }, [readingMode])
-
-  // Keyboard navigation for book mode
-  useEffect(() => {
-    if (readingMode !== 'book') return
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') setCurrentPage((p) => Math.max(0, p - 1))
-      if (e.key === 'ArrowRight') setCurrentPage((p) => Math.min(pages.length - 1, p + 1))
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [readingMode, currentPage, novel, currentChapter])
-
-  // Prepare pages for book mode (now paginated paragraphs)
-  const pages = readingMode === 'book' ? paginatedParagraphs : []
+  }, [currentChapter])
 
   // Book mode: handle animated page transitions
   const changeBookPage = (newPage: number) => {
@@ -449,7 +468,7 @@ const NovelRead = () => {
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
       const now = Date.now()
-      if (now - lastSwipeTime.current > 350 && currentPage < pages.length - 1) {
+      if (now - lastSwipeTime.current > 350 && currentPage < chapterPages.length - 1) {
         lastSwipeTime.current = now
         changeBookPage(currentPage + 1)
       }
@@ -464,29 +483,64 @@ const NovelRead = () => {
     trackMouse: true,
   })
 
-  // Scroll to top when book page changes (in book mode)
-  useEffect(() => {
-    if (readingMode === 'book' && bookContentRef.current) {
-      window.scrollTo({ top: 0, behavior: "smooth" })
-    }
-  }, [currentPage, readingMode])
+  // Render current page content
+  const renderCurrentPageContent = () => {
+    if (!novel) return null
 
+    const pageContent = chapterPages[currentPage]
+
+    if (pageContent === "title") {
+      // This is the chapter title page
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-center px-4 sm:px-8 py-8 sm:py-12">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-white mb-4 leading-tight">
+            {novel.chapters[currentChapter].title}
+          </h2>
+          <div className="w-16 sm:w-24 h-1 bg-purple-500 my-4 sm:my-6 rounded-full"></div>
+          <p className="text-lg sm:text-xl md:text-2xl font-serif text-gray-300">By {novel.authorName}</p>
+        </div>
+      )
+    } else if (Array.isArray(pageContent)) {
+      // This is a content page
+      return (
+        <div className="prose dark:prose-invert max-w-none mx-auto px-4 sm:px-6 pt-2 md:px-8">
+          {pageContent.map((paragraph, idx) => (
+            <div
+              key={idx}
+              className="mb-4 sm:mb-6 text-gray-300 leading-relaxed text-sm sm:text-base indent-4 sm:indent-8 text-justify font-serif"
+            >
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <span>{children}</span>,
+                }}
+              >
+                {paragraph}
+              </ReactMarkdown>
+            </div>
+          ))}
+        </div>
+      )
+    }
+    return (
+      <div className="flex flex-col items-center justify-center h-60 text-gray-400">
+        <BookOpen className="h-12 w-12 mb-4" />
+        <span className="text-lg">No content on this page</span>
+      </div>
+    )
+  }
 
   useEffect(() => {
     const fetchNovel = async () => {
       if (!id) return
-
       try {
         setLoading(true)
         const novelDoc = await getDoc(doc(db, "novels", id))
-
         if (novelDoc.exists()) {
           const novelData = novelDoc.data()
           setNovel({
             id: novelDoc.id,
             ...novelData,
           } as Novel)
-
           // Get chapter from URL params
           const chapterParam = searchParams.get("chapter")
           if (chapterParam) {
@@ -495,7 +549,6 @@ const NovelRead = () => {
               setCurrentChapter(chapterIndex)
             }
           }
-
           if (currentUser) {
             await updateDoc(doc(db, "novels", id), {
               views: increment(1),
@@ -511,7 +564,6 @@ const NovelRead = () => {
         setLoading(false)
       }
     }
-
     fetchNovel()
   }, [id, currentUser, searchParams])
 
@@ -522,19 +574,15 @@ const NovelRead = () => {
     setComments([])
     setReplyingTo(null)
     setReplyContent("")
-
     const fetchChapterData = async () => {
       if (!novel) return
-
       try {
         const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
         const chapterDoc = await getDoc(chapterRef)
-
         if (chapterDoc.exists()) {
           const chapterData = chapterDoc.data()
           setChapterLiked(currentUser ? chapterData.chapterLikedBy?.includes(currentUser.uid) || false : false)
           setChapterLikes(chapterData.chapterLikes || 0)
-
           // Organize comments with replies
           const allComments = chapterData.comments || []
           const organizedComments = organizeCommentsWithReplies(allComments)
@@ -544,11 +592,10 @@ const NovelRead = () => {
         console.error("Error fetching chapter data:", error)
       }
     }
-
     fetchChapterData()
   }, [novel, currentUser, currentChapter])
 
-  // Scroll to top when chapter changes
+  // Scroll to top when chapter changes (only for chapter navigation, not page swipes)
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [currentChapter])
@@ -556,7 +603,6 @@ const NovelRead = () => {
   const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
     const topLevelComments = allComments.filter((comment) => !comment.parentId)
     const replies = allComments.filter((comment) => comment.parentId)
-
     return topLevelComments.map((comment) => ({
       ...comment,
       replies: replies
@@ -567,13 +613,11 @@ const NovelRead = () => {
 
   const handleChapterLike = async () => {
     if (!novel?.id || !currentUser) return
-
     try {
       const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
       const chapterDoc = await getDoc(chapterRef)
       const newLikeStatus = !chapterLiked
       setChapterLiked(newLikeStatus)
-
       if (!chapterDoc.exists()) {
         // Create the chapter document if it doesn't exist
         await setDoc(chapterRef, {
@@ -606,7 +650,6 @@ const NovelRead = () => {
 
   const handleAddComment = async () => {
     if (!novel?.id || !currentUser || !newComment.trim()) return
-
     try {
       const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
       const chapterDoc = await getDoc(chapterRef)
@@ -620,7 +663,6 @@ const NovelRead = () => {
         likes: 0,
         likedBy: [],
       }
-
       let updatedComments: Comment[]
       if (!chapterDoc.exists()) {
         // Create the chapter document if it doesn't exist
@@ -638,7 +680,6 @@ const NovelRead = () => {
           comments: updatedComments,
         })
       }
-
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
       setNewComment("")
@@ -649,13 +690,10 @@ const NovelRead = () => {
 
   const handleAddReply = async (parentId: string) => {
     if (!novel?.id || !currentUser || !replyContent.trim()) return
-
     try {
       const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
       const chapterDoc = await getDoc(chapterRef)
-
       if (!chapterDoc.exists()) return
-
       const reply: Comment = {
         id: Date.now().toString(),
         text: replyContent.trim(),
@@ -667,14 +705,11 @@ const NovelRead = () => {
         likes: 0,
         likedBy: [],
       }
-
       const existingComments = chapterDoc.data().comments || []
       const updatedComments = [...existingComments, reply]
-
       await updateDoc(chapterRef, {
         comments: updatedComments,
       })
-
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
       setReplyContent("")
@@ -686,27 +721,21 @@ const NovelRead = () => {
 
   const handleDeleteComment = async (commentId: string) => {
     if (!novel?.id || !currentUser) return
-
     const confirmDelete = window.confirm("Are you sure you want to delete this comment? This action cannot be undone.")
     if (!confirmDelete) return
-
     try {
       setDeletingComment(commentId)
       const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
       const chapterDoc = await getDoc(chapterRef)
-
       if (!chapterDoc.exists()) return
-
       const existingComments = chapterDoc.data().comments || []
       // Remove the comment and its replies
       const updatedComments = existingComments.filter(
         (comment: Comment) => comment.id !== commentId && comment.parentId !== commentId,
       )
-
       await updateDoc(chapterRef, {
         comments: updatedComments,
       })
-
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
     } catch (error) {
@@ -718,13 +747,10 @@ const NovelRead = () => {
 
   const handleCommentLike = async (commentId: string, isLiked: boolean) => {
     if (!novel?.id || !currentUser) return
-
     try {
       const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
       const chapterDoc = await getDoc(chapterRef)
-
       if (!chapterDoc.exists()) return
-
       const existingComments = chapterDoc.data().comments || []
       const updatedComments = existingComments.map((comment: Comment) => {
         if (comment.id === commentId) {
@@ -745,11 +771,9 @@ const NovelRead = () => {
         }
         return comment
       })
-
       await updateDoc(chapterRef, {
         comments: updatedComments,
       })
-
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
     } catch (error) {
@@ -758,9 +782,9 @@ const NovelRead = () => {
   }
 
   const canDeleteComment = (comment: Comment) => {
-    if (!currentUser) return false
+    if (!currentUser || !novel) return false
     // User can delete their own comments or novel author can delete any comment
-    return comment.userId === currentUser.uid || (novel && novel.authorId === currentUser.uid)
+    return comment.userId === currentUser.uid || novel.authorId === currentUser.uid
   }
 
   // Update the submit handlers to be more direct
@@ -805,66 +829,11 @@ const NovelRead = () => {
     const date = new Date(dateString)
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-
     if (diffInHours < 1) return "Just now"
     if (diffInHours < 24) return `${diffInHours}h ago`
     if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`
     return date.toLocaleDateString()
   }
-
-  // Re-add FloatingActions component
-  const FloatingActions = () => (
-    <div className="fixed bottom-6 right-2 md:right-6 flex flex-col items-end space-y-4">
-      {/* Like Button with Count */}
-      <div className="flex flex-col items-center">
-        <div
-          onClick={handleChapterLike}
-          className={`cursor-pointer transition-all transform hover:scale-110 ${!currentUser ? "opacity-50 cursor-not-allowed" : ""}`}
-          title={currentUser ? "Like this chapter" : "Login to like"}
-        >
-          <svg
-            className={`h-7 w-7 ${chapterLiked ? "text-red-500 fill-current" : "text-gray-300"}`}
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-            />
-          </svg>
-        </div>
-        <span className="text-sm text-gray-300 mt-1">{chapterLikes}</span>
-      </div>
-
-      {/* Comment Button */}
-      <div className="flex flex-col items-center">
-        <div
-          onClick={() => setShowCommentModal(true)}
-          className={`cursor-pointer transition-all transform hover:scale-110 ${!currentUser ? "opacity-50 cursor-not-allowed" : ""}`}
-          title={currentUser ? "View comments" : "Login to comment"}
-        >
-          <svg
-            className={`h-7 w-7 ${comments.length > 0 ? "text-purple-500" : "text-gray-300"}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            />
-          </svg>
-        </div>
-        <span className="text-sm text-gray-300 mt-1">
-          {comments.reduce((total, comment) => total + 1 + (comment.replies?.length || 0), 0)}
-        </span>
-      </div>
-    </div>
-  )
 
   if (loading) {
     return (
@@ -878,14 +847,7 @@ const NovelRead = () => {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-900">
         <div className="bg-gray-800 rounded-xl shadow-md p-8 max-w-md text-center">
-          <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            />
-          </svg>
+          <BookOpen className="mx-auto h-16 w-16 text-gray-400" />
           <h3 className="mt-4 text-xl font-medium text-white">Novel Not Found</h3>
           <p className="mt-2 text-gray-400">{error}</p>
           <div className="mt-6">
@@ -893,7 +855,8 @@ const NovelRead = () => {
               to="/novels"
               className="inline-flex items-center text-sm text-purple-400 font-medium hover:text-purple-300"
             >
-              ← Browse Novels
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Back to Browse
             </Link>
           </div>
         </div>
@@ -903,192 +866,132 @@ const NovelRead = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-900">
-      {/* Header with Logo and Title */}
-      <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col items-center">
-        <div className="flex items-center justify-center mb-4">
-          <div className="h-10 w-10 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
-            <svg
-              className="h-6 w-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
+      {/* Back button - Make it more accessible on mobile */}
+      <div className="fixed top-0 right-0 z-50 p-4 bg-gradient-to-b from-gray-900/80 to-transparent w-full flex justify-end">
+  <Link
+    to={`/novel/${novel.id}`}
+    className="p-2 rounded-full bg-gray-800/90 text-gray-300 hover:bg-gray-700/90 hover:text-white transition-colors shadow-lg backdrop-blur-sm"
+    title="Back to Novel Overview"
+  >
+    <X className="h-5 w-5 sm:h-6 sm:w-6" />
+  </Link>
+</div>
+      {/* Main content area */}
+      <div className="flex-grow py-2 sm:py-4 flex items-center justify-center">
+        <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl min-h-[500px] sm:min-h-[600px] mx-2 sm:mx-4 flex flex-col justify-between">
+          {/* Chapter indicator */}
+          <div className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 text-xs sm:text-sm">
+            Chapter {currentChapter + 1}
+          </div>
+          {/* Content */}
+          <div
+            {...swipeHandlers}
+            className={`flex-grow flex flex-col justify-center items-center transition-opacity duration-300 ${
+              pageFade ? "opacity-0" : "opacity-100"
+            }`}
+            ref={bookContentRef}
+          >
+            {renderCurrentPageContent()}
+          </div>
+          {/* Page navigation */}
+          <div className="flex justify-between items-center w-full mt-4 sm:mt-6 text-sm">
+            <button
+              className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
+                currentPage === 0
+                  ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                  : "bg-purple-900 text-purple-200 hover:bg-purple-800"
+              }`}
+              disabled={currentPage === 0}
+              onClick={() => changeBookPage(currentPage - 1)}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              />
-            </svg>
+              <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
+            <span className="px-2 sm:px-4 py-1 sm:py-2 bg-gray-700 text-gray-300 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap">
+              {currentPage + 1} / {chapterPages.length}
+            </span>
+            <button
+              className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
+                currentPage === chapterPages.length - 1
+                  ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                  : "bg-purple-900 text-purple-200 hover:bg-purple-800"
+              }`}
+              disabled={currentPage === chapterPages.length - 1}
+              onClick={() => changeBookPage(currentPage + 1)}
+            >
+              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
           </div>
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold text-center text-white mb-4">{novel.title}</h1>
-        <div className="flex items-center space-x-4">
-          <Link
-            to={`/novel/${novel.id}`}
-            className="inline-flex items-center text-sm text-purple-400 font-medium hover:text-purple-300 transition-colors"
-          >
-            <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path
-                fillRule="evenodd"
-                d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Back to Overview
-          </Link>
-        </div>
       </div>
-
-      {/* Reading Mode Toggle */}
-      <div className="flex justify-end max-w-4xl mx-auto px-4 mb-2">
+      {/* Chapter navigation */}
+      <div className="max-w-4xl mx-auto w-full px-2 sm:px-4 py-2 sm:py-4 flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-4">
         <button
-          className="px-4 py-2 rounded-md text-sm font-medium bg-gray-700 text-gray-200 hover:bg-purple-700 transition-colors"
-          onClick={() => setReadingMode(readingMode === 'scroll' ? 'book' : 'scroll')}
+          className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+            currentChapter === 0
+              ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+              : "bg-purple-900 text-purple-200 hover:bg-purple-800"
+          }`}
+          disabled={currentChapter === 0}
+          onClick={() => setCurrentChapter((prev) => Math.max(0, prev - 1))}
         >
-          {readingMode === 'scroll' ? 'Switch to Book Mode' : 'Switch to Scroll Mode'}
+          <div className="flex items-center justify-center">
+            <ChevronLeft className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            Previous
+          </div>
+        </button>
+        <span className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-gray-300 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap">
+          {currentChapter + 1} / {novel.chapters.length}
+        </span>
+        <button
+          className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+            currentChapter === novel.chapters.length - 1
+              ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+              : "bg-purple-900 text-purple-200 hover:bg-purple-800"
+          }`}
+          disabled={currentChapter === novel.chapters.length - 1}
+          onClick={() => setCurrentChapter((prev) => Math.min(novel.chapters.length - 1, prev + 1))}
+        >
+          <div className="flex items-center justify-center">
+            Next
+            <ChevronRight className="ml-1 sm:ml-2 h-4 w-4 sm:h-5 sm:w-5" />
+          </div>
         </button>
       </div>
-
-      {/* Chapter Content */}
-      <div className="flex-grow py-4">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="bg-gray-800 rounded-xl shadow-lg py-9 px-3 md:px-12">
-            <h2 className="text-xl font-bold mb-8 text-white text-center border-b border-gray-700 pb-4">
-              {novel.chapters[currentChapter].title}
-            </h2>
-
-            {readingMode === 'scroll' ? (
-              <div className="prose dark:prose-invert max-w-none mx-auto">
-                {formattedParagraphs.map((paragraph, index) => (
-                  <div
-                    key={index}
-                    className="mb-6 text-gray-300 leading-relaxed text-base indent-8 text-justify"
-                  >
-                    <ReactMarkdown>
-                      {paragraph}
-                    </ReactMarkdown>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div {...swipeHandlers} className="relative flex flex-col items-center min-h-[300px] w-full">
-                <div
-                  ref={bookContentRef}
-                  className={`prose dark:prose-invert max-w-none mx-auto w-full transition-opacity duration-300 ${pageFade ? 'opacity-0' : 'opacity-100'}`}
-                  style={{ minHeight: 250 }}
-                >
-                  {pages[currentPage] && pages[currentPage].length > 0 ? (
-                    pages[currentPage].map((paragraph, idx) => (
-                      <div
-                        key={idx}
-                        className="mb-6 text-gray-300 leading-relaxed text-base indent-8 text-justify"
-                      >
-                        <ReactMarkdown>{paragraph}</ReactMarkdown>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-60 text-gray-400">
-                      <svg className="h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                      </svg>
-                      <span className="text-lg">No content on this page</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex justify-between items-center w-full mt-6">
-                  <button
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === 0 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-purple-900 text-purple-200 hover:bg-purple-800'}`}
-                    disabled={currentPage === 0}
-                    onClick={() => changeBookPage(currentPage - 1)}
-                  >
-                    <span className="flex items-center">
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                      </svg>
-                    </span>
-                  </button>
-                  <span className="px-4 py-2 bg-gray-700 text-gray-300 rounded-md text-sm font-medium">
-                    Page {currentPage + 1} of {pages.length}
-                  </span>
-                  <button
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${currentPage === pages.length - 1 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-purple-900 text-purple-200 hover:bg-purple-800'}`}
-                    disabled={currentPage === pages.length - 1}
-                    onClick={() => changeBookPage(currentPage + 1)}
-                  >
-                    <span className="flex items-center">
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row justify-center items-center mt-12 space-y-4 sm:space-y-0 sm:space-x-4">
-              <button
-                className={`px-6 py-3 rounded-md text-sm font-medium transition-colors ${
-                  currentChapter === 0
-                    ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-                    : "bg-purple-900 text-purple-200 hover:bg-purple-800"
-                }`}
-                disabled={currentChapter === 0}
-                onClick={() => setCurrentChapter((prev) => Math.max(0, prev - 1))}
-              >
-                <div className="flex items-center">
-                  <svg
-                    className="mr-2 h-5 w-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  Previous Chapter
-                </div>
-              </button>
-
-              <span className="px-4 py-2 bg-gray-700 text-gray-300 rounded-md text-sm font-medium">
-                Chapter {currentChapter + 1} of {novel.chapters.length}
-              </span>
-
-              <button
-                className={`px-6 py-3 rounded-md text-sm font-medium transition-colors ${
-                  currentChapter === novel.chapters.length - 1
-                    ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-                    : "bg-purple-900 text-purple-200 hover:bg-purple-800"
-                }`}
-                disabled={currentChapter === novel.chapters.length - 1}
-                onClick={() => setCurrentChapter((prev) => Math.min(novel.chapters.length - 1, prev + 1))}
-              >
-                <div className="flex items-center">
-                  Next Chapter
-                  <svg
-                    className="ml-2 h-5 w-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-              </button>
-            </div>
+      {/* Update FloatingActions component */}
+      <div className="fixed bottom-4 sm:bottom-6 right-2 sm:right-6 flex flex-col items-end space-y-3 sm:space-y-4">
+        <div className="flex flex-col items-center scale-90 sm:scale-100">
+          <div
+            onClick={handleChapterLike}
+            className={`cursor-pointer transition-all transform hover:scale-110 ${
+              !currentUser ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            title={currentUser ? "Like this chapter" : "Login to like"}
+          >
+            <Heart
+              className={`h-6 sm:h-7 w-6 sm:w-7 ${chapterLiked ? "text-red-500 fill-current" : "text-gray-300"}`}
+              fill={chapterLiked ? "currentColor" : "none"}
+            />
           </div>
+          <span className="text-xs sm:text-sm text-gray-300 mt-1">{chapterLikes}</span>
+        </div>
+        <div className="flex flex-col items-center scale-90 sm:scale-100">
+          <div
+            onClick={() => setShowCommentModal(true)}
+            className={`cursor-pointer transition-all transform hover:scale-110 ${
+              !currentUser ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            title={currentUser ? "View comments" : "Login to comment"}
+          >
+            <MessageCircle
+              className={`h-6 sm:h-7 w-6 sm:w-7 ${comments.length > 0 ? "text-purple-500" : "text-gray-300"}`}
+            />
+          </div>
+          <span className="text-xs sm:text-sm text-gray-300 mt-1">
+            {comments.reduce((total, comment) => total + 1 + (comment.replies?.length || 0), 0)}
+          </span>
         </div>
       </div>
-
-      <FloatingActions />
+      {/* Comment Modal */}
       {showCommentModal && (
         <CommentModal
           comments={comments}
@@ -1101,7 +1004,7 @@ const NovelRead = () => {
           novel={novel}
           handleCommentLike={handleCommentLike}
           handleReplyToggle={handleReplyToggle}
-          canDeleteComment={(comment) => Boolean(canDeleteComment(comment))}
+          canDeleteComment={canDeleteComment}
           handleDeleteComment={handleDeleteComment}
           replyingTo={replyingTo}
           replyContent={replyContent}
