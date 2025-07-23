@@ -73,7 +73,7 @@ const Novels: React.FC = () => {
     }))
   }
 
-  // Function to get genre-based color class
+  // Function to get genre-based color class for fallback covers
   const getGenreColorClass = (genres: string[]) => {
     if (genres.includes("Fantasy")) return "from-purple-500 to-indigo-600"
     if (genres.includes("Sci-Fi")) return "from-blue-500 to-cyan-600"
@@ -187,7 +187,7 @@ const Novels: React.FC = () => {
       </div>
       {/* Novels Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[...Array(8)].map((_, i) => (
             <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden animate-pulse">
               <div className="h-32 bg-gray-300 dark:bg-gray-700"></div>
@@ -205,59 +205,34 @@ const Novels: React.FC = () => {
           ))}
         </div>
       ) : novels.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4 justify-center">
           {novels.map((novel) => (
             <Link
               to={`/novel/${novel.id}`}
               key={novel.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300 flex flex-col"
+              className="flex rounded-lg shadow-md overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-300 bg-gray-800 border border-gray-700"
             >
-              {/* Cover Image - Custom or Generated */}
-              {novel.coverImage && !imageErrors[novel.id] ? (
-                // Custom Cover Image
-                <div className="h-32 overflow-hidden">
+              {/* Image Section (fixed size) */}
+              <div className="w-40 h-64 flex-shrink-0 relative">
+                {novel.coverImage && !imageErrors[novel.id] ? (
                   <img
                     src={novel.coverImage || "/placeholder.svg"}
                     alt={`Cover for ${novel.title}`}
                     className="w-full h-full object-cover"
                     onError={() => handleImageError(novel.id)}
                   />
-                </div>
-              ) : (
-                // Generated Book Cover Design
-                <div className={`h-32 bg-gradient-to-br ${getGenreColorClass(novel.genres)} relative overflow-hidden`}>
-                  {/* Book spine effect */}
-                  <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
-                  {/* Background pattern */}
-                  <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-2 left-2 w-4 h-4 border border-white rounded-full"></div>
-                    <div className="absolute top-6 right-3 w-2 h-2 bg-white rounded-full"></div>
-                    <div className="absolute bottom-3 left-3 w-3 h-3 border border-white"></div>
-                  </div>
-                  {/* Title on cover */}
-                  <div className="absolute inset-0 flex flex-col justify-center items-center p-3 text-center">
-                    <h3 className="text-white text-sm font-bold leading-tight line-clamp-2 mb-1">{novel.title}</h3>
-                    <div className="w-8 h-px bg-white opacity-50 mb-1"></div>
-                    <p className="text-white text-xs opacity-75 truncate w-full">{novel.authorName}</p>
-                  </div>
-                  {/* Book pages effect */}
-                  <div className="absolute right-0 top-1 w-px h-full bg-white opacity-20"></div>
-                  <div className="absolute right-1 top-1 w-px h-full bg-white opacity-15"></div>
-                </div>
-              )}
-              {/* Card Content */}
-              <div className="p-3 flex-grow flex flex-col">
-                <div className="flex items-center justify-between mb-2">
-                  <span
-                    className={`px-2 py-1 text-xs rounded-full font-medium ${
-                      novel.isAIGenerated
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-                        : "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
-                    }`}
+                ) : (
+                  <div
+                    className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(
+                      novel.genres,
+                    )} flex items-center justify-center p-2 text-center`}
                   >
-                    {novel.isAIGenerated ? "AI" : "User"}
-                  </span>
-                  <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                    <h3 className="text-white text-sm font-bold leading-tight line-clamp-4">{novel.title}</h3>
+                  </div>
+                )}
+                {/* Likes and Views - positioned at the very bottom right within the image section */}
+                <span className="absolute bottom-2 right-2 z-10 flex flex-col items-end space-y-0.5 text-white text-xs drop-shadow-sm">
+                  <div className="flex items-center">
                     <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                       <path
@@ -268,59 +243,43 @@ const Novels: React.FC = () => {
                     </svg>
                     {novel.views || 0}
                   </div>
-                </div>
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-1 line-clamp-1">{novel.title}</h3>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-2 flex-grow">{novel.summary}</p>
-                <div className="flex flex-wrap gap-1 mt-auto">
-                  {novel.genres.slice(0, 2).map((genre, index) => (
-                    <span
-                      key={index}
-                      className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs rounded-full text-gray-700 dark:text-gray-300"
-                    >
-                      {genre}
-                    </span>
-                  ))}
-                  {novel.genres.length > 2 && (
-                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs rounded-full text-gray-700 dark:text-gray-300">
-                      +{novel.genres.length - 2}
-                    </span>
-                  )}
+                  <div className="flex items-center">
+                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    {novel.likes || 0}
+                  </div>
+                </span>
+              </div>
+
+              {/* Info Section (beside the image) */}
+              <div className="flex-1 p-4 bg-gray-800/70 backdrop-blur-sm flex flex-col justify-center items-center text-center">
+                <div className="flex flex-col items-center">
+                  <h3 className="text-white text-lg font-bold mb-1 line-clamp-2">{novel.title}</h3>
+                  <p className="text-gray-200 text-sm line-clamp-3 mb-2">{novel.summary}</p>
+                  <div className="flex flex-wrap gap-1 mt-auto justify-center">
+                    {novel.genres.slice(0, 2).map((genre, index) => (
+                      <span key={index} className="px-2 py-1 bg-white/20 text-xs rounded-full text-white">
+                        {genre}
+                      </span>
+                    ))}
+                    {novel.genres.length > 2 && (
+                      <span className="px-2 py-1 bg-white/20 text-xs rounded-full text-white">
+                        +{novel.genres.length - 2}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md">
-          <svg
-            className="mx-auto h-16 w-16 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-            />
-          </svg>
-          <h3 className="mt-2 text-xl font-medium text-gray-900 dark:text-white">No novels found</h3>
-          <p className="mt-1 text-gray-500 dark:text-gray-400">
-            {searchQuery || activeGenre !== "all"
-              ? "Try adjusting your filters to find more novels"
-              : "Be the first to submit a novel!"}
-          </p>
-          <div className="mt-6">
-            <Link
-              to="/submit"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700"
-            >
-              Submit a Novel
-            </Link>
-          </div>
-        </div>
+        <div className="text-center text-[#B0B0B0]">No novels found.</div>
       )}
     </div>
   )
