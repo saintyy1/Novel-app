@@ -9,8 +9,7 @@ import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import ReactMarkdown from "react-markdown"
 import { useSwipeable } from "react-swipeable"
-import { useRef as useReactRef } from "react"
-import { BookOpen, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Trash2, Reply } from "lucide-react"
+import { BookOpen, Heart, MessageCircle, ChevronLeft, X, Trash2, Reply, ChevronRight } from "lucide-react"
 
 interface Comment {
   id: string
@@ -171,7 +170,7 @@ const CommentItem = ({
               disabled={!replyContent.trim()}
               className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              Reply
+              Post
             </button>
           </div>
         </form>
@@ -320,7 +319,7 @@ const CommentModal = ({
                 novel={novel}
                 handleCommentLike={handleCommentLike}
                 handleReplyToggle={handleReplyToggle}
-                canDeleteComment={canDeleteComment} // Removed redundant Boolean()
+                canDeleteComment={canDeleteComment}
                 handleDeleteComment={handleDeleteComment}
                 replyingTo={replyingTo}
                 replyContent={replyContent}
@@ -380,8 +379,8 @@ const NovelRead = () => {
 
   const [currentPage, setCurrentPage] = useState(0)
   const [pageFade, setPageFade] = useState(false)
-  const lastSwipeTime = useReactRef(0)
-  const bookContentRef = useReactRef<HTMLDivElement>(null)
+  const lastSwipeTime = useRef(0)
+  const bookContentRef = useRef<HTMLDivElement>(null)
 
   // Helper: Split content into readable paragraphs
   const formatContent = (content: string) => {
@@ -430,29 +429,39 @@ const NovelRead = () => {
   }
 
   // Helper: Paginate paragraphs into pages
-  const paginateContentIntoPages = (paragraphs: string[], paragraphsPerPage = 8) => {
-    const contentPages: string[][] = []
-    for (let i = 0; i < paragraphs.length; i += paragraphsPerPage) {
-      contentPages.push(paragraphs.slice(i, i + paragraphsPerPage))
+  const paginateContentIntoPages = (paragraphs: string[], paragraphsPerPage = 4) => {
+  const contentPages: string[][] = []
+  let currentPage: string[] = []
+
+  paragraphs.forEach((paragraph) => {
+    if (currentPage.length >= paragraphsPerPage) {
+      contentPages.push([...currentPage])
+      currentPage = []
     }
-    return contentPages
+    currentPage.push(paragraph)
+  })
+
+  if (currentPage.length > 0) {
+    contentPages.push(currentPage)
   }
+
+  return contentPages
+}
 
   // Prepare pages for the current chapter, including the title page
-  const chapterContent = novel?.chapters[currentChapter]?.content || ""
-  const formattedParagraphs = formatContent(chapterContent)
-  const contentPages = paginateContentIntoPages(formattedParagraphs, 8) // 8 paragraphs per page
+  const [chapterPages, setChapterPages] = useState<("title" | string[])[]>([])
 
-  const chapterPages: ("title" | string[])[] = []
-  if (novel) {
-    chapterPages.push("title") // First page is always the chapter title page
-    contentPages.forEach((page) => chapterPages.push(page))
-  }
-
-  // Reset page on chapter change
   useEffect(() => {
-    setCurrentPage(0)
-  }, [currentChapter])
+    if (novel) {
+      const pages: ("title" | string[])[] = []
+      const chapterContent = novel.chapters[currentChapter]?.content || ""
+      const formattedParagraphs = formatContent(chapterContent)
+      const contentPages = paginateContentIntoPages(formattedParagraphs, 4)
+      pages.push("title") // First page is always the chapter title page
+      contentPages.forEach((page) => pages.push(page))
+      setChapterPages(pages)
+    }
+  }, [novel, currentChapter])
 
   // Book mode: handle animated page transitions
   const changeBookPage = (newPage: number) => {
@@ -468,46 +477,73 @@ const NovelRead = () => {
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
       const now = Date.now()
-      if (now - lastSwipeTime.current > 350 && currentPage < chapterPages.length - 1) {
+      if (now - lastSwipeTime.current > 350) {
         lastSwipeTime.current = now
-        changeBookPage(currentPage + 1)
+        if (currentPage < chapterPages.length - 1) {
+          changeBookPage(currentPage + 1)
+        } else if (currentChapter < (novel?.chapters.length || 0) - 1) {
+          // Go to next chapter, first page
+          setPageFade(true)
+          setTimeout(() => {
+            setCurrentChapter((prev) => prev + 1)
+            setCurrentPage(0) // Go to first page of next chapter
+            setTimeout(() => setPageFade(false), 300)
+          }, 300)
+        }
       }
     },
     onSwipedRight: () => {
       const now = Date.now()
-      if (now - lastSwipeTime.current > 350 && currentPage > 0) {
+      if (now - lastSwipeTime.current > 350) {
         lastSwipeTime.current = now
-        changeBookPage(currentPage - 1)
+        if (currentPage > 0) {
+          changeBookPage(currentPage - 1)
+        } else if (currentChapter > 0) {
+          // Go to previous chapter, last page
+          setPageFade(true)
+          setTimeout(() => {
+            const prevChapterIndex = currentChapter - 1
+            if (novel && prevChapterIndex >= 0) {
+              // Recalculate pages for the previous chapter to get its last page index
+              const prevChapterContent = novel.chapters[prevChapterIndex]?.content || ""
+              const prevFormattedParagraphs = formatContent(prevChapterContent)
+              const prevContentPages = paginateContentIntoPages(prevFormattedParagraphs, 8)
+              const prevChapterTotalPages = prevContentPages.length // Number of content pages
+              setCurrentChapter(prevChapterIndex)
+              setCurrentPage(prevChapterTotalPages) // Set to the last content page (index is length-1, plus 1 for title page)
+            }
+            setTimeout(() => setPageFade(false), 300)
+          }, 300)
+        }
       }
     },
-    trackMouse: true,
+    trackMouse: true
   })
 
   // Render current page content
-  const renderCurrentPageContent = () => {
-    if (!novel) return null
+ const renderCurrentPageContent = () => {
+  if (!novel) return null
 
-    const pageContent = chapterPages[currentPage]
+  const pageContent = chapterPages[currentPage]
 
-    if (pageContent === "title") {
-      // This is the chapter title page
-      return (
-        <div className="flex flex-col items-center justify-center h-full text-center px-4 sm:px-8 py-8 sm:py-12">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-white mb-4 leading-tight">
-            {novel.chapters[currentChapter].title}
-          </h2>
-          <div className="w-16 sm:w-24 h-1 bg-purple-500 my-4 sm:my-6 rounded-full"></div>
-          <p className="text-lg sm:text-xl md:text-2xl font-serif text-gray-300">By {novel.authorName}</p>
-        </div>
-      )
-    } else if (Array.isArray(pageContent)) {
-      // This is a content page
-      return (
-        <div className="prose dark:prose-invert max-w-none mx-auto px-4 sm:px-6 pt-2 md:px-8">
+  if (pageContent === "title") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 sm:px-8">
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-white mb-4 leading-tight">
+          {novel.chapters[currentChapter].title}
+        </h2>
+        <div className="w-16 sm:w-24 h-1 bg-purple-500 my-4 sm:my-6 rounded-full"></div>
+        <p className="text-lg sm:text-xl md:text-2xl font-serif text-gray-300">By {novel.authorName}</p>
+      </div>
+    )
+  } else if (Array.isArray(pageContent)) {
+    return (
+      <div className="min-h-[60vh] px-4 sm:px-6 md:px-8 py-6 flex items-center">
+        <div className="prose prose-lg dark:prose-invert max-w-none mx-auto">
           {pageContent.map((paragraph, idx) => (
             <div
               key={idx}
-              className="mb-4 sm:mb-6 text-gray-300 leading-relaxed text-sm sm:text-base indent-4 sm:indent-8 text-justify font-serif"
+              className="mb-6 text-gray-300 leading-relaxed text-base sm:text-lg indent-6 sm:indent-8 text-justify font-serif"
             >
               <ReactMarkdown
                 components={{
@@ -519,15 +555,12 @@ const NovelRead = () => {
             </div>
           ))}
         </div>
-      )
-    }
-    return (
-      <div className="flex flex-col items-center justify-center h-60 text-gray-400">
-        <BookOpen className="h-12 w-12 mb-4" />
-        <span className="text-lg">No content on this page</span>
       </div>
     )
   }
+  return null
+}
+
 
   useEffect(() => {
     const fetchNovel = async () => {
@@ -543,12 +576,15 @@ const NovelRead = () => {
           } as Novel)
           // Get chapter from URL params
           const chapterParam = searchParams.get("chapter")
+          let initialChapterIndex = 0
           if (chapterParam) {
-            const chapterIndex = Number.parseInt(chapterParam, 10)
-            if (chapterIndex >= 0 && chapterIndex < novelData.chapters.length) {
-              setCurrentChapter(chapterIndex)
+            const parsedChapterIndex = Number.parseInt(chapterParam, 10)
+            if (parsedChapterIndex >= 0 && parsedChapterIndex < novelData.chapters.length) {
+              initialChapterIndex = parsedChapterIndex
             }
           }
+          setCurrentChapter(initialChapterIndex)
+          setCurrentPage(0) // Always start at page 0 for a new chapter load
           if (currentUser) {
             await updateDoc(doc(db, "novels", id), {
               views: increment(1),
@@ -595,10 +631,12 @@ const NovelRead = () => {
     fetchChapterData()
   }, [novel, currentUser, currentChapter])
 
-  // Scroll to top when chapter changes (only for chapter navigation, not page swipes)
+  // Adjust current page if it's out of bounds for the new chapter
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }, [currentChapter])
+    if (currentPage >= chapterPages.length) {
+      setCurrentPage(chapterPages.length > 0 ? chapterPages.length - 1 : 0)
+    }
+  }, [currentChapter, currentPage, chapterPages.length])
 
   const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
     const topLevelComments = allComments.filter((comment) => !comment.parentId)
@@ -781,7 +819,7 @@ const NovelRead = () => {
     }
   }
 
-  const canDeleteComment = (comment: Comment) => {
+  const canDeleteComment = (comment: Comment): boolean => {
     if (!currentUser || !novel) return false
     // User can delete their own comments or novel author can delete any comment
     return comment.userId === currentUser.uid || novel.authorId === currentUser.uid
@@ -835,6 +873,45 @@ const NovelRead = () => {
     return date.toLocaleDateString()
   }
 
+  // Floating Actions component
+  const FloatingActions = () => (
+    <div className="fixed bottom-4 sm:bottom-6 right-2 sm:right-6 flex flex-col items-end space-y-3 sm:space-y-4">
+      {/* Like Button with Count */}
+      <div className="flex flex-col items-center scale-90 sm:scale-100">
+        <div
+          onClick={handleChapterLike}
+          className={`cursor-pointer transition-all transform hover:scale-110 ${
+            !currentUser ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          title={currentUser ? "Like this chapter" : "Login to like"}
+        >
+          <Heart
+            className={`h-6 sm:h-7 w-6 sm:w-7 ${chapterLiked ? "text-red-500 fill-current" : "text-gray-300"}`}
+            fill={chapterLiked ? "currentColor" : "none"}
+          />
+        </div>
+        <span className="text-xs sm:text-sm text-gray-300 mt-1">{chapterLikes}</span>
+      </div>
+      {/* Comment Button */}
+      <div className="flex flex-col items-center scale-90 sm:scale-100">
+        <div
+          onClick={() => setShowCommentModal(true)}
+          className={`cursor-pointer transition-all transform hover:scale-110 ${
+            !currentUser ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          title={currentUser ? "View comments" : "Login to comment"}
+        >
+          <MessageCircle
+            className={`h-6 sm:h-7 w-6 sm:w-7 ${comments.length > 0 ? "text-purple-500" : "text-gray-300"}`}
+          />
+        </div>
+        <span className="text-xs sm:text-sm text-gray-300 mt-1">
+          {comments.reduce((total, comment) => total + 1 + (comment.replies?.length || 0), 0)}
+        </span>
+      </div>
+    </div>
+  )
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-900">
@@ -878,25 +955,26 @@ const NovelRead = () => {
 </div>
       {/* Main content area */}
       <div className="flex-grow py-2 sm:py-4 flex items-center justify-center">
-        <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl min-h-[500px] sm:min-h-[600px] mx-2 sm:mx-4 flex flex-col justify-between">
+        <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl mx-2 sm:mx-4 flex flex-col justify-between">
           {/* Chapter indicator */}
           <div className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 text-xs sm:text-sm">
             Chapter {currentChapter + 1}
           </div>
           {/* Content */}
           <div
-            {...swipeHandlers}
-            className={`flex-grow flex flex-col justify-center items-center transition-opacity duration-300 ${
-              pageFade ? "opacity-0" : "opacity-100"
-            }`}
-            ref={bookContentRef}
-          >
-            {renderCurrentPageContent()}
-          </div>
-          {/* Page navigation */}
-          <div className="flex justify-between items-center w-full mt-4 sm:mt-6 text-sm">
+  {...swipeHandlers}
+  className={`flex-grow flex flex-col justify-center transition-opacity duration-300 ${
+    pageFade ? "opacity-0" : "opacity-100"
+  }`}
+  ref={bookContentRef}
+>
+  {renderCurrentPageContent()}
+</div>
+
+          {/* Page indicator and buttons for larger screens */}
+          <div className="flex justify-center md:justify-between items-center w-full mt-4 pt-4 border-t border-gray-700">
             <button
-              className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`hidden md:block p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
                 currentPage === 0
                   ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                   : "bg-purple-900 text-purple-200 hover:bg-purple-800"
@@ -906,11 +984,11 @@ const NovelRead = () => {
             >
               <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
-            <span className="px-2 sm:px-4 py-1 sm:py-2 bg-gray-700 text-gray-300 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap">
-              {currentPage + 1} / {chapterPages.length}
+            <span className="text-gray-300 text-xs sm:text-sm font-medium whitespace-nowrap">
+              {currentPage + 1}
             </span>
             <button
-              className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`hidden md:block p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
                 currentPage === chapterPages.length - 1
                   ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                   : "bg-purple-900 text-purple-200 hover:bg-purple-800"
@@ -923,74 +1001,9 @@ const NovelRead = () => {
           </div>
         </div>
       </div>
-      {/* Chapter navigation */}
-      <div className="max-w-4xl mx-auto w-full px-2 sm:px-4 py-2 sm:py-4 flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-4">
-        <button
-          className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-            currentChapter === 0
-              ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-              : "bg-purple-900 text-purple-200 hover:bg-purple-800"
-          }`}
-          disabled={currentChapter === 0}
-          onClick={() => setCurrentChapter((prev) => Math.max(0, prev - 1))}
-        >
-          <div className="flex items-center justify-center">
-            <ChevronLeft className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-            Previous
-          </div>
-        </button>
-        <span className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-gray-300 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap">
-          {currentChapter + 1} / {novel.chapters.length}
-        </span>
-        <button
-          className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-            currentChapter === novel.chapters.length - 1
-              ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-              : "bg-purple-900 text-purple-200 hover:bg-purple-800"
-          }`}
-          disabled={currentChapter === novel.chapters.length - 1}
-          onClick={() => setCurrentChapter((prev) => Math.min(novel.chapters.length - 1, prev + 1))}
-        >
-          <div className="flex items-center justify-center">
-            Next
-            <ChevronRight className="ml-1 sm:ml-2 h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-        </button>
-      </div>
-      {/* Update FloatingActions component */}
-      <div className="fixed bottom-4 sm:bottom-6 right-2 sm:right-6 flex flex-col items-end space-y-3 sm:space-y-4">
-        <div className="flex flex-col items-center scale-90 sm:scale-100">
-          <div
-            onClick={handleChapterLike}
-            className={`cursor-pointer transition-all transform hover:scale-110 ${
-              !currentUser ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            title={currentUser ? "Like this chapter" : "Login to like"}
-          >
-            <Heart
-              className={`h-6 sm:h-7 w-6 sm:w-7 ${chapterLiked ? "text-red-500 fill-current" : "text-gray-300"}`}
-              fill={chapterLiked ? "currentColor" : "none"}
-            />
-          </div>
-          <span className="text-xs sm:text-sm text-gray-300 mt-1">{chapterLikes}</span>
-        </div>
-        <div className="flex flex-col items-center scale-90 sm:scale-100">
-          <div
-            onClick={() => setShowCommentModal(true)}
-            className={`cursor-pointer transition-all transform hover:scale-110 ${
-              !currentUser ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            title={currentUser ? "View comments" : "Login to comment"}
-          >
-            <MessageCircle
-              className={`h-6 sm:h-7 w-6 sm:w-7 ${comments.length > 0 ? "text-purple-500" : "text-gray-300"}`}
-            />
-          </div>
-          <span className="text-xs sm:text-sm text-gray-300 mt-1">
-            {comments.reduce((total, comment) => total + 1 + (comment.replies?.length || 0), 0)}
-          </span>
-        </div>
-      </div>
+
+      {/* Floating Actions component */}
+      <FloatingActions />
       {/* Comment Modal */}
       {showCommentModal && (
         <CommentModal
