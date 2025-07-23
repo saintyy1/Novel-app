@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, Link } from "react-router-dom"
@@ -52,39 +51,51 @@ const NovelOverview = () => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState<string>("")
   const [submittingReply, setSubmittingReply] = useState<boolean>(false)
-  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false)
   const [deletingComment, setDeletingComment] = useState<string | null>(null)
   const { currentUser } = useAuth()
-
   const commentTextareaRef = useRef<HTMLTextAreaElement>(null)
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     const fetchNovel = async () => {
       if (!id) return
-
       try {
         setLoading(true)
-        const novelDoc = await getDoc(doc(db, "novels", id))
+        const novelDocRef = doc(db, "novels", id)
+        const novelDoc = await getDoc(novelDocRef)
 
         if (novelDoc.exists()) {
-          const novelData = novelDoc.data()
-
-          // Check if current user has liked this novel
-          if (currentUser && novelData.likedBy && novelData.likedBy.includes(currentUser.uid)) {
-            setLiked(true)
-          }
-
+          const novelData = novelDoc.data() as Novel
           setNovel({
-            id: novelDoc.id,
             ...novelData,
+            id: novelDoc.id,
           } as Novel)
 
+          // Update liked status based on fetched data
+          if (currentUser && novelData.likedBy && novelData.likedBy.includes(currentUser.uid)) {
+            setLiked(true)
+          } else {
+            setLiked(false)
+          }
+
+          // Handle view count increment for unique users
           if (currentUser) {
-            // Increment view count
-            await updateDoc(doc(db, "novels", id), {
-              views: increment(1),
-            })
+            const viewKey = `novel_view_${id}_${currentUser.uid}`
+            const lastViewTimestamp = localStorage.getItem(viewKey)
+            const now = Date.now()
+            const twentyFourHours = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+
+            if (!lastViewTimestamp || now - Number(lastViewTimestamp) > twentyFourHours) {
+              // Increment view count in Firestore
+              await updateDoc(novelDocRef, {
+                views: increment(1),
+              })
+              // Update local storage timestamp
+              localStorage.setItem(viewKey, now.toString())
+              // Update local novel state to reflect new view count
+              setNovel((prev) => (prev ? { ...prev, views: (prev.views || 0) + 1 } : null))
+            }
           }
         } else {
           setError("Novel not found")
@@ -96,15 +107,12 @@ const NovelOverview = () => {
         setLoading(false)
       }
     }
-
     fetchNovel()
-  }, [id, currentUser])
+  }, [id, currentUser]) // Re-run when ID or currentUser changes
 
   useEffect(() => {
     if (!id) return
-
     const commentsQuery = query(collection(db, "comments"), where("novelId", "==", id), orderBy("createdAt", "desc"))
-
     const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
       const commentsData: Comment[] = []
       snapshot.forEach((doc) => {
@@ -113,20 +121,17 @@ const NovelOverview = () => {
           ...doc.data(),
         } as Comment)
       })
-
       // Organize comments with replies
       const organizedComments = organizeCommentsWithReplies(commentsData)
       setComments(organizedComments)
       setCommentsLoading(false)
     })
-
     return () => unsubscribe()
   }, [id])
 
   const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
     const topLevelComments = allComments.filter((comment) => !comment.parentId)
     const replies = allComments.filter((comment) => comment.parentId)
-
     return topLevelComments.map((comment) => ({
       ...comment,
       replies: replies
@@ -136,43 +141,54 @@ const NovelOverview = () => {
   }, [])
 
   const handleLike = async () => {
-    if (!novel || !currentUser) return
-
-    try {
-      const newLikeStatus = !liked
-      setLiked(newLikeStatus)
-
-      const novelRef = doc(db, "novels", novel.id)
-
-      if (newLikeStatus) {
-        await updateDoc(novelRef, {
-          likes: increment(1),
-          likedBy: arrayUnion(currentUser.uid),
-        })
-      } else {
-        await updateDoc(novelRef, {
-          likes: increment(-1),
-          likedBy: arrayRemove(currentUser.uid),
-        })
-      }
-
-      setNovel((prev) => {
-        if (!prev) return null
-        return {
-          ...prev,
-          likes: (prev.likes || 0) + (newLikeStatus ? 1 : -1),
-        }
-      })
-    } catch (error) {
-      console.error("Error updating likes:", error)
-      setLiked(!liked)
-    }
+  // Add early returns and error checks
+  if (!novel?.id) {
+    console.error("Novel ID is missing")
+    showErrorToast("Unable to like - novel ID is missing")
+    return
   }
+
+  if (!currentUser) {
+    console.error("User is not logged in")
+    showErrorToast("Please login to like novels")
+    return
+  }
+
+  try {
+    const novelRef = doc(db, "novels", novel.id)
+    const newLikeStatus = !liked
+    setLiked(newLikeStatus) // Optimistic update
+
+    // Check if document exists before updating
+    const novelDoc = await getDoc(novelRef)
+    if (!novelDoc.exists()) {
+      throw new Error("Novel document not found")
+    }
+
+    await updateDoc(novelRef, {
+      likes: increment(newLikeStatus ? 1 : -1),
+      likedBy: newLikeStatus ? arrayUnion(currentUser.uid) : arrayRemove(currentUser.uid)
+    })
+
+    // Re-fetch novel data to ensure consistency
+    const updatedNovelDoc = await getDoc(novelRef)
+    if (updatedNovelDoc.exists()) {
+      const updatedNovelData = updatedNovelDoc.data() as Novel
+      setNovel({
+        ...updatedNovelData,
+        id: novel.id // Preserve the ID
+      } as Novel)
+    }
+  } catch (error) {
+    console.error("Error updating likes:", error)
+    setLiked(!liked) // Revert optimistic update on error
+    showErrorToast("Failed to update like status")
+  }
+}
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newComment.trim() || !currentUser || !novel) return
-
     try {
       setSubmittingComment(true)
       await addDoc(collection(db, "comments"), {
@@ -197,7 +213,6 @@ const NovelOverview = () => {
 
   const handleReplySubmit = async (parentId: string) => {
     if (!replyContent.trim() || !currentUser || !novel) return
-
     try {
       setSubmittingReply(true)
       await addDoc(collection(db, "comments"), {
@@ -224,10 +239,8 @@ const NovelOverview = () => {
 
   const handleDeleteComment = async (commentId: string) => {
     if (!currentUser) return
-
     const confirmDelete = window.confirm("Are you sure you want to delete this comment? This action cannot be undone.")
     if (!confirmDelete) return
-
     try {
       setDeletingComment(commentId)
       await deleteDoc(doc(db, "comments", commentId))
@@ -242,7 +255,6 @@ const NovelOverview = () => {
 
   const handleCommentLike = async (commentId: string, isLiked: boolean) => {
     if (!currentUser) return
-
     try {
       const commentRef = doc(db, "comments", commentId)
       if (isLiked) {
@@ -287,12 +299,9 @@ const NovelOverview = () => {
 
   const handleSocialShare = (platform: string) => {
     if (!novel) return
-
     const novelUrl = `${window.location.origin}/novel/${novel.id}`
     const shareText = `Check out "${novel.title}" by ${novel.authorName} on NovelNest!`
-
     let shareUrl = ""
-
     switch (platform) {
       case "facebook":
         // Use the Facebook app URL scheme for mobile
@@ -316,11 +325,9 @@ const NovelOverview = () => {
       default:
         return
     }
-
     // For mobile apps, try to open the app first, fallback to web if it fails
     if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
       const appWindow = window.open(shareUrl, "_blank")
-
       // If app window failed to open (app not installed), fallback to web version
       if (!appWindow || appWindow.closed || typeof appWindow.closed === "undefined") {
         setTimeout(() => {
@@ -356,7 +363,6 @@ const NovelOverview = () => {
     const date = new Date(dateString)
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-
     if (diffInHours < 1) return "Just now"
     if (diffInHours < 24) return `${diffInHours}h ago`
     if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`
@@ -373,7 +379,6 @@ const NovelOverview = () => {
   const handleNewCommentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const cursorPosition = e.target.selectionStart
     setNewComment(e.target.value)
-
     // Restore cursor position after state update
     requestAnimationFrame(() => {
       if (commentTextareaRef.current) {
@@ -385,7 +390,6 @@ const NovelOverview = () => {
   const handleReplyContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const cursorPosition = e.target.selectionStart
     setReplyContent(e.target.value)
-
     // Restore cursor position after state update
     requestAnimationFrame(() => {
       if (replyTextareaRef.current) {
@@ -438,8 +442,9 @@ const NovelOverview = () => {
             <button
               onClick={() => handleCommentLike(comment.id, comment.likedBy?.includes(currentUser?.uid || ""))}
               disabled={!currentUser}
-              className={`inline-flex items-center text-xs ${comment.likedBy?.includes(currentUser?.uid || "") ? "text-red-400" : "text-gray-400 hover:text-red-400"
-                } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
+              className={`inline-flex items-center text-xs ${
+                comment.likedBy?.includes(currentUser?.uid || "") ? "text-red-400" : "text-gray-400 hover:text-red-400"
+              } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
             >
               <svg
                 className={`h-4 w-4 mr-1 ${comment.likedBy?.includes(currentUser?.uid || "") ? "fill-current" : ""}`}
@@ -456,7 +461,6 @@ const NovelOverview = () => {
               </svg>
               {comment.likes || 0}
             </button>
-
             {/* Reply Button - Only for top-level comments */}
             {!isReply && currentUser && (
               <button
@@ -467,7 +471,6 @@ const NovelOverview = () => {
                 Reply
               </button>
             )}
-
             {/* Delete Button */}
             {canDeleteComment(comment) && (
               <button
@@ -498,7 +501,6 @@ const NovelOverview = () => {
               </button>
             )}
           </div>
-
           {/* Reply Form */}
           {replyingTo === comment.id && (
             <div className="mt-3 p-3 bg-white/5 rounded-lg border border-white/10">
@@ -547,7 +549,6 @@ const NovelOverview = () => {
           )}
         </div>
       </div>
-
       {/* Replies */}
       {comment.replies && comment.replies.length > 0 && (
         <div className="mt-3">
@@ -591,8 +592,7 @@ const NovelOverview = () => {
 
   const isAuthor = currentUser && novel.authorId === currentUser.uid
 
-  return (  // Add this with your other state declarations
-  
+  return (
     <div className="min-h-screen py-4 sm:py-8">
       <div className="max-w-7xl mx-auto px-2 lg:px-8 pt-3">
         {/* Header */}
@@ -607,7 +607,6 @@ const NovelOverview = () => {
             Back to Browse
           </Link>
         </div>
-
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-8">
           {/* Left Side - Novel Details */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-8">
@@ -635,13 +634,16 @@ const NovelOverview = () => {
                     </div>
                   )}
                 </div>
-
                 {/* Novel Info */}
                 <div className="w-full md:w-2/3 p-4 sm:p-6 md:p-8">
                   <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">{novel.title}</h1>
                   <p className="text-sm sm:text-lg text-gray-300 mb-3 sm:mb-4">{novel.description}</p>
-                  <Link to={`/profile/${novel.authorId}`} className="block mb-3 sm:mb-4 text-sm text-purple-400 hover:text-purple-300">By {novel.authorName}</Link>
-
+                  <Link
+                    to={`/profile/${novel.authorId}`}
+                    className="block mb-3 sm:mb-4 text-sm text-purple-400 hover:text-purple-300"
+                  >
+                    By {novel.authorName}
+                  </Link>
                   {/* Genres */}
                   <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
                     {novel.genres.map((genre) => (
@@ -653,14 +655,14 @@ const NovelOverview = () => {
                       </span>
                     ))}
                   </div>
-
                   {/* Stats */}
                   <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-4 sm:mb-6">
                     <button
                       onClick={handleLike}
                       disabled={!currentUser}
-                      className={`flex items-center transition-colors ${!currentUser ? "opacity-50 cursor-not-allowed" : "hover:scale-105 cursor-pointer"
-                        } ${liked ? "text-red-400" : "text-gray-300 hover:text-red-400"}`}
+                      className={`flex items-center transition-colors ${
+                        !currentUser ? "opacity-50 cursor-not-allowed" : "hover:scale-105 cursor-pointer"
+                      } ${liked ? "text-red-400" : "text-gray-300 hover:text-red-400"}`}
                     >
                       <svg
                         className={`h-5 w-5 mr-2 transition-colors ${liked ? "fill-current text-red-400" : ""}`}
@@ -704,7 +706,6 @@ const NovelOverview = () => {
                       {novel.chapters?.length || 0}
                     </div>
                   </div>
-
                   {/* Action Buttons */}
                   <div className="flex flex-wrap gap-2 sm:gap-3">
                     <Link
@@ -721,7 +722,6 @@ const NovelOverview = () => {
                       </svg>
                       Start Reading
                     </Link>
-
                     <button
                       onClick={handleShare}
                       className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all duration-200 border border-white/20 hover:border-white/30 transform hover:scale-105"
@@ -729,28 +729,28 @@ const NovelOverview = () => {
                       <FaShare className="h-4 w-4 mr-2" />
                       Share
                     </button>
-
                     {isAuthor && (
-                      <Link
-                        to={`/novel/${novel.id}/add-chapters`}
-                        className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all duration-200 border border-white/20 hover:border-white/30"
-                      >
-                        <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                          />
-                        </svg>
-                        Add Chapters
-                      </Link>
+                      <>
+                        <Link
+                          to={`/novel/${novel.id}/add-chapters`}
+                          className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all duration-200 border border-white/20 hover:border-white/30"
+                        >
+                          <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                            />
+                          </svg>
+                          Add Chapters
+                        </Link>
+                      </>
                     )}
                   </div>
                 </div>
               </div>
             </div>
-
             {/* Summary Section */}
             <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-8">
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4 flex items-center">
@@ -765,14 +765,13 @@ const NovelOverview = () => {
                 Summary
               </h2>
               <div className="relative">
-                <p 
+                <p
                   className={`text-gray-300 leading-relaxed text-base sm:text-lg ${
-                    !isSummaryExpanded ? 'line-clamp-6' : ''
+                    !isSummaryExpanded ? "line-clamp-6" : ""
                   }`}
                 >
                   {novel.summary}
                 </p>
-                
                 {/* Only show button if summary is long enough */}
                 {novel.summary.length > 300 && (
                   <button
@@ -782,35 +781,15 @@ const NovelOverview = () => {
                     {isSummaryExpanded ? (
                       <>
                         Show Less
-                        <svg 
-                          className="h-4 w-4 ml-1" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth="2" 
-                            d="M5 15l7-7 7 7"
-                          />
+                        <svg className="h-4 w-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
                         </svg>
                       </>
                     ) : (
                       <>
                         Show More
-                        <svg 
-                          className="h-4 w-4 ml-1" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth="2" 
-                            d="M19 9l-7 7-7-7"
-                          />
+                        <svg className="h-4 w-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </>
                     )}
@@ -818,7 +797,6 @@ const NovelOverview = () => {
                 )}
               </div>
             </div>
-
             {/* Chapters List */}
             <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-8">
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
@@ -856,7 +834,6 @@ const NovelOverview = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                       </svg>
                     </Link>
-
                     {/* Edit Button for Author */}
                     {isAuthor && (
                       <>
@@ -876,15 +853,15 @@ const NovelOverview = () => {
                         </Link>
                         <button
                           onClick={async (e) => {
-                            e.stopPropagation();
-                            if (!window.confirm("Are you sure you want to delete this chapter?")) return;
+                            e.stopPropagation()
+                            if (!window.confirm("Are you sure you want to delete this chapter?")) return
                             try {
-                              const updatedChapters = [...novel.chapters];
-                              updatedChapters.splice(index, 1);
-                              await updateDoc(doc(db, "novels", novel.id), { chapters: updatedChapters });
-                              setNovel({ ...novel, chapters: updatedChapters });
+                              const updatedChapters = [...novel.chapters]
+                              updatedChapters.splice(index, 1)
+                              await updateDoc(doc(db, "novels", novel.id), { chapters: updatedChapters })
+                              setNovel({ ...novel, chapters: updatedChapters })
                             } catch (err) {
-                              alert("Failed to delete chapter.");
+                              alert("Failed to delete chapter.")
                             }
                           }}
                           className="inline-flex items-center px-1 py-1 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-md transition-colors"
@@ -902,14 +879,13 @@ const NovelOverview = () => {
                     )}
                   </div>
                 )) || (
-                    <div className="text-center py-8">
-                      <p className="text-gray-400">No chapters available yet.</p>
-                    </div>
-                  )}
+                  <div className="text-center py-8">
+                    <p className="text-gray-400">No chapters available yet.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-
           {/* Right Side - Comments */}
           <div className="lg:col-span-1">
             <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-6 lg:sticky lg:top-8">
@@ -924,7 +900,6 @@ const NovelOverview = () => {
                 </svg>
                 Comments ({comments.reduce((total, comment) => total + 1 + (comment.replies?.length || 0), 0)})
               </h2>
-
               {/* Comment Form */}
               {currentUser ? (
                 <form onSubmit={handleCommentSubmit} className="mb-4 sm:mb-6">
@@ -990,7 +965,6 @@ const NovelOverview = () => {
                   </Link>
                 </div>
               )}
-
               {/* Comments List */}
               <div className="space-y-3 sm:space-y-4 max-h-[50vh] lg:max-h-96 overflow-y-auto">
                 {commentsLoading ? (
@@ -1023,7 +997,6 @@ const NovelOverview = () => {
           </div>
         </div>
       </div>
-
       {/* Share Modal */}
       {showShareModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
@@ -1037,7 +1010,6 @@ const NovelOverview = () => {
                 <FaTimes className="h-5 w-5" />
               </button>
             </div>
-
             <div className="space-y-4">
               {/* Copy Link */}
               <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
@@ -1048,15 +1020,15 @@ const NovelOverview = () => {
                   </div>
                   <button
                     onClick={handleCopyLink}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
-                      }`}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
+                    }`}
                   >
                     <FaCopy className="h-4 w-4 mr-2" />
                     {copySuccess ? "Copied!" : "Copy"}
                   </button>
                 </div>
               </div>
-
               {/* Social Media Buttons */}
               <div className="space-y-3">
                 <p className="text-sm text-gray-300 font-medium">Share on social media</p>
@@ -1067,14 +1039,12 @@ const NovelOverview = () => {
                   >
                     <FaFacebook className="h-6 w-6 text-white" />
                   </button>
-
                   <button
                     onClick={() => handleSocialShare("twitter")}
                     className="flex flex-col items-center justify-center py-[0.5rem] bg-sky-500 hover:bg-sky-600 rounded-lg transition-colors"
                   >
                     <FaTwitter className="h-6 w-6 text-white" />
                   </button>
-
                   <button
                     onClick={() => handleSocialShare("whatsapp")}
                     className="flex flex-col items-center justify-center py-[0.5rem] bg-green-600 hover:bg-green-700 rounded-lg transition-colors"

@@ -441,7 +441,7 @@ const NovelRead = () => {
   // Prepare pages for the current chapter, including the title page
   const chapterContent = novel?.chapters[currentChapter]?.content || ""
   const formattedParagraphs = formatContent(chapterContent)
-  const contentPages = paginateContentIntoPages(formattedParagraphs, 8) // 8 paragraphs per page
+  const contentPages = paginateContentIntoPages(formattedParagraphs, 3) // 3 paragraphs per page
 
   const chapterPages: ("title" | string[])[] = []
   if (novel) {
