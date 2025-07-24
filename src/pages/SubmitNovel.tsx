@@ -37,6 +37,26 @@ const SubmitNovel = () => {
     }
   }
 
+  const countSentences = (text: string): number => {
+    // Match sentences ending with ., !, or ? followed by a space or end of string
+    const sentences = text.match(/[^.!?]+[.!?](?:\s|$)/g) || []
+    return sentences.length
+  }
+
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDescription = e.target.value
+    const sentences = countSentences(newDescription)
+
+    if (sentences > 1) {
+      setError("Description must not exceed one sentence")
+      return
+    }
+
+    setError("")
+    setDescription(newDescription)
+  }
+
+
   const handleChapterTitleChange = (index: number, title: string) => {
     const newChapters = [...chapters]
     newChapters[index].title = title
@@ -139,6 +159,11 @@ const SubmitNovel = () => {
       return setError("All chapters must have content")
     }
 
+    if (countSentences(description) > 1) {
+      setError("Description must not exceed one sentence")
+      return
+    }
+
     if (coverImage && coverImage.length > 4 * 1024 * 1024) { // 4MB in base64
       setError("Processed cover image is too large. Please try a smaller image.");
       return;
@@ -224,17 +249,20 @@ const SubmitNovel = () => {
 
           <div className="mb-6">
             <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
-              Description
+              Description (max 1 sentence)
             </label>
             <input
               id="description"
               type="text"
               className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={handleDescriptionChange}
               required
-              placeholder="Enter your novel's description"
+              placeholder="Write a brief description of your novel"
             />
+            <p className="mt-1 text-xs text-gray-400">
+              {`${countSentences(description)} of 1 sentences used`}
+            </p>
           </div>
 
           <div className="mb-6">
@@ -305,8 +333,8 @@ const SubmitNovel = () => {
                 <label
                   key={genre}
                   className={`flex items-center justify-center px-3 py-2 rounded-lg border ${genres.includes(genre)
-                      ? "bg-purple-900/40 border-purple-700 text-purple-300"
-                      : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+                    ? "bg-purple-900/40 border-purple-700 text-purple-300"
+                    : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
                     } cursor-pointer transition-colors text-sm`}
                 >
                   <input

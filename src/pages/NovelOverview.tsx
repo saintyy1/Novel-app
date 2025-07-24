@@ -591,6 +591,25 @@ const NovelOverview = () => {
   }
 
   const isAuthor = currentUser && novel.authorId === currentUser.uid
+ 
+  const truncateToTwoSentences = (text: string) => {
+  // Early return if text is empty or short
+  if (!text || text.length <= 100) return text
+
+  // Split into sentences
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || []
+  
+  // If no complete sentences found, truncate by character
+  if (sentences.length === 0) {
+    return text.slice(0, 100) + '...'
+  }
+
+  // If only one sentence and it's long, return just that sentence
+  if (sentences.length === 1) {
+    return sentences[0]
+  }
+}
+
 
   return (
     <div className="min-h-screen py-4 sm:py-8">
@@ -637,7 +656,9 @@ const NovelOverview = () => {
                 {/* Novel Info */}
                 <div className="w-full md:w-2/3 p-4 sm:p-6 md:p-8">
                   <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">{novel.title}</h1>
-                  <p className="text-sm sm:text-lg text-gray-300 mb-3 sm:mb-4">{novel.description}</p>
+                  <p className="text-sm sm:text-lg text-gray-300 mb-3 sm:mb-4">
+                    {truncateToTwoSentences(novel.description)}
+                  </p>
                   <Link
                     to={`/profile/${novel.authorId}`}
                     className="block mb-3 sm:mb-4 text-sm text-purple-400 hover:text-purple-300"

@@ -8,9 +8,7 @@ import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import ReactMarkdown from "react-markdown"
-import { useSwipeable } from "react-swipeable"
-import { useRef as useReactRef } from "react"
-import { BookOpen, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Trash2, Reply } from "lucide-react"
+import { BookOpen, Heart, MessageCircle, ChevronLeft, X, Trash2, Reply, ChevronRight } from "lucide-react"
 
 interface Comment {
   id: string
@@ -42,7 +40,7 @@ interface CommentItemProps {
   deletingComment: string | null
   getUserInitials: (name: string) => string
   formatDate: (dateString: string) => string
-  replyInputRef: React.RefObject<HTMLInputElement | null>
+  replyInputRef: React.RefObject<HTMLTextAreaElement | null>
 }
 
 const CommentItem = ({
@@ -145,15 +143,15 @@ const CommentItem = ({
     {replyingTo === comment.id && (
       <div className="mt-3 p-3 bg-gray-600 rounded-lg">
         <form onSubmit={(e) => handleReplySubmitDirect(e, comment.id)}>
-          <input
+          <textarea
             ref={replyInputRef}
-            type="text"
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
             placeholder={`Reply to ${comment.userName}...`}
             className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 w-full"
             autoComplete="off"
             autoFocus
+            rows={1}
           />
           <div className="flex items-center space-x-2 mt-2 justify-end">
             <button
@@ -171,7 +169,7 @@ const CommentItem = ({
               disabled={!replyContent.trim()}
               className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              Reply
+              Post
             </button>
           </div>
         </form>
@@ -228,7 +226,7 @@ interface CommentModalProps {
   deletingComment: string | null
   getUserInitials: (name: string) => string
   formatDate: (dateString: string) => string
-  replyInputRef: React.RefObject<HTMLInputElement | null>
+  replyInputRef: React.RefObject<HTMLTextAreaElement | null>
 }
 
 const CommentModal = ({
@@ -320,7 +318,7 @@ const CommentModal = ({
                 novel={novel}
                 handleCommentLike={handleCommentLike}
                 handleReplyToggle={handleReplyToggle}
-                canDeleteComment={canDeleteComment} // Removed redundant Boolean()
+                canDeleteComment={canDeleteComment}
                 handleDeleteComment={handleDeleteComment}
                 replyingTo={replyingTo}
                 replyContent={replyContent}
@@ -376,20 +374,19 @@ const NovelRead = () => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState("")
   const [deletingComment, setDeletingComment] = useState<string | null>(null)
-  const replyInputRef = useRef<HTMLInputElement>(null)
+  const replyInputRef = useRef<HTMLTextAreaElement>(null)
 
   const [currentPage, setCurrentPage] = useState(0)
   const [pageFade, setPageFade] = useState(false)
-  const lastSwipeTime = useReactRef(0)
-  const bookContentRef = useReactRef<HTMLDivElement>(null)
+  const bookContentRef = useRef<HTMLDivElement>(null)
 
   // Helper: Split content into readable paragraphs
   const formatContent = (content: string) => {
     if (!content) return []
     // First, split by existing paragraph breaks (double newlines, <br>, </n>, etc.)
     const paragraphs = content
-      .split(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi)
-      .filter((para) => para.trim() && !para.match(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi))
+      .split(/(<\/n>|\n\n|<br\s*\/?>)/gi)
+      .filter((para) => para.trim() && !para.match(/(<\/n>|\n\n|<br\s*\/?>)/gi))
     const formattedParagraphs: string[] = []
     paragraphs.forEach((paragraph) => {
       const cleanPara = paragraph.trim()
@@ -429,8 +426,8 @@ const NovelRead = () => {
     return formattedParagraphs.length > 0 ? formattedParagraphs : [content.trim()]
   }
 
-  // Helper: Paginate paragraphs into pages
-  const paginateContentIntoPages = (paragraphs: string[], paragraphsPerPage = 8) => {
+  // Helper: Paginate paragraphs into pages based on a fixed paragraph count
+  const paginateContentIntoPages = (paragraphs: string[], paragraphsPerPage: number) => {
     const contentPages: string[][] = []
     for (let i = 0; i < paragraphs.length; i += paragraphsPerPage) {
       contentPages.push(paragraphs.slice(i, i + paragraphsPerPage))
@@ -439,20 +436,20 @@ const NovelRead = () => {
   }
 
   // Prepare pages for the current chapter, including the title page
-  const chapterContent = novel?.chapters[currentChapter]?.content || ""
-  const formattedParagraphs = formatContent(chapterContent)
-  const contentPages = paginateContentIntoPages(formattedParagraphs, 3) // 3 paragraphs per page
+  const [chapterPages, setChapterPages] = useState<("title" | string[])[]>([])
 
-  const chapterPages: ("title" | string[])[] = []
-  if (novel) {
-    chapterPages.push("title") // First page is always the chapter title page
-    contentPages.forEach((page) => chapterPages.push(page))
-  }
-
-  // Reset page on chapter change
   useEffect(() => {
-    setCurrentPage(0)
-  }, [currentChapter])
+    if (novel) {
+      const pages: ("title" | string[])[] = []
+      const chapterContent = novel.chapters[currentChapter]?.content || ""
+      const formattedParagraphs = formatContent(chapterContent)
+      const paragraphsPerPage = 4 // Fixed number of paragraphs per page
+      const contentPages = paginateContentIntoPages(formattedParagraphs, paragraphsPerPage)
+      pages.push("title") // First page is always the chapter title page
+      contentPages.forEach((page) => pages.push(page))
+      setChapterPages(pages)
+    }
+  }, [novel, currentChapter]) // Removed getWordsPerPage from dependencies
 
   // Book mode: handle animated page transitions
   const changeBookPage = (newPage: number) => {
@@ -464,71 +461,68 @@ const NovelRead = () => {
     }, 300)
   }
 
-  // Swipe handlers for book mode (debounced, with animation)
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => {
-      const now = Date.now()
-      if (now - lastSwipeTime.current > 350 && currentPage < chapterPages.length - 1) {
-        lastSwipeTime.current = now
-        changeBookPage(currentPage + 1)
-      }
-    },
-    onSwipedRight: () => {
-      const now = Date.now()
-      if (now - lastSwipeTime.current > 350 && currentPage > 0) {
-        lastSwipeTime.current = now
-        changeBookPage(currentPage - 1)
-      }
-    },
-    trackMouse: true,
-  })
+  useEffect(() => {
+  let startX = 0
+  const lastSwipeTime = { current: 0 }
 
-  // Render current page content
-  const renderCurrentPageContent = () => {
-    if (!novel) return null
-
-    const pageContent = chapterPages[currentPage]
-
-    if (pageContent === "title") {
-      // This is the chapter title page
-      return (
-        <div className="flex flex-col items-center justify-center h-full text-center px-4 sm:px-8 py-8 sm:py-12">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-white mb-4 leading-tight">
-            {novel.chapters[currentChapter].title}
-          </h2>
-          <div className="w-16 sm:w-24 h-1 bg-purple-500 my-4 sm:my-6 rounded-full"></div>
-          <p className="text-lg sm:text-xl md:text-2xl font-serif text-gray-300">By {novel.authorName}</p>
-        </div>
-      )
-    } else if (Array.isArray(pageContent)) {
-      // This is a content page
-      return (
-        <div className="prose dark:prose-invert max-w-none mx-auto px-4 sm:px-6 pt-2 md:px-8">
-          {pageContent.map((paragraph, idx) => (
-            <div
-              key={idx}
-              className="mb-4 sm:mb-6 text-gray-300 leading-relaxed text-sm sm:text-base indent-4 sm:indent-8 text-justify font-serif"
-            >
-              <ReactMarkdown
-                components={{
-                  p: ({ children }) => <span>{children}</span>,
-                }}
-              >
-                {paragraph}
-              </ReactMarkdown>
-            </div>
-          ))}
-        </div>
-      )
-    }
-    return (
-      <div className="flex flex-col items-center justify-center h-60 text-gray-400">
-        <BookOpen className="h-12 w-12 mb-4" />
-        <span className="text-lg">No content on this page</span>
-      </div>
-    )
+  const handleTouchStart = (e: TouchEvent) => {
+    startX = e.touches[0].clientX
   }
 
+  const handleTouchEnd = (e: TouchEvent) => {
+    const now = Date.now()
+    if (now - lastSwipeTime.current < 350) return // Debounce
+    lastSwipeTime.current = now
+
+    const endX = e.changedTouches[0].clientX
+    const diffX = endX - startX
+
+    if (Math.abs(diffX) > 50) {
+      if (diffX > 0) {
+        // Swipe right (previous)
+        if (currentPage === 0) {
+          // On the first page (title) — block going back
+          return
+        }
+        changeBookPage(currentPage - 1)
+      } else {
+        // Swipe left (next)
+        if (currentPage >= chapterPages.length - 1) {
+          // On the last page — block going forward
+          return
+        }
+        changeBookPage(currentPage + 1)
+      }
+    }
+  }
+
+  const el = bookContentRef.current
+  if (el) {
+    el.addEventListener("touchstart", handleTouchStart)
+    el.addEventListener("touchend", handleTouchEnd)
+  }
+
+  return () => {
+    if (el) {
+      el.removeEventListener("touchstart", handleTouchStart)
+      el.removeEventListener("touchend", handleTouchEnd)
+    }
+  }
+}, [currentPage, chapterPages.length, changeBookPage])
+
+  // Organize comments with replies - wrapped in useCallback
+  const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
+    const topLevelComments = allComments.filter((comment) => !comment.parentId)
+    const replies = allComments.filter((comment) => comment.parentId)
+    return topLevelComments.map((comment) => ({
+      ...comment,
+      replies: replies
+        .filter((reply) => reply.parentId === comment.id)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    }))
+  }, [])
+
+  // Fetch novel data
   useEffect(() => {
     const fetchNovel = async () => {
       if (!id) return
@@ -543,12 +537,15 @@ const NovelRead = () => {
           } as Novel)
           // Get chapter from URL params
           const chapterParam = searchParams.get("chapter")
+          let initialChapterIndex = 0
           if (chapterParam) {
-            const chapterIndex = Number.parseInt(chapterParam, 10)
-            if (chapterIndex >= 0 && chapterIndex < novelData.chapters.length) {
-              setCurrentChapter(chapterIndex)
+            const parsedChapterIndex = Number.parseInt(chapterParam, 10)
+            if (parsedChapterIndex >= 0 && parsedChapterIndex < novelData.chapters.length) {
+              initialChapterIndex = parsedChapterIndex
             }
           }
+          setCurrentChapter(initialChapterIndex)
+          setCurrentPage(0) // Always start at page 0 for a new chapter load
           if (currentUser) {
             await updateDoc(doc(db, "novels", id), {
               views: increment(1),
@@ -567,6 +564,7 @@ const NovelRead = () => {
     fetchNovel()
   }, [id, currentUser, searchParams])
 
+  // Fetch chapter-specific data (likes, comments)
   useEffect(() => {
     // Reset states when chapter changes
     setChapterLiked(false)
@@ -593,25 +591,17 @@ const NovelRead = () => {
       }
     }
     fetchChapterData()
-  }, [novel, currentUser, currentChapter])
+  }, [novel, currentUser, currentChapter, organizeCommentsWithReplies])
 
-  // Scroll to top when chapter changes (only for chapter navigation, not page swipes)
+  // Adjust current page if it's out of bounds for the new chapter
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }, [currentChapter])
+    if (currentPage >= chapterPages.length) {
+      setCurrentPage(chapterPages.length > 0 ? chapterPages.length - 1 : 0)
+    }
+  }, [currentChapter, currentPage, chapterPages.length])
 
-  const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
-    const topLevelComments = allComments.filter((comment) => !comment.parentId)
-    const replies = allComments.filter((comment) => comment.parentId)
-    return topLevelComments.map((comment) => ({
-      ...comment,
-      replies: replies
-        .filter((reply) => reply.parentId === comment.id)
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
-    }))
-  }, [])
-
-  const handleChapterLike = async () => {
+  // Chapter Like Handler - wrapped in useCallback
+  const handleChapterLike = useCallback(async () => {
     if (!novel?.id || !currentUser) return
     try {
       const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
@@ -631,13 +621,13 @@ const NovelRead = () => {
         if (newLikeStatus) {
           await updateDoc(chapterRef, {
             chapterLikes: increment(1),
-            chapterLikedBy: arrayUnion(currentUser.uid),
+            likedBy: arrayUnion(currentUser.uid), // Corrected to likedBy
           })
           setChapterLikes((prev) => prev + 1)
         } else {
           await updateDoc(chapterRef, {
             chapterLikes: increment(-1),
-            chapterLikedBy: arrayRemove(currentUser.uid),
+            likedBy: arrayRemove(currentUser.uid), // Corrected to likedBy
           })
           setChapterLikes((prev) => prev - 1)
         }
@@ -646,9 +636,10 @@ const NovelRead = () => {
       console.error("Error updating chapter like:", error)
       setChapterLiked(!chapterLiked)
     }
-  }
+  }, [novel?.id, currentUser, chapterLiked, currentChapter])
 
-  const handleAddComment = async () => {
+  // Add Comment Handler - wrapped in useCallback
+  const handleAddComment = useCallback(async () => {
     if (!novel?.id || !currentUser || !newComment.trim()) return
     try {
       const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
@@ -686,106 +677,124 @@ const NovelRead = () => {
     } catch (error) {
       console.error("Error adding comment:", error)
     }
-  }
+  }, [novel?.id, currentUser, newComment, currentChapter, organizeCommentsWithReplies])
 
-  const handleAddReply = async (parentId: string) => {
-    if (!novel?.id || !currentUser || !replyContent.trim()) return
-    try {
-      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
-      const chapterDoc = await getDoc(chapterRef)
-      if (!chapterDoc.exists()) return
-      const reply: Comment = {
-        id: Date.now().toString(),
-        text: replyContent.trim(),
-        userId: currentUser.uid,
-        userName: currentUser.displayName || "Anonymous",
-        userPhoto: currentUser.photoURL || undefined,
-        createdAt: new Date().toISOString(),
-        parentId: parentId,
-        likes: 0,
-        likedBy: [],
+  // Add Reply Handler - wrapped in useCallback
+  const handleAddReply = useCallback(
+    async (parentId: string) => {
+      if (!novel?.id || !currentUser || !replyContent.trim()) return
+      try {
+        const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+        const chapterDoc = await getDoc(chapterRef)
+        if (!chapterDoc.exists()) return
+        const reply: Comment = {
+          id: Date.now().toString(),
+          text: replyContent.trim(),
+          userId: currentUser.uid,
+          userName: currentUser.displayName || "Anonymous",
+          userPhoto: currentUser.photoURL || undefined,
+          createdAt: new Date().toISOString(),
+          parentId: parentId,
+          likes: 0,
+          likedBy: [],
+        }
+        const existingComments = chapterDoc.data().comments || []
+        const updatedComments = [...existingComments, reply]
+        await updateDoc(chapterRef, {
+          comments: updatedComments,
+        })
+        const organizedComments = organizeCommentsWithReplies(updatedComments)
+        setComments(organizedComments)
+        setReplyContent("")
+        setReplyingTo(null)
+      } catch (error) {
+        console.error("Error adding reply:", error)
       }
-      const existingComments = chapterDoc.data().comments || []
-      const updatedComments = [...existingComments, reply]
-      await updateDoc(chapterRef, {
-        comments: updatedComments,
-      })
-      const organizedComments = organizeCommentsWithReplies(updatedComments)
-      setComments(organizedComments)
-      setReplyContent("")
-      setReplyingTo(null)
-    } catch (error) {
-      console.error("Error adding reply:", error)
-    }
-  }
+    },
+    [novel?.id, currentUser, replyContent, currentChapter, organizeCommentsWithReplies],
+  )
 
-  const handleDeleteComment = async (commentId: string) => {
-    if (!novel?.id || !currentUser) return
-    const confirmDelete = window.confirm("Are you sure you want to delete this comment? This action cannot be undone.")
-    if (!confirmDelete) return
-    try {
-      setDeletingComment(commentId)
-      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
-      const chapterDoc = await getDoc(chapterRef)
-      if (!chapterDoc.exists()) return
-      const existingComments = chapterDoc.data().comments || []
-      // Remove the comment and its replies
-      const updatedComments = existingComments.filter(
-        (comment: Comment) => comment.id !== commentId && comment.parentId !== commentId,
+  // Delete Comment Handler - wrapped in useCallback
+  const handleDeleteComment = useCallback(
+    async (commentId: string) => {
+      if (!novel?.id || !currentUser) return
+      const confirmDelete = window.confirm(
+        "Are you sure you want to delete this comment? This action cannot be undone.",
       )
-      await updateDoc(chapterRef, {
-        comments: updatedComments,
-      })
-      const organizedComments = organizeCommentsWithReplies(updatedComments)
-      setComments(organizedComments)
-    } catch (error) {
-      console.error("Error deleting comment:", error)
-    } finally {
-      setDeletingComment(null)
-    }
-  }
+      if (!confirmDelete) return
+      try {
+        setDeletingComment(commentId)
+        const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+        const chapterDoc = await getDoc(chapterRef)
+        if (!chapterDoc.exists()) return
+        const existingComments = chapterDoc.data().comments || []
+        // Remove the comment and its replies
+        const updatedComments = existingComments.filter(
+          (comment: Comment) => comment.id !== commentId && comment.parentId !== commentId,
+        )
+        await updateDoc(chapterRef, {
+          comments: updatedComments,
+        })
+        const organizedComments = organizeCommentsWithReplies(updatedComments)
+        setComments(organizedComments)
+      } catch (error) {
+        console.error("Error deleting comment:", error)
+      } finally {
+        setDeletingComment(null)
+      }
+    },
+    [novel?.id, currentUser, currentChapter, organizeCommentsWithReplies],
+  )
 
-  const handleCommentLike = async (commentId: string, isLiked: boolean) => {
-    if (!novel?.id || !currentUser) return
-    try {
-      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
-      const chapterDoc = await getDoc(chapterRef)
-      if (!chapterDoc.exists()) return
-      const existingComments = chapterDoc.data().comments || []
-      const updatedComments = existingComments.map((comment: Comment) => {
-        if (comment.id === commentId) {
-          const likedBy = comment.likedBy || []
-          if (isLiked) {
-            return {
-              ...comment,
-              likes: (comment.likes || 0) - 1,
-              likedBy: likedBy.filter((uid: string) => uid !== currentUser.uid),
-            }
-          } else {
-            return {
-              ...comment,
-              likes: (comment.likes || 0) + 1,
-              likedBy: [...likedBy, currentUser.uid],
+  // Comment Like Handler - wrapped in useCallback
+  const handleCommentLike = useCallback(
+    async (commentId: string, isLiked: boolean) => {
+      if (!novel?.id || !currentUser) return
+      try {
+        const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+        const chapterDoc = await getDoc(chapterRef)
+        if (!chapterDoc.exists()) return
+        const existingComments = chapterDoc.data().comments || []
+        const updatedComments = existingComments.map((comment: Comment) => {
+          if (comment.id === commentId) {
+            const likedBy = comment.likedBy || []
+            if (isLiked) {
+              return {
+                ...comment,
+                likes: (comment.likes || 0) - 1,
+                likedBy: likedBy.filter((uid: string) => uid !== currentUser.uid),
+              }
+            } else {
+              return {
+                ...comment,
+                likes: (comment.likes || 0) + 1,
+                likedBy: [...likedBy, currentUser.uid],
+              }
             }
           }
-        }
-        return comment
-      })
-      await updateDoc(chapterRef, {
-        comments: updatedComments,
-      })
-      const organizedComments = organizeCommentsWithReplies(updatedComments)
-      setComments(organizedComments)
-    } catch (error) {
-      console.error("Error updating comment like:", error)
-    }
-  }
+          return comment
+        })
+        await updateDoc(chapterRef, {
+          comments: updatedComments,
+        })
+        const organizedComments = organizeCommentsWithReplies(updatedComments)
+        setComments(organizedComments)
+      } catch (error) {
+        console.error("Error updating comment like:", error)
+      }
+    },
+    [novel?.id, currentUser, currentChapter, organizeCommentsWithReplies],
+  )
 
-  const canDeleteComment = (comment: Comment) => {
-    if (!currentUser || !novel) return false
-    // User can delete their own comments or novel author can delete any comment
-    return comment.userId === currentUser.uid || novel.authorId === currentUser.uid
-  }
+  // Can Delete Comment - wrapped in useCallback
+  const canDeleteComment = useCallback(
+    (comment: Comment) => {
+      if (!currentUser || !novel) return false
+      // User can delete their own comments or novel author can delete any comment
+      return comment.userId === currentUser.uid || novel.authorId === currentUser.uid
+    },
+    [currentUser, novel],
+  )
 
   // Update the submit handlers to be more direct
   const handleSubmitDirect = useCallback(
@@ -795,7 +804,7 @@ const NovelRead = () => {
         handleAddComment()
       }
     },
-    [newComment],
+    [newComment, handleAddComment],
   )
 
   const handleReplySubmitDirect = useCallback(
@@ -805,7 +814,7 @@ const NovelRead = () => {
         handleAddReply(parentId)
       }
     },
-    [replyContent],
+    [replyContent, handleAddReply],
   )
 
   const handleReplyToggle = useCallback(
@@ -834,6 +843,45 @@ const NovelRead = () => {
     if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`
     return date.toLocaleDateString()
   }
+
+  // Floating Actions component
+  const FloatingActions = () => (
+    <div className="fixed bottom-4 sm:bottom-6 right-2 sm:right-6 flex flex-col items-end space-y-3 sm:space-y-4">
+      {/* Like Button with Count */}
+      <div className="flex flex-col items-center scale-90 sm:scale-100">
+        <div
+          onClick={handleChapterLike}
+          className={`cursor-pointer transition-all transform hover:scale-110 ${
+            !currentUser ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          title={currentUser ? "Like this chapter" : "Login to like"}
+        >
+          <Heart
+            className={`h-6 sm:h-7 w-6 sm:w-7 ${chapterLiked ? "text-red-500 fill-current" : "text-gray-300"}`}
+            fill={chapterLiked ? "currentColor" : "none"}
+          />
+        </div>
+        <span className="text-xs sm:text-sm text-gray-300 mt-1">{chapterLikes}</span>
+      </div>
+      {/* Comment Button */}
+      <div className="flex flex-col items-center scale-90 sm:scale-100">
+        <div
+          onClick={() => setShowCommentModal(true)}
+          className={`cursor-pointer transition-all transform hover:scale-110 ${
+            !currentUser ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          title={currentUser ? "View comments" : "Login to comment"}
+        >
+          <MessageCircle
+            className={`h-6 sm:h-7 w-6 sm:w-7 ${comments.length > 0 ? "text-purple-500" : "text-gray-300"}`}
+          />
+        </div>
+        <span className="text-xs sm:text-sm text-gray-300 mt-1">
+          {comments.reduce((total, comment) => total + 1 + (comment.replies?.length || 0), 0)}
+        </span>
+      </div>
+    </div>
+  )
 
   if (loading) {
     return (
@@ -864,39 +912,87 @@ const NovelRead = () => {
     )
   }
 
+  // Render current page content
+  const renderCurrentPageContent = () => {
+    if (!novel) return null
+
+    const pageContent = chapterPages[currentPage]
+
+    if (pageContent === "title") {
+      // This is the chapter title page
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-center px-4 sm:px-8 py-8 sm:py-12">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-white mb-4 leading-tight">
+            {novel.chapters[currentChapter].title}
+          </h2>
+          <div className="w-16 sm:w-24 h-1 bg-purple-500 my-4 sm:my-6 rounded-full"></div>
+          <p className="text-lg sm:text-xl md:text-2xl font-serif text-gray-300">By {novel.authorName}</p>
+        </div>
+      )
+    } else if (Array.isArray(pageContent)) {
+      // This is a content page
+      return (
+        <div className="h-full flex flex-col">
+          <div className="prose dark:prose-invert max-w-none mx-auto px-4 sm:px-6 pt-2 md:px-8">
+            {pageContent.map((paragraph, idx) => (
+              <div
+                key={idx}
+                className="mb-2 sm:mb-3 text-gray-300 leading-relaxed text-sm sm:text-base indent-4 sm:indent-8 text-justify font-serif"
+              >
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <span>{children}</span>,
+                  }}
+                >
+                  {paragraph}
+                </ReactMarkdown>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+    return (
+      <div className="flex flex-col items-center justify-center h-60 text-gray-400">
+        <BookOpen className="h-12 w-12 mb-4" />
+        <span className="text-lg">No content on this page</span>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-900">
       {/* Back button - Make it more accessible on mobile */}
       <div className="fixed top-0 right-0 z-50 p-4 bg-gradient-to-b from-gray-900/80 to-transparent w-full flex justify-end">
-  <Link
-    to={`/novel/${novel.id}`}
-    className="p-2 rounded-full bg-gray-800/90 text-gray-300 hover:bg-gray-700/90 hover:text-white transition-colors shadow-lg backdrop-blur-sm"
-    title="Back to Novel Overview"
-  >
-    <X className="h-5 w-5 sm:h-6 sm:w-6" />
-  </Link>
-</div>
+        <Link
+          to={`/novel/${novel.id}`}
+          className="p-2 rounded-full bg-gray-800/90 text-gray-300 hover:bg-gray-700/90 hover:text-white transition-colors shadow-lg backdrop-blur-sm"
+          title="Back to Novel Overview"
+        >
+          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+        </Link>
+      </div>
       {/* Main content area */}
       <div className="flex-grow py-2 sm:py-4 flex items-center justify-center">
-        <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl min-h-[500px] sm:min-h-[600px] mx-2 sm:mx-4 flex flex-col justify-between">
+        <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl mx-2 sm:mx-4 flex flex-col justify-between min-h-[calc(100vh-6rem)] max-h-[calc(100vh-6rem)] overflow-hidden">
           {/* Chapter indicator */}
           <div className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 text-xs sm:text-sm">
-            Chapter {currentChapter + 1}
+            {"Chapter "}
+            {currentChapter + 1}
           </div>
-          {/* Content */}
+          {/* Swipeable area */}
           <div
-            {...swipeHandlers}
-            className={`flex-grow flex flex-col justify-center items-center transition-opacity duration-300 ${
-              pageFade ? "opacity-0" : "opacity-100"
-            }`}
+            className={`flex-1 overflow-hidden flex justify-center items-center transition-opacity duration-300 ${pageFade ? "opacity-0" : "opacity-100"}`}
             ref={bookContentRef}
+            onTransitionEnd={() => setPageFade(false)}
           >
             {renderCurrentPageContent()}
           </div>
           {/* Page navigation */}
           <div className="flex justify-between items-center w-full mt-4 sm:mt-6 text-sm">
             <button
-              className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors hidden md:flex ${
+                // Hidden on small/medium, visible on large
                 currentPage === 0
                   ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                   : "bg-purple-900 text-purple-200 hover:bg-purple-800"
@@ -907,10 +1003,11 @@ const NovelRead = () => {
               <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
             <span className="text-gray-300 text-xs sm:text-sm font-medium whitespace-nowrap">
-              {currentPage + 1}
+              {currentPage + 1} / {chapterPages.length}
             </span>
             <button
-              className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors hidden md:flex ${
+                // Hidden on small/medium, visible on large
                 currentPage === chapterPages.length - 1
                   ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                   : "bg-purple-900 text-purple-200 hover:bg-purple-800"
@@ -923,40 +1020,8 @@ const NovelRead = () => {
           </div>
         </div>
       </div>
-      {/* Update FloatingActions component */}
-      <div className="fixed bottom-4 sm:bottom-6 right-2 sm:right-6 flex flex-col items-end space-y-3 sm:space-y-4">
-        <div className="flex flex-col items-center scale-90 sm:scale-100">
-          <div
-            onClick={handleChapterLike}
-            className={`cursor-pointer transition-all transform hover:scale-110 ${
-              !currentUser ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            title={currentUser ? "Like this chapter" : "Login to like"}
-          >
-            <Heart
-              className={`h-6 sm:h-7 w-6 sm:w-7 ${chapterLiked ? "text-red-500 fill-current" : "text-gray-300"}`}
-              fill={chapterLiked ? "currentColor" : "none"}
-            />
-          </div>
-          <span className="text-xs sm:text-sm text-gray-300 mt-1">{chapterLikes}</span>
-        </div>
-        <div className="flex flex-col items-center scale-90 sm:scale-100">
-          <div
-            onClick={() => setShowCommentModal(true)}
-            className={`cursor-pointer transition-all transform hover:scale-110 ${
-              !currentUser ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            title={currentUser ? "View comments" : "Login to comment"}
-          >
-            <MessageCircle
-              className={`h-6 sm:h-7 w-6 sm:w-7 ${comments.length > 0 ? "text-purple-500" : "text-gray-300"}`}
-            />
-          </div>
-          <span className="text-xs sm:text-sm text-gray-300 mt-1">
-            {comments.reduce((total, comment) => total + 1 + (comment.replies?.length || 0), 0)}
-          </span>
-        </div>
-      </div>
+      {/* Floating Actions component */}
+      <FloatingActions />
       {/* Comment Modal */}
       {showCommentModal && (
         <CommentModal
