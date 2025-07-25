@@ -96,9 +96,8 @@ const CommentItem = ({
       <button
         onClick={() => handleCommentLike(comment.id, !!comment.likedBy?.includes(currentUser?.uid || ""))}
         disabled={!currentUser}
-        className={`inline-flex items-center text-xs ${
-          comment.likedBy?.includes(currentUser?.uid || "") ? "text-red-400" : "text-gray-400 hover:text-red-400"
-        } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
+        className={`inline-flex items-center text-xs ${comment.likedBy?.includes(currentUser?.uid || "") ? "text-red-400" : "text-gray-400 hover:text-red-400"
+          } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
       >
         <Heart
           className={`h-4 w-4 mr-1 ${comment.likedBy?.includes(currentUser?.uid || "") ? "fill-current" : ""}`}
@@ -362,7 +361,7 @@ const NovelRead = () => {
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
   const [novel, setNovel] = useState<Novel | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
+  const [PageLoading, setPageLoading] = useState<boolean>(true)
   const [error, setError] = useState<string>("")
   const [currentChapter, setCurrentChapter] = useState<number>(0)
   const { currentUser } = useAuth()
@@ -381,201 +380,13 @@ const NovelRead = () => {
   const lastSwipeTime = useRef(0) // For debouncing manual swipes
   const bookContentRef = useRef<HTMLDivElement>(null)
 
-  // Helper: Split content into readable paragraphs (same as your original)
-const formatContent = (content: string) => {
-  if (!content) return []
-  const paragraphs = content
-    .split(/(<\/n>|\n\n|<br\s*\/?>)/gi)
-    .filter((para) => para.trim() && !para.match(/(<\/n>|\n\n|<br\s*\/?>)/gi))
-
-  const formattedParagraphs: string[] = []
-  paragraphs.forEach((paragraph) => {
-    const cleanPara = paragraph.trim()
-    if (!cleanPara) return
-    const sentences = cleanPara.split(/(?<=[.!?])\s+/).filter((s) => s.trim())
-    if (sentences.length <= 6) {
-      formattedParagraphs.push(cleanPara)
-    } else {
-      for (let i = 0; i < sentences.length; i += 5) {
-        const chunk = sentences.slice(i, i + 5).join(" ").trim()
-        if (chunk) formattedParagraphs.push(chunk)
-      }
-    }
-  })
-
-  if (formattedParagraphs.length === 0 && content.trim()) {
-    const words = content.trim().split(/\s+/)
-    const wordsPerParagraph = 100
-    for (let i = 0; i < words.length; i += wordsPerParagraph) {
-      const chunk = words.slice(i, i + wordsPerParagraph).join(" ").trim()
-      if (chunk) formattedParagraphs.push(chunk)
-    }
-  }
-
-  return formattedParagraphs.length > 0 ? formattedParagraphs : [content.trim()]
-}
-
-// Helper: Paginate content based on actual viewport height and paragraph height
-const paginateByViewport = (paragraphs: string[], contentHeight: number): string[][] => {
-  const tempContainer = document.createElement("div")
-  document.body.appendChild(tempContainer)
-
-  Object.assign(tempContainer.style, {
-    position: "absolute",
-    visibility: "hidden",
-    width: "100%",
-    fontSize: "18px",
-    lineHeight: "1.6",
-    fontFamily: "Georgia, serif",
-    padding: "16px",
-  })
-
-  const pages: string[][] = []
-  let currentPage: string[] = []
-  let currentHeight = 0
-
-  for (const paragraph of paragraphs) {
-    const paraEl = document.createElement("p")
-    paraEl.textContent = paragraph
-    tempContainer.appendChild(paraEl)
-
-    const paraHeight = paraEl.offsetHeight
-
-    if (currentHeight + paraHeight > contentHeight && currentPage.length > 0) {
-      pages.push(currentPage)
-      currentPage = [paragraph]
-      currentHeight = paraHeight
-    } else {
-      currentPage.push(paragraph)
-      currentHeight += paraHeight
-    }
-  }
-
-  if (currentPage.length > 0) {
-    pages.push(currentPage)
-  }
-
-  document.body.removeChild(tempContainer)
-  return pages
-}
-
-
-// Prepare pages for the current chapter, including the title page
-const [chapterPages, setChapterPages] = useState<("title" | string[])[]>([])
-
-// Hook: Prepare pages for the current chapter based on dynamic line height logic
-useEffect(() => {
-  if (!novel) return
-
-  const waitForContainer = () => {
-    const container = bookContentRef.current
-    if (!container || container.clientHeight === 0) {
-      // Retry on next animation frame until it's available
-      requestAnimationFrame(waitForContainer)
-      return
-    }
-
-    const contentHeight = container.clientHeight
-    const chapterContent = novel.chapters[currentChapter]?.content || ""
-    const formattedParagraphs = formatContent(chapterContent)
-
-    const contentPages = paginateByViewport(formattedParagraphs, contentHeight)
-
-    const pages: ("title" | string[])[] = ["title", ...contentPages]
-    setChapterPages(pages)
-  }
-
-  requestAnimationFrame(waitForContainer)
-}, [novel, currentChapter])
-
-console.log("Measured height:", bookContentRef.current?.clientHeight)
-
-  // Book mode: handle animated page transitions
-  const changeBookPage = (newPage: number) => {
-    if (newPage === currentPage) return
-    setPageFade(true)
-    setTimeout(() => {
-      setCurrentPage(newPage)
-      setTimeout(() => setPageFade(false), 300)
-    }, 300)
-  }
-
-  // Update the touch handlers in the useEffect
-useEffect(() => {
-  let startX = 0
-  const handleTouchStart = (e: TouchEvent) => {
-    startX = e.touches[0].clientX
-  }
-  const handleTouchEnd = (e: TouchEvent) => {
-    const now = Date.now()
-    if (now - lastSwipeTime.current < 350) return // Debounce
-    lastSwipeTime.current = now
-
-    const endX = e.changedTouches[0].clientX
-    const diffX = endX - startX
-
-    if (Math.abs(diffX) > 50) { // Threshold for a swipe
-      if (diffX > 0) {
-        // Swiped right (previous)
-        if (currentPage > 0) {
-          changeBookPage(currentPage - 1)
-        } else if (currentChapter > 0) {
-          // Go to previous chapter's last page
-          setPageFade(true)
-          setTimeout(() => {
-            setCurrentChapter(prev => prev - 1)
-            setCurrentPage(chapterPages.length - 1)
-            setTimeout(() => setPageFade(false), 300)
-          }, 300)
-        }
-      } else {
-        // Swiped left (next)
-        if (currentPage < chapterPages.length - 1) {
-          changeBookPage(currentPage + 1)
-        } else if (currentChapter < (novel?.chapters.length || 0) - 1) {
-          // Go to next chapter's first page
-          setPageFade(true)
-          setTimeout(() => {
-            setCurrentChapter(prev => prev + 1)
-            setCurrentPage(0)
-            setTimeout(() => setPageFade(false), 300)
-          }, 300)
-        }
-      }
-    }
-  }
-
-  const el = bookContentRef.current
-  if (el) {
-    el.addEventListener("touchstart", handleTouchStart)
-    el.addEventListener("touchend", handleTouchEnd)
-  }
-  return () => {
-    if (el) {
-      el.removeEventListener("touchstart", handleTouchStart)
-      el.removeEventListener("touchend", handleTouchEnd)
-    }
-  }
-}, [currentPage, chapterPages.length, currentChapter, novel?.chapters.length, changeBookPage])
-
-  // Organize comments with replies - wrapped in useCallback
-  const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
-    const topLevelComments = allComments.filter((comment) => !comment.parentId)
-    const replies = allComments.filter((comment) => comment.parentId)
-    return topLevelComments.map((comment) => ({
-      ...comment,
-      replies: replies
-        .filter((reply) => reply.parentId === comment.id)
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
-    }))
-  }, [])
-
   // Fetch novel data
   useEffect(() => {
     const fetchNovel = async () => {
       if (!id) return
+
       try {
-        setLoading(true)
+        setPageLoading(true)
         const novelDoc = await getDoc(doc(db, "novels", id))
         if (novelDoc.exists()) {
           const novelData = novelDoc.data()
@@ -606,11 +417,131 @@ useEffect(() => {
         console.error("Error fetching novel:", error)
         setError("Failed to load novel")
       } finally {
-        setLoading(false)
+        setPageLoading(false)
       }
     }
     fetchNovel()
   }, [id, currentUser, searchParams])
+
+
+  const formatContent = (content: string): string[] => {
+    if (!content) return []
+
+    const cleanContent = content.replace(/\s+/g, ' ').trim()
+    const formattedParagraphs: string[] = []
+
+    let start = 0
+    const maxLength = 1000
+
+    while (start < cleanContent.length) {
+      let end = start + maxLength
+
+      if (end < cleanContent.length) {
+        const lastSpace = cleanContent.lastIndexOf(" ", end)
+        if (lastSpace > start) end = lastSpace
+      }
+
+      const chunk = cleanContent.slice(start, end).trim()
+      if (chunk) formattedParagraphs.push(chunk)
+
+      start = end
+    }
+
+    return formattedParagraphs
+  }
+
+
+  // Helper: Paginate paragraphs into pages based on a fixed paragraph count
+  const paginateContentIntoPages = (paragraphs: string[], paragraphsPerPage: number) => {
+    const contentPages: string[][] = []
+    for (let i = 0; i < paragraphs.length; i += paragraphsPerPage) {
+      contentPages.push(paragraphs.slice(i, i + paragraphsPerPage))
+    }
+    return contentPages
+  }
+
+  // Prepare pages for the current chapter, including the title page
+  const [chapterPages, setChapterPages] = useState<("title" | string[])[]>([])
+
+  useEffect(() => {
+    if (novel) {
+      const pages: ("title" | string[])[] = []
+      const chapterContent = novel.chapters[currentChapter]?.content || ""
+      const formattedParagraphs = formatContent(chapterContent)
+      const paragraphsPerPage = 4 // Fixed number of paragraphs per page
+      const contentPages = paginateContentIntoPages(formattedParagraphs, paragraphsPerPage)
+      pages.push("title") // First page is always the chapter title page
+      contentPages.forEach((page) => pages.push(page))
+      setChapterPages(pages)
+    }
+  }, [novel, currentChapter]) // Removed getWordsPerPage from dependencies
+
+  // Book mode: handle animated page transitions
+  const changeBookPage = (newPage: number) => {
+    if (newPage === currentPage) return
+    setPageFade(true)
+    setTimeout(() => {
+      setCurrentPage(newPage)
+      setTimeout(() => setPageFade(false), 300)
+    }, 300)
+  }
+
+  // Manual swipe handlers (debounced, with animation)
+  useEffect(() => {
+    let startX = 0
+    const handleTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX
+    }
+    const handleTouchEnd = (e: TouchEvent) => {
+      const now = Date.now()
+      if (now - lastSwipeTime.current < 350) return // Debounce
+      lastSwipeTime.current = now
+
+      const endX = e.changedTouches[0].clientX
+      const diffX = endX - startX
+
+      if (Math.abs(diffX) > 50) {
+        // Threshold for a swipe
+        if (diffX > 0) {
+          // Swiped right (previous page)
+          if (currentPage > 0) {
+            changeBookPage(currentPage - 1)
+          }
+          // Removed logic to go to previous chapter
+        } else {
+          // Swiped left (next page)
+          if (currentPage < chapterPages.length - 1) {
+            changeBookPage(currentPage + 1)
+          }
+          // Removed logic to go to next chapter
+        }
+      }
+    }
+
+    const el = bookContentRef.current
+    if (el) {
+      el.addEventListener("touchstart", handleTouchStart)
+      el.addEventListener("touchend", handleTouchEnd)
+    }
+    return () => {
+      if (el) {
+        el.removeEventListener("touchstart", handleTouchStart)
+        el.removeEventListener("touchend", handleTouchEnd)
+      }
+    }
+  }, [currentPage, chapterPages.length, currentChapter, novel]) // Removed changeBookPage from dependencies
+
+  // Organize comments with replies - wrapped in useCallback
+  const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
+    const topLevelComments = allComments.filter((comment) => !comment.parentId)
+    const replies = allComments.filter((comment) => comment.parentId)
+    return topLevelComments.map((comment) => ({
+      ...comment,
+      replies: replies
+        .filter((reply) => reply.parentId === comment.id)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    }))
+  }, [])
 
   // Fetch chapter-specific data (likes, comments)
   useEffect(() => {
@@ -899,9 +830,8 @@ useEffect(() => {
       <div className="flex flex-col items-center scale-90 sm:scale-100">
         <div
           onClick={handleChapterLike}
-          className={`cursor-pointer transition-all transform hover:scale-110 ${
-            !currentUser ? "opacity-50 cursor-not-allowed" : ""
-          }`}
+          className={`cursor-pointer transition-all transform hover:scale-110 ${!currentUser ? "opacity-50 cursor-not-allowed" : ""
+            }`}
           title={currentUser ? "Like this chapter" : "Login to like"}
         >
           <Heart
@@ -915,9 +845,8 @@ useEffect(() => {
       <div className="flex flex-col items-center scale-90 sm:scale-100">
         <div
           onClick={() => setShowCommentModal(true)}
-          className={`cursor-pointer transition-all transform hover:scale-110 ${
-            !currentUser ? "opacity-50 cursor-not-allowed" : ""
-          }`}
+          className={`cursor-pointer transition-all transform hover:scale-110 ${!currentUser ? "opacity-50 cursor-not-allowed" : ""
+            }`}
           title={currentUser ? "View comments" : "Login to comment"}
         >
           <MessageCircle
@@ -931,7 +860,7 @@ useEffect(() => {
     </div>
   )
 
-  if (loading) {
+  if (PageLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-900">
         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
@@ -1009,7 +938,7 @@ useEffect(() => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-900">
+    <div className="min-h-screen flex items-center flex-col bg-gray-900">
       {/* Back button - Make it more accessible on mobile */}
       <div className="fixed top-0 right-0 z-50 p-4 bg-gradient-to-b from-gray-900/80 to-transparent w-full flex justify-end">
         <Link
@@ -1021,51 +950,49 @@ useEffect(() => {
         </Link>
       </div>
       {/* Main content area */}
-      <div className="flex-grow py-2 sm:py-4 flex items-center justify-center">
-        <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl mx-2 sm:mx-4 flex flex-col justify-between min-h-[calc(100vh-6rem)] max-h-[calc(100vh-6rem)] overflow-hidden">
-          {/* Chapter indicator */}
-          <div className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 text-xs sm:text-sm">
-            {"Chapter "}
-            {currentChapter + 1}
-          </div>
-          {/* Swipeable area */}
-          <div
-            className={`flex-1 overflow-hidden transition-opacity duration-300 ${pageFade ? "opacity-0" : "opacity-100"}`}
-            ref={bookContentRef}
-            onTransitionEnd={() => setPageFade(false)}
+      <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl mx-2 sm:mx-4 flex flex-col justify-between min-h-[calc(100vh)] max-h-[calc(100vh-6rem)]">
+        {/* Chapter indicator */}
+        <div className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 text-xs sm:text-sm">
+          {"Chapter "}
+          {currentChapter + 1}
+        </div>
+        {/* Swipeable area */}
+        <div
+          className={`flex-1 overflow-hidden transition-opacity duration-300 ${pageFade ? "opacity-0" : "opacity-100"}`}
+          ref={bookContentRef}
+          onTransitionEnd={() => setPageFade(false)}
+        >
+          {renderCurrentPageContent()}
+        </div>
+        {/* Page navigation */}
+        <div className="flex justify-between items-center w-full mt-4 sm:mt-6 text-sm">
+          <button
+            className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors hidden md:flex ${
+              // Hidden on small/medium, visible on large
+              currentPage === 0
+                ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                : "bg-purple-900 text-purple-200 hover:bg-purple-800"
+              }`}
+            disabled={currentPage === 0}
+            onClick={() => changeBookPage(currentPage - 1)}
           >
-            {renderCurrentPageContent()}
-          </div>
-          {/* Page navigation */}
-          <div className="flex justify-between items-center w-full mt-4 sm:mt-6 text-sm">
-            <button
-              className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors hidden md:flex ${
-                // Hidden on small/medium, visible on large
-                currentPage === 0
-                  ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-                  : "bg-purple-900 text-purple-200 hover:bg-purple-800"
+            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
+          <span className="text-gray-300 text-xs sm:text-sm font-medium whitespace-nowrap">
+            {currentPage + 1} / {chapterPages.length}
+          </span>
+          <button
+            className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors hidden md:flex ${
+              // Hidden on small/medium, visible on large
+              currentPage === chapterPages.length - 1
+                ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                : "bg-purple-900 text-purple-200 hover:bg-purple-800"
               }`}
-              disabled={currentPage === 0}
-              onClick={() => changeBookPage(currentPage - 1)}
-            >
-              <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-            </button>
-            <span className="text-gray-300 text-xs sm:text-sm font-medium whitespace-nowrap">
-              {currentPage + 1} / {chapterPages.length}
-            </span>
-            <button
-              className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors hidden md:flex ${
-                // Hidden on small/medium, visible on large
-                currentPage === chapterPages.length - 1
-                  ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-                  : "bg-purple-900 text-purple-200 hover:bg-purple-800"
-              }`}
-              disabled={currentPage === chapterPages.length - 1}
-              onClick={() => changeBookPage(currentPage + 1)}
-            >
-              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
-            </button>
-          </div>
+            disabled={currentPage === chapterPages.length - 1}
+            onClick={() => changeBookPage(currentPage + 1)}
+          >
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
         </div>
       </div>
       {/* Floating Actions component */}
