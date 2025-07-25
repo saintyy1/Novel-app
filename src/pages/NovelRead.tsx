@@ -794,7 +794,7 @@ useEffect(() => {
     [novel?.id, currentUser, currentChapter, organizeCommentsWithReplies],
   )
 
-  // Comment Like Handler - wrapped in useCallback
+  // Comment Like Handler - wrapp in useCallback
   const handleCommentLike = useCallback(
     async (commentId: string, isLiked: boolean) => {
       if (!novel?.id || !currentUser) return
