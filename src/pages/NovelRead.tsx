@@ -1022,7 +1022,7 @@ useEffect(() => {
       </div>
       {/* Main content area */}
       <div className="flex-grow py-2 sm:py-4 flex items-center justify-center">
-        <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl mx-2 sm:mx-4 flex flex-col justify-between min-h-[calc(100vh-6rem)] max-h-[calc(100vh-6rem)] overflow-hidden">
+        <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl mx-2 sm:mx-4 flex flex-col justify-between">
           {/* Chapter indicator */}
           <div className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 text-xs sm:text-sm">
             {"Chapter "}
