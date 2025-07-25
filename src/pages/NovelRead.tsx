@@ -378,78 +378,117 @@ const NovelRead = () => {
 
   const [currentPage, setCurrentPage] = useState(0)
   const [pageFade, setPageFade] = useState(false)
+  const lastSwipeTime = useRef(0) // For debouncing manual swipes
   const bookContentRef = useRef<HTMLDivElement>(null)
 
-  // Helper: Split content into readable paragraphs
-  const formatContent = (content: string) => {
-    if (!content) return []
-    // First, split by existing paragraph breaks (double newlines, <br>, </n>, etc.)
-    const paragraphs = content
-      .split(/(<\/n>|\n\n|<br\s*\/?>)/gi)
-      .filter((para) => para.trim() && !para.match(/(<\/n>|\n\n|<br\s*\/?>)/gi))
-    const formattedParagraphs: string[] = []
-    paragraphs.forEach((paragraph) => {
-      const cleanPara = paragraph.trim()
-      if (!cleanPara) return
-      // Split long paragraphs by sentences
-      const sentences = cleanPara.split(/(?<=[.!?])\s+/).filter((s) => s.trim())
-      if (sentences.length <= 6) {
-        // If 6 or fewer sentences, keep as one paragraph
-        formattedParagraphs.push(cleanPara)
-      } else {
-        // Break into chunks of 4-6 sentences for better readability
-        for (let i = 0; i < sentences.length; i += 5) {
-          const chunk = sentences
-            .slice(i, i + 5)
-            .join(" ")
-            .trim()
-          if (chunk) {
-            formattedParagraphs.push(chunk)
-          }
-        }
-      }
-    })
-    // If no paragraphs were created (single long text), split by character count
-    if (formattedParagraphs.length === 0 && content.trim()) {
-      const words = content.trim().split(/\s+/)
-      const wordsPerParagraph = 100 // Approximately 6-8 lines
-      for (let i = 0; i < words.length; i += wordsPerParagraph) {
-        const chunk = words
-          .slice(i, i + wordsPerParagraph)
-          .join(" ")
-          .trim()
-        if (chunk) {
-          formattedParagraphs.push(chunk)
-        }
+  // Helper: Split content into readable paragraphs (same as your original)
+const formatContent = (content: string) => {
+  if (!content) return []
+  const paragraphs = content
+    .split(/(<\/n>|\n\n|<br\s*\/?>)/gi)
+    .filter((para) => para.trim() && !para.match(/(<\/n>|\n\n|<br\s*\/?>)/gi))
+
+  const formattedParagraphs: string[] = []
+  paragraphs.forEach((paragraph) => {
+    const cleanPara = paragraph.trim()
+    if (!cleanPara) return
+    const sentences = cleanPara.split(/(?<=[.!?])\s+/).filter((s) => s.trim())
+    if (sentences.length <= 6) {
+      formattedParagraphs.push(cleanPara)
+    } else {
+      for (let i = 0; i < sentences.length; i += 5) {
+        const chunk = sentences.slice(i, i + 5).join(" ").trim()
+        if (chunk) formattedParagraphs.push(chunk)
       }
     }
-    return formattedParagraphs.length > 0 ? formattedParagraphs : [content.trim()]
+  })
+
+  if (formattedParagraphs.length === 0 && content.trim()) {
+    const words = content.trim().split(/\s+/)
+    const wordsPerParagraph = 100
+    for (let i = 0; i < words.length; i += wordsPerParagraph) {
+      const chunk = words.slice(i, i + wordsPerParagraph).join(" ").trim()
+      if (chunk) formattedParagraphs.push(chunk)
+    }
   }
 
-  // Helper: Paginate paragraphs into pages based on a fixed paragraph count
-  const paginateContentIntoPages = (paragraphs: string[], paragraphsPerPage: number) => {
-    const contentPages: string[][] = []
-    for (let i = 0; i < paragraphs.length; i += paragraphsPerPage) {
-      contentPages.push(paragraphs.slice(i, i + paragraphsPerPage))
+  return formattedParagraphs.length > 0 ? formattedParagraphs : [content.trim()]
+}
+
+// Helper: Paginate content based on actual viewport height and paragraph height
+const paginateByViewport = (paragraphs: string[], contentHeight: number): string[][] => {
+  const tempContainer = document.createElement("div")
+  document.body.appendChild(tempContainer)
+
+  Object.assign(tempContainer.style, {
+    position: "absolute",
+    visibility: "hidden",
+    width: "100%",
+    fontSize: "18px",
+    lineHeight: "1.6",
+    fontFamily: "Georgia, serif",
+    padding: "16px",
+  })
+
+  const pages: string[][] = []
+  let currentPage: string[] = []
+  let currentHeight = 0
+
+  for (const paragraph of paragraphs) {
+    const paraEl = document.createElement("p")
+    paraEl.textContent = paragraph
+    tempContainer.appendChild(paraEl)
+
+    const paraHeight = paraEl.offsetHeight
+
+    if (currentHeight + paraHeight > contentHeight && currentPage.length > 0) {
+      pages.push(currentPage)
+      currentPage = [paragraph]
+      currentHeight = paraHeight
+    } else {
+      currentPage.push(paragraph)
+      currentHeight += paraHeight
     }
-    return contentPages
   }
 
-  // Prepare pages for the current chapter, including the title page
-  const [chapterPages, setChapterPages] = useState<("title" | string[])[]>([])
+  if (currentPage.length > 0) {
+    pages.push(currentPage)
+  }
 
-  useEffect(() => {
-    if (novel) {
-      const pages: ("title" | string[])[] = []
-      const chapterContent = novel.chapters[currentChapter]?.content || ""
-      const formattedParagraphs = formatContent(chapterContent)
-      const paragraphsPerPage = 4 // Fixed number of paragraphs per page
-      const contentPages = paginateContentIntoPages(formattedParagraphs, paragraphsPerPage)
-      pages.push("title") // First page is always the chapter title page
-      contentPages.forEach((page) => pages.push(page))
-      setChapterPages(pages)
+  document.body.removeChild(tempContainer)
+  return pages
+}
+
+
+// Prepare pages for the current chapter, including the title page
+const [chapterPages, setChapterPages] = useState<("title" | string[])[]>([])
+
+// Hook: Prepare pages for the current chapter based on dynamic line height logic
+useEffect(() => {
+  if (!novel) return
+
+  const waitForContainer = () => {
+    const container = bookContentRef.current
+    if (!container || container.clientHeight === 0) {
+      // Retry on next animation frame until it's available
+      requestAnimationFrame(waitForContainer)
+      return
     }
-  }, [novel, currentChapter]) // Removed getWordsPerPage from dependencies
+
+    const contentHeight = container.clientHeight
+    const chapterContent = novel.chapters[currentChapter]?.content || ""
+    const formattedParagraphs = formatContent(chapterContent)
+
+    const contentPages = paginateByViewport(formattedParagraphs, contentHeight)
+
+    const pages: ("title" | string[])[] = ["title", ...contentPages]
+    setChapterPages(pages)
+  }
+
+  requestAnimationFrame(waitForContainer)
+}, [novel, currentChapter])
+
+console.log("Measured height:", bookContentRef.current?.clientHeight)
 
   // Book mode: handle animated page transitions
   const changeBookPage = (newPage: number) => {
@@ -461,14 +500,12 @@ const NovelRead = () => {
     }, 300)
   }
 
-  useEffect(() => {
+  // Update the touch handlers in the useEffect
+useEffect(() => {
   let startX = 0
-  const lastSwipeTime = { current: 0 }
-
   const handleTouchStart = (e: TouchEvent) => {
     startX = e.touches[0].clientX
   }
-
   const handleTouchEnd = (e: TouchEvent) => {
     const now = Date.now()
     if (now - lastSwipeTime.current < 350) return // Debounce
@@ -477,21 +514,33 @@ const NovelRead = () => {
     const endX = e.changedTouches[0].clientX
     const diffX = endX - startX
 
-    if (Math.abs(diffX) > 50) {
+    if (Math.abs(diffX) > 50) { // Threshold for a swipe
       if (diffX > 0) {
-        // Swipe right (previous)
-        if (currentPage === 0) {
-          // On the first page (title) — block going back
-          return
+        // Swiped right (previous)
+        if (currentPage > 0) {
+          changeBookPage(currentPage - 1)
+        } else if (currentChapter > 0) {
+          // Go to previous chapter's last page
+          setPageFade(true)
+          setTimeout(() => {
+            setCurrentChapter(prev => prev - 1)
+            setCurrentPage(chapterPages.length - 1)
+            setTimeout(() => setPageFade(false), 300)
+          }, 300)
         }
-        changeBookPage(currentPage - 1)
       } else {
-        // Swipe left (next)
-        if (currentPage >= chapterPages.length - 1) {
-          // On the last page — block going forward
-          return
+        // Swiped left (next)
+        if (currentPage < chapterPages.length - 1) {
+          changeBookPage(currentPage + 1)
+        } else if (currentChapter < (novel?.chapters.length || 0) - 1) {
+          // Go to next chapter's first page
+          setPageFade(true)
+          setTimeout(() => {
+            setCurrentChapter(prev => prev + 1)
+            setCurrentPage(0)
+            setTimeout(() => setPageFade(false), 300)
+          }, 300)
         }
-        changeBookPage(currentPage + 1)
       }
     }
   }
@@ -501,14 +550,13 @@ const NovelRead = () => {
     el.addEventListener("touchstart", handleTouchStart)
     el.addEventListener("touchend", handleTouchEnd)
   }
-
   return () => {
     if (el) {
       el.removeEventListener("touchstart", handleTouchStart)
       el.removeEventListener("touchend", handleTouchEnd)
     }
   }
-}, [currentPage, chapterPages.length, changeBookPage])
+}, [currentPage, chapterPages.length, currentChapter, novel?.chapters.length, changeBookPage])
 
   // Organize comments with replies - wrapped in useCallback
   const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
@@ -982,7 +1030,7 @@ const NovelRead = () => {
           </div>
           {/* Swipeable area */}
           <div
-            className={`flex-1 overflow-hidden flex justify-center items-center transition-opacity duration-300 ${pageFade ? "opacity-0" : "opacity-100"}`}
+            className={`flex-1 overflow-hidden transition-opacity duration-300 ${pageFade ? "opacity-0" : "opacity-100"}`}
             ref={bookContentRef}
             onTransitionEnd={() => setPageFade(false)}
           >

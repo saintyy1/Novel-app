@@ -12,10 +12,12 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.54.0",
     "@tailwindcss/vite": "^4.1.5",
+    "@types/markdown-it": "^14.1.2",
     "@uiw/react-md-editor": "^4.0.8",
     "axios": "^1.9.0",
     "firebase": "^11.6.1",
     "lucide-react": "^0.507.0",
+    "markdown-it": "^14.1.0",
     "openai": "^4.100.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

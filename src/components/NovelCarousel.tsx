@@ -31,19 +31,20 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
         </Link>
       </div>
       {loading ? (
-        <div className="flex overflow-x-auto space-x-4 py-4 px-4 sm:px-0 scrollbar-hide" style={{
-    scrollbarWidth: 'none',        // Firefox
-    msOverflowStyle: 'none'        // IE/Edge
-  }}
->
-  <style>
-    {`
+        <div className="flex overflow-x-auto space-x-4 py-4 px-4 sm:px-0 scrollbar-hide"
+          style={{
+            scrollbarWidth: 'none',        // Firefox
+            msOverflowStyle: 'none'        // IE/Edge
+          }}
+        >
+          <style>
+            {`
       /* Hide scrollbar for Chrome, Safari, and Opera */
       div::-webkit-scrollbar {
         display: none;
       }
     `}
-  </style>
+          </style>
           {[...Array(7)].map((_, i) => (
             <div
               key={i}
@@ -55,23 +56,23 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
         </div>
       ) : novels.length > 0 ? (
         <div className="flex overflow-x-auto space-x-4 py-2 px-4 sm:px-0 scrollbar-hide" style={{
-    scrollbarWidth: 'none',        // Firefox
-    msOverflowStyle: 'none'        // IE/Edge
-  }}
->
-  <style>
-    {`
+          scrollbarWidth: 'none',        // Firefox
+          msOverflowStyle: 'none'        // IE/Edge
+        }}
+        >
+          <style>
+            {`
       /* Hide scrollbar for Chrome, Safari, and Opera */
       div::-webkit-scrollbar {
         display: none;
       }
     `}
-  </style>
+          </style>
           {novels.map((novel) => (
             <Link
               to={`/novel/${novel.id}`}
               key={novel.id}
-              className="flex-shrink-0 w-40 h-64 relative rounded-lg shadow-md overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300"
+              className="flex-shrink-0 w-[calc(50%-1rem)] sm:w-[calc(33.33%-1rem)] md:w-[calc(25%-1rem)] lg:w-[calc(20%-1rem)] xl:w-[calc(16.66%-1rem)] h-64 relative rounded-lg shadow-md overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300"
             >
               {novel.coverImage && !imageErrors[novel.id] ? (
                 <img
