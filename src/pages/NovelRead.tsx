@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
@@ -261,7 +260,6 @@ const CommentModal = ({
     if (modalRef.current) {
       modalRef.current.focus()
     }
-
     // Handle Escape key to close the modal
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -377,7 +375,6 @@ const NovelRead = () => {
   const [replyContent, setReplyContent] = useState("")
   const [deletingComment, setDeletingComment] = useState<string | null>(null)
   const replyInputRef = useRef<HTMLInputElement>(null)
-
   const [currentPage, setCurrentPage] = useState(0)
   const [pageFade, setPageFade] = useState(false)
   const lastSwipeTime = useReactRef(0)
@@ -390,10 +387,12 @@ const NovelRead = () => {
     const paragraphs = content
       .split(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi)
       .filter((para) => para.trim() && !para.match(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi))
+
     const formattedParagraphs: string[] = []
     paragraphs.forEach((paragraph) => {
       const cleanPara = paragraph.trim()
       if (!cleanPara) return
+
       // Split long paragraphs by sentences
       const sentences = cleanPara.split(/(?<=[.!?])\s+/).filter((s) => s.trim())
       if (sentences.length <= 6) {
@@ -412,6 +411,7 @@ const NovelRead = () => {
         }
       }
     })
+
     // If no paragraphs were created (single long text), split by character count
     if (formattedParagraphs.length === 0 && content.trim()) {
       const words = content.trim().split(/\s+/)
@@ -426,6 +426,7 @@ const NovelRead = () => {
         }
       }
     }
+
     return formattedParagraphs.length > 0 ? formattedParagraphs : [content.trim()]
   }
 
@@ -438,57 +439,112 @@ const NovelRead = () => {
     return contentPages
   }
 
+  // Helper: Calculate total pages for a specific chapter
+  const calculateChapterPages = (chapterIndex: number) => {
+    if (!novel || chapterIndex >= novel.chapters.length) return 0
+    const chapterContent = novel.chapters[chapterIndex]?.content || ""
+    const formattedParagraphs = formatContent(chapterContent)
+    const contentPages = paginateContentIntoPages(formattedParagraphs, 8)
+    return 1 + contentPages.length // 1 for title page + content pages
+  }
+
+  // Helper: Calculate the absolute page number across all chapters
+  const calculateAbsolutePageNumber = () => {
+    if (!novel) return 1
+
+    let totalPreviousPages = 0
+    // Sum up all pages from previous chapters
+    for (let i = 0; i < currentChapter; i++) {
+      totalPreviousPages += calculateChapterPages(i)
+    }
+
+    return totalPreviousPages + currentPage + 1 // +1 because currentPage is 0-indexed
+  }
+
   // Prepare pages for the current chapter, including the title page
   const chapterContent = novel?.chapters[currentChapter]?.content || ""
   const formattedParagraphs = formatContent(chapterContent)
   const contentPages = paginateContentIntoPages(formattedParagraphs, 8) // 8 paragraphs per page
-
   const chapterPages: ("title" | string[])[] = []
   if (novel) {
     chapterPages.push("title") // First page is always the chapter title page
     contentPages.forEach((page) => chapterPages.push(page))
   }
 
-  // Reset page on chapter change
-  useEffect(() => {
-    setCurrentPage(0)
-  }, [currentChapter])
+  // Enhanced page navigation with chapter transitions
+  const handlePageNavigation = (direction: "prev" | "next") => {
+    const changeBookPage = (newPage: number) => {
+      setPageFade(true)
+      setTimeout(() => {
+        setCurrentPage(newPage)
+        setTimeout(() => setPageFade(false), 300)
+      }, 300)
+    }
 
-  // Book mode: handle animated page transitions
-  const changeBookPage = (newPage: number) => {
-    if (newPage === currentPage) return
-    setPageFade(true)
-    setTimeout(() => {
-      setCurrentPage(newPage)
-      setTimeout(() => setPageFade(false), 300)
-    }, 300)
+    if (direction === "prev") {
+      if (currentPage > 0) {
+        // Navigate to previous page in current chapter
+        changeBookPage(currentPage - 1)
+      } else if (currentChapter > 0) {
+        // Go to previous chapter's last page
+        const prevChapter = currentChapter - 1
+        const prevChapterContent = novel?.chapters[prevChapter]?.content || ""
+        const prevFormattedParagraphs = formatContent(prevChapterContent)
+        const prevContentPages = paginateContentIntoPages(prevFormattedParagraphs, 8)
+        const prevChapterPages = ["title", ...prevContentPages]
+        const targetPage = prevChapterPages.length - 1
+
+        // Set both chapter and page simultaneously with fade effect
+        setPageFade(true)
+        setTimeout(() => {
+          setCurrentChapter(prevChapter)
+          setCurrentPage(targetPage)
+          setTimeout(() => setPageFade(false), 300)
+        }, 300)
+      }
+    } else if (direction === "next") {
+      if (currentPage < chapterPages.length - 1) {
+        // Navigate to next page in current chapter
+        changeBookPage(currentPage + 1)
+      } else if (novel && currentChapter < novel.chapters.length - 1) {
+        // Go to next chapter's title page with fade effect
+        setPageFade(true)
+        setTimeout(() => {
+          setCurrentChapter(currentChapter + 1)
+          setCurrentPage(0) // Title page
+          setTimeout(() => setPageFade(false), 300)
+        }, 300)
+      }
+    }
   }
 
   // Swipe handlers for book mode (debounced, with animation)
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
       const now = Date.now()
-      if (now - lastSwipeTime.current > 350 && currentPage < chapterPages.length - 1) {
+      if (now - lastSwipeTime.current > 350) {
         lastSwipeTime.current = now
-        changeBookPage(currentPage + 1)
+        handlePageNavigation("next")
       }
     },
     onSwipedRight: () => {
       const now = Date.now()
-      if (now - lastSwipeTime.current > 350 && currentPage > 0) {
+      if (now - lastSwipeTime.current > 350) {
         lastSwipeTime.current = now
-        changeBookPage(currentPage - 1)
+        handlePageNavigation("prev")
       }
     },
     trackMouse: true,
   })
 
+  // Check if navigation is possible
+  const canNavigatePrev = currentPage > 0 || currentChapter > 0
+  const canNavigateNext = currentPage < chapterPages.length - 1 || (novel && currentChapter < novel.chapters.length - 1)
+
   // Render current page content
   const renderCurrentPageContent = () => {
     if (!novel) return null
-
     const pageContent = chapterPages[currentPage]
-
     if (pageContent === "title") {
       // This is the chapter title page
       return (
@@ -595,10 +651,15 @@ const NovelRead = () => {
     fetchChapterData()
   }, [novel, currentUser, currentChapter])
 
-  // Scroll to top when chapter changes (only for chapter navigation, not page swipes)
+  // Instead, add this modified useEffect that only resets the page when the chapter changes from URL params or initial load:
+
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }, [currentChapter])
+    // Only reset page if this is from URL params or initial load
+    const chapterParam = searchParams.get("chapter")
+    if (chapterParam) {
+      setCurrentPage(0)
+    }
+  }, [currentChapter, searchParams])
 
   const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
     const topLevelComments = allComments.filter((comment) => !comment.parentId)
@@ -868,14 +929,15 @@ const NovelRead = () => {
     <div className="min-h-screen flex flex-col bg-gray-900">
       {/* Back button - Make it more accessible on mobile */}
       <div className="fixed top-0 right-0 z-50 p-4 bg-gradient-to-b from-gray-900/80 to-transparent w-full flex justify-end">
-  <Link
-    to={`/novel/${novel.id}`}
-    className="p-2 rounded-full bg-gray-800/90 text-gray-300 hover:bg-gray-700/90 hover:text-white transition-colors shadow-lg backdrop-blur-sm"
-    title="Back to Novel Overview"
-  >
-    <X className="h-5 w-5 sm:h-6 sm:w-6" />
-  </Link>
-</div>
+        <Link
+          to={`/novel/${novel.id}`}
+          className="p-2 rounded-full bg-gray-800/90 text-gray-300 hover:bg-gray-700/90 hover:text-white transition-colors shadow-lg backdrop-blur-sm"
+          title="Back to Novel Overview"
+        >
+          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+        </Link>
+      </div>
+
       {/* Main content area */}
       <div className="flex-grow py-2 sm:py-4 flex items-center justify-center">
         <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl min-h-[500px] sm:min-h-[600px] mx-2 sm:mx-4 flex flex-col justify-between">
@@ -897,66 +959,33 @@ const NovelRead = () => {
           <div className="flex justify-between items-center w-full mt-4 sm:mt-6 text-sm">
             <button
               className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
-                currentPage === 0
+                !canNavigatePrev
                   ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                   : "bg-purple-900 text-purple-200 hover:bg-purple-800"
               }`}
-              disabled={currentPage === 0}
-              onClick={() => changeBookPage(currentPage - 1)}
+              disabled={!canNavigatePrev}
+              onClick={() => handlePageNavigation("prev")}
             >
               <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
             <span className="px-2 sm:px-4 py-1 sm:py-2 bg-gray-700 text-gray-300 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap">
-              {currentPage + 1} / {chapterPages.length}
+              Page {calculateAbsolutePageNumber()}
             </span>
             <button
               className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
-                currentPage === chapterPages.length - 1
+                !canNavigateNext
                   ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                   : "bg-purple-900 text-purple-200 hover:bg-purple-800"
               }`}
-              disabled={currentPage === chapterPages.length - 1}
-              onClick={() => changeBookPage(currentPage + 1)}
+              disabled={!canNavigateNext}
+              onClick={() => handlePageNavigation("next")}
             >
               <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
         </div>
       </div>
-      {/* Chapter navigation */}
-      <div className="max-w-4xl mx-auto w-full px-2 sm:px-4 py-2 sm:py-4 flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-4">
-        <button
-          className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-            currentChapter === 0
-              ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-              : "bg-purple-900 text-purple-200 hover:bg-purple-800"
-          }`}
-          disabled={currentChapter === 0}
-          onClick={() => setCurrentChapter((prev) => Math.max(0, prev - 1))}
-        >
-          <div className="flex items-center justify-center">
-            <ChevronLeft className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-            Previous
-          </div>
-        </button>
-        <span className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-gray-300 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap">
-          {currentChapter + 1} / {novel.chapters.length}
-        </span>
-        <button
-          className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-            currentChapter === novel.chapters.length - 1
-              ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-              : "bg-purple-900 text-purple-200 hover:bg-purple-800"
-          }`}
-          disabled={currentChapter === novel.chapters.length - 1}
-          onClick={() => setCurrentChapter((prev) => Math.min(novel.chapters.length - 1, prev + 1))}
-        >
-          <div className="flex items-center justify-center">
-            Next
-            <ChevronRight className="ml-1 sm:ml-2 h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-        </button>
-      </div>
+
       {/* Update FloatingActions component */}
       <div className="fixed bottom-4 sm:bottom-6 right-2 sm:right-6 flex flex-col items-end space-y-3 sm:space-y-4">
         <div className="flex flex-col items-center scale-90 sm:scale-100">
@@ -991,6 +1020,7 @@ const NovelRead = () => {
           </span>
         </div>
       </div>
+
       {/* Comment Modal */}
       {showCommentModal && (
         <CommentModal
