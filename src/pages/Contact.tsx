@@ -298,60 +298,8 @@ const Contact = () => {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-white">Email</h3>
-                    <p className="text-purple-300 font-medium">support@novelnest.com</p>
+                    <p className="text-purple-300 font-medium">n0velnest999@gmail.com</p>
                     <p className="text-sm text-gray-400 mt-1">We typically respond within 24 hours</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start group">
-                  <div className="bg-gradient-to-br from-indigo-500 to-purple-500 p-3 rounded-xl mr-4 group-hover:scale-110 transition-transform">
-                    <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">Office</h3>
-                    <p className="text-purple-300">
-                      123 Story Lane
-                      <br />
-                      Literary District, LD 12345
-                      <br />
-                      United States
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start group">
-                  <div className="bg-gradient-to-br from-green-500 to-teal-500 p-3 rounded-xl mr-4 group-hover:scale-110 transition-transform">
-                    <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">Business Hours</h3>
-                    <p className="text-purple-300">
-                      Monday - Friday: 9:00 AM - 6:00 PM (EST)
-                      <br />
-                      Saturday: 10:00 AM - 4:00 PM (EST)
-                      <br />
-                      Sunday: Closed
-                    </p>
                   </div>
                 </div>
               </div>
