@@ -137,7 +137,7 @@ const Footer: React.FC = () => {
                   />
                 </svg>
               </Link>
-              <Link to="#" className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400">
+              <Link to="https://www.tiktok.com/@novlnest" className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400">
                 <span className="sr-only">TikTok</span>
                 <svg
                   className="h-6 w-6"
