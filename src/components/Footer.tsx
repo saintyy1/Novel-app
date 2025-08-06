@@ -148,7 +148,7 @@ const Footer: React.FC = () => {
                   <path d="M12.75 2c.414 0 .75.336.75.75v2.387a5.498 5.498 0 004.784 5.436 5.49 5.49 0 01-.313 1.482 7.496 7.496 0 01-5.22-2.041v7.236a3.75 3.75 0 11-3-3.675V11.25a5.25 5.25 0 105.25 5.25V2.75c0-.414.336-.75.75-.75z" />
                 </svg>
               </Link>
-              <Link to="https://www.instagram.com/n0velnest?igsh=MWV2N3A1dHMxeWtsNg%3D%3D&utm_source=qr" className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400">
+              <Link to="https://www.instagram.com/novlnest?igsh=MWV2N3A1dHMxeWtsNg%3D%3D&utm_source=qr" className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400">
                 <span className="sr-only">Instagram</span>
                 <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path

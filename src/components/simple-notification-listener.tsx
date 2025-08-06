@@ -11,18 +11,17 @@ const SimpleNotificationListener = () => {
   useEffect(() => {
     const showRecentUpdates = async () => {
       try {
-        // Get novels updated in the last 24 hours
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
+        // Get novels updated in the last 12 hours
+        const twelveHoursAgo = new Date()
+        twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12)
 
         const novelsQuery = query(
           collection(db, "novels"),
           where("published", "==", true),
-          where("updatedAt", ">=", yesterday.toISOString()),
+          where("updatedAt", ">=", twelveHoursAgo.toISOString()),
           orderBy("updatedAt", "desc"),
           limit(3), // Show only the 3 most recent updates
         )
-
         const querySnapshot = await getDocs(novelsQuery)
         const recentUpdates: Novel[] = []
 
