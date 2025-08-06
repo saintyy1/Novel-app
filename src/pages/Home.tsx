@@ -4,7 +4,6 @@ import { Link } from "react-router-dom"
 import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
-import SimpleNotificationListener from "../components/simple-notification-listener"
 import NovelCarousel from "../components/NovelCarousel"
 
 const Home = () => {
@@ -89,7 +88,6 @@ const Home = () => {
 
   return (
     <div className="min-h-screen">
-      <SimpleNotificationListener />
       <section className="relative bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white py-20 px-4 sm:px-6 lg:px-8 rounded-b-3xl shadow-xl">
         <div className="absolute inset-0 bg-black opacity-50 rounded-b-3xl"></div>
         <div className="relative max-w-7xl mx-auto">
