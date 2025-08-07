@@ -593,13 +593,13 @@ const Profile = () => {
               </div>
 
               {/* Social Media Links */}
-              <div className="mt-4 flex flex-wrap gap-3">
+              <div className="mt-4 flex flex-wrap gap-3 justify-center sm:justify-start">
                 {profileUser?.instagramUrl && (
                   <a
                     href={profileUser.instagramUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-purple-400 transition-colors flex items-center text-sm"
+                    className="text-purple-600 hover:text-purple-400 transition-colors flex items-center text-sm"
                     title="Instagram Profile"
                   >
                     <FaInstagram className="h-5 w-5 mr-1" /> Instagram
@@ -610,7 +610,7 @@ const Profile = () => {
                     href={profileUser.twitterUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-purple-400 transition-colors flex items-center text-sm"
+                    className="text-blue-600 hover:text-blue-400 transition-colors flex items-center text-sm"
                     title="Twitter Profile"
                   >
                     <FaTwitter className="h-5 w-5 mr-1" /> Twitter
@@ -629,43 +629,8 @@ const Profile = () => {
                 </div>
               )}
 
-              <div className="mt-4 flex flex-wrap gap-4 text-xs sm:text-sm text-gray-400">
-                <div className="flex items-center justify-center sm:justify-start">
-                  <svg className="h-3 w-3 sm:h-4 sm:w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                    />
-                  </svg>
-                  <span className="truncate">
-                    {userNovels.length} Novel{userNovels.length !== 1 ? "s" : ""}
-                  </span>
-                </div>
-                <div className="flex items-center justify-center sm:justify-start">
-                  <svg className="h-3 w-3 sm:h-4 sm:w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 12l2 2 4-4m6 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span className="truncate">{userNovels.filter((novel) => novel.published).length} Published</span>
-                </div>
-                <div className="flex items-center justify-center sm:justify-start">
-                  <svg className="h-3 w-3 sm:h-4 sm:w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span className="truncate">{userNovels.filter((novel) => !novel.published).length} Pending</span>
-                </div>
-                <div className="flex items-center justify-center sm:justify-start">
+              <div className="mt-4 flex flex-wrap gap-4 text-xs sm:text-sm text-gray-400 justify-center sm:justify-start">
+                <div className="flex items-center">
                   <svg className="h-3 w-3 sm:h-4 sm:w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
@@ -675,12 +640,12 @@ const Profile = () => {
                     />
                   </svg>
                   <span className="truncate">
-                    {userNovels.reduce((total, novel) => total + (novel.likes || 0), 0)} Total Likes
+                    {userNovels.reduce((total, novel) => total + (novel.likes || 0), 0)} Likes
                   </span>
                 </div>
                 
                 {/* New: Followers and Following Counts */}
-                <div className="flex items-center justify-center sm:justify-start">
+                <div className="flex items-center">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"
@@ -770,7 +735,7 @@ const Profile = () => {
                   <button
                     onClick={handleFollowToggle}
                     disabled={!currentUser || !profileUser || isTogglingFollow} // Disable when toggling
-                    className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors ${
+                    className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors mx-auto ${
                       isFollowing ? "bg-gray-600 hover:bg-gray-700" : "bg-purple-600 hover:bg-purple-700"
                     } ${isTogglingFollow ? "opacity-50 cursor-not-allowed" : ""}`} // Add opacity for loading
                   >
