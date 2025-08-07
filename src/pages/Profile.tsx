@@ -1,16 +1,38 @@
 "use client"
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Link, useParams } from "react-router-dom"
-import { collection, query, where, getDocs, orderBy, doc, getDoc, updateDoc } from "firebase/firestore"
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  doc,
+  getDoc,
+  updateDoc,
+  addDoc,
+  deleteDoc,
+  onSnapshot,
+} from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import type { ExtendedUser } from "../context/AuthContext"
+import EditProfileModal from "../components/EditProfileModal" // Import the new modal component
+import { FaInstagram, FaTwitter, FaPlus, FaTrash } from "react-icons/fa" // Import social media icons and new icons
+import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
+
+interface Announcement {
+  id: string
+  authorId: string
+  content: string
+  createdAt: string
+}
 
 const Profile = () => {
   const { userId } = useParams()
-  const { currentUser, updateUserPhoto } = useAuth()
+  const { currentUser, updateUserPhoto, toggleFollow } = useAuth()
   const [profileUser, setProfileUser] = useState<ExtendedUser | null>(null)
   const [userNovels, setUserNovels] = useState<Novel[]>([])
   const [loading, setLoading] = useState(true)
@@ -28,6 +50,21 @@ const Profile = () => {
   const [novelCoverError, setNovelCoverError] = useState("")
   const novelCoverFileInputRef = useRef<HTMLInputElement>(null)
 
+  // States for follow feature
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followersCount, setFollowersCount] = useState(0)
+  const [followingCount, setFollowingCount] = useState(0)
+  const [isTogglingFollow, setIsTogglingFollow] = useState(false)
+
+  // New state for Edit Profile Modal
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false)
+
+  // New states for Announcement Board
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [newAnnouncementContent, setNewAnnouncementContent] = useState("")
+  const [submittingAnnouncement, setSubmittingAnnouncement] = useState(false)
+  const [deletingAnnouncementId, setDeletingAnnouncementId] = useState<string | null>(null)
+
   const isOwnProfile = !userId || userId === currentUser?.uid
 
   useEffect(() => {
@@ -39,19 +76,32 @@ const Profile = () => {
       try {
         setLoading(true)
         setError("")
+        let fetchedUser: ExtendedUser | null = null
+
         // If viewing another user's profile, fetch their data
         if (userId && userId !== currentUser?.uid) {
           const userDoc = await getDoc(doc(db, "users", userId))
           if (userDoc.exists()) {
-            setProfileUser({ uid: userDoc.id, ...userDoc.data() } as ExtendedUser)
+            fetchedUser = { uid: userDoc.id, ...userDoc.data() } as ExtendedUser
           } else {
             setError("User not found")
             return
           }
         } else {
           // Viewing own profile
-          setProfileUser(currentUser)
+          fetchedUser = currentUser
         }
+
+        setProfileUser(fetchedUser)
+        setFollowersCount(fetchedUser?.followers?.length || 0)
+        setFollowingCount(fetchedUser?.following?.length || 0)
+
+        if (currentUser && fetchedUser) {
+          setIsFollowing(fetchedUser.followers?.includes(currentUser.uid) || false)
+        } else {
+          setIsFollowing(false)
+        }
+
         // Fetch novels for the profile user
         const targetUserId = userId || currentUser?.uid
         if (targetUserId) {
@@ -78,13 +128,42 @@ const Profile = () => {
       }
     }
     fetchUserData()
-  }, [currentUser, userId])
+  }, [currentUser, userId]) // Re-run when currentUser or userId changes
 
-  const resizeImage = (file: File, maxWidth = 200, maxHeight = 200, quality = 0.7): Promise<string> => {
+  // Fetch announcements for the profile user
+  useEffect(() => {
+    if (!profileUser?.uid) return
+
+    const announcementsQuery = query(
+      collection(db, "announcements"),
+      where("authorId", "==", profileUser.uid),
+      orderBy("createdAt", "desc"),
+    )
+
+    const unsubscribe = onSnapshot(
+      announcementsQuery,
+      (snapshot) => {
+        const fetchedAnnouncements: Announcement[] = []
+        snapshot.forEach((doc) => {
+          fetchedAnnouncements.push({ id: doc.id, ...doc.data() } as Announcement)
+        })
+        setAnnouncements(fetchedAnnouncements)
+      },
+      (error) => {
+        console.error("Error fetching announcements:", error)
+        showErrorToast("Failed to load announcements.")
+      },
+    )
+
+    return () => unsubscribe()
+  }, [profileUser?.uid])
+
+  const resizeImage = useCallback((file: File, maxWidth = 200, maxHeight = 200, quality = 0.7): Promise<string> => {
     return new Promise((resolve) => {
       const canvas = document.createElement("canvas")
       const ctx = canvas.getContext("2d")!
       const img = new Image()
+      img.crossOrigin = "anonymous" // Important for CORS issues
       img.onload = () => {
         // Calculate new dimensions
         let { width, height } = img
@@ -108,165 +187,169 @@ const Profile = () => {
       }
       img.src = URL.createObjectURL(file)
     })
-  }
+  }, [])
 
-  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file || !currentUser) return
+  const handlePhotoUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file || !currentUser) return
 
-    // Validate file
-    if (file.size > 10 * 1024 * 1024) {
-      // 10MB limit for original file
-      setPhotoError("Profile picture must be less than 10MB")
-      return
-    }
-    if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
-      setPhotoError("Profile picture must be JPEG, PNG, or WebP format")
-      return
-    }
-
-    try {
-      setUploadingPhoto(true)
-      setPhotoError("")
-      // Resize and compress the image more aggressively for Firestore storage
-      const resizedBase64 = await resizeImage(file, 200, 200, 0.7)
-      // Check if the compressed image is reasonable size for Firestore
-      // Firestore has a 1MB document limit, so we need to be conservative
-      if (resizedBase64.length > 200000) {
-        // ~150KB original size
-        setPhotoError("Image is too large even after compression. Please use a smaller image.")
+      // Validate file
+      if (file.size > 10 * 1024 * 1024) {
+        // 10MB limit for original file
+        setPhotoError("Profile picture must be less than 10MB")
         return
       }
-      // Update user photo in Firestore only
-      await updateUserPhoto(resizedBase64)
-      setPhotoError("Profile picture updated successfully!")
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setPhotoError("")
-      }, 3000)
-    } catch (err) {
-      console.error("Error uploading profile picture:", err)
-      setPhotoError("Failed to upload profile picture. Please try again.")
-    } finally {
-      setUploadingPhoto(false)
-      // Clear the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+      if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
+        setPhotoError("Profile picture must be JPEG, PNG, or WebP format")
+        return
       }
-    }
-  }
 
-  const removeProfilePicture = async () => {
-    if (!currentUser) return
-    try {
-      setUploadingPhoto(true)
-      setPhotoError("")
-      // Remove photo from Firestore
-      await updateUserPhoto(null)
-      setPhotoError("Profile picture removed successfully!")
-      // Clear success message after 3 seconds
-      setTimeout(() => {
+      try {
+        setUploadingPhoto(true)
         setPhotoError("")
-      }, 3000)
-    } catch (err) {
-      console.error("Error removing profile picture:", err)
-      setPhotoError("Failed to remove profile picture. Please try again.")
-    } finally {
-      setUploadingPhoto(false)
-    }
-  }
+        // Resize and compress the image more aggressively for Firestore storage
+        const resizedBase64 = await resizeImage(file, 200, 200, 0.7)
+        // Check if the compressed image is reasonable size for Firestore
+        // Firestore has a 1MB document limit, so we need to be conservative
+        if (resizedBase64.length > 200000) {
+          // ~150KB original size
+          setPhotoError("Image is too large even after compression. Please use a smaller image.")
+          return
+        }
+        // Update user photo in Firestore only
+        await updateUserPhoto(resizedBase64)
+        setPhotoError("Profile picture updated successfully!")
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setPhotoError("")
+        }, 3000)
+      } catch (err) {
+        console.error("Error uploading profile picture:", err)
+        setPhotoError("Failed to upload profile picture. Please try again.")
+      } finally {
+        setUploadingPhoto(false)
+        // Clear the file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ""
+        }
+      }
+    },
+    [currentUser, resizeImage, updateUserPhoto],
+  )
+
+  const removeProfilePicture = useCallback(
+    async () => {
+      if (!currentUser) return
+      try {
+        setUploadingPhoto(true)
+        setPhotoError("")
+        // Remove photo from Firestore
+        await updateUserPhoto(null)
+        setPhotoError("Profile picture removed successfully!")
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setPhotoError("")
+        }, 3000)
+      } catch (err) {
+        console.error("Error removing profile picture:", err)
+        setPhotoError("Failed to remove profile picture. Please try again.")
+      } finally {
+        setUploadingPhoto(false)
+      }
+    },
+    [currentUser, updateUserPhoto],
+  )
 
   // New functions for novel cover management
-  const handleNovelCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file || !selectedNovelForCover) return
-
-    if (file.size > 10 * 1024 * 1024) {
-      setNovelCoverError("Cover image must be less than 10MB")
-      return
-    }
-    if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
-      setNovelCoverError("Cover image must be JPEG, PNG, or WebP format")
-      return
-    }
-
-    try {
-      setUploadingNovelCover(true)
-      setNovelCoverError("")
-
-      const resizedBase64 = await resizeImage(file, 400, 600, 0.8) // Adjust dimensions for novel covers
-      if (resizedBase64.length > 500000) {
-        // ~400KB limit for novel covers
-        setNovelCoverError("Image is too large even after compression. Please use a smaller image.")
+  const handleNovelCoverUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file || !selectedNovelForCover) return
+      if (file.size > 10 * 1024 * 1024) {
+        setNovelCoverError("Cover image must be less than 10MB")
         return
       }
-
-      // Update novel document in Firestore
-      const novelRef = doc(db, "novels", selectedNovelForCover.id)
-      await updateDoc(novelRef, { coverImage: resizedBase64 })
-
-      // Update local state
-      setUserNovels((prevNovels) =>
-        prevNovels.map((novel) =>
-          novel.id === selectedNovelForCover.id ? { ...novel, coverImage: resizedBase64 } : novel,
-        ),
-      )
-      setSelectedNovelForCover((prev) => (prev ? { ...prev, coverImage: resizedBase64 } : null))
-
-      setNovelCoverError("Novel cover updated successfully!")
-      setTimeout(() => setNovelCoverError(""), 3000)
-    } catch (err) {
-      console.error("Error uploading novel cover:", err)
-      setNovelCoverError("Failed to upload novel cover. Please try again.")
-    } finally {
-      setUploadingNovelCover(false)
-      if (novelCoverFileInputRef.current) {
-        novelCoverFileInputRef.current.value = ""
+      if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
+        setNovelCoverError("Cover image must be JPEG, PNG, or WebP format")
+        return
       }
-    }
-  }
+      try {
+        setUploadingNovelCover(true)
+        setNovelCoverError("")
+        const resizedBase64 = await resizeImage(file, 400, 600, 0.8) // Adjust dimensions for novel covers
+        if (resizedBase64.length > 500000) {
+          // ~400KB limit for novel covers
+          setNovelCoverError("Image is too large even after compression. Please use a smaller image.")
+          return
+        }
+        // Update novel document in Firestore
+        const novelRef = doc(db, "novels", selectedNovelForCover.id)
+        // Assuming updateDoc is imported from firebase/firestore
+        await updateDoc(novelRef, { coverImage: resizedBase64 })
+        // Update local state
+        setUserNovels((prevNovels) =>
+          prevNovels.map((novel) =>
+            novel.id === selectedNovelForCover.id ? { ...novel, coverImage: resizedBase64 } : novel,
+          ),
+        )
+        setSelectedNovelForCover((prev) => (prev ? { ...prev, coverImage: resizedBase64 } : null))
+        setNovelCoverError("Novel cover updated successfully!")
+        setTimeout(() => setNovelCoverError(""), 3000)
+      } catch (err) {
+        console.error("Error uploading novel cover:", err)
+        setNovelCoverError("Failed to upload novel cover. Please try again.")
+      } finally {
+        setUploadingNovelCover(false)
+        if (novelCoverFileInputRef.current) {
+          novelCoverFileInputRef.current.value = ""
+        }
+      }
+    },
+    [resizeImage, selectedNovelForCover],
+  )
 
-  const removeNovelCover = async () => {
-    if (!selectedNovelForCover) return
+  const removeNovelCover = useCallback(
+    async () => {
+      if (!selectedNovelForCover) return
+      try {
+        setUploadingNovelCover(true)
+        setNovelCoverError("")
+        const novelRef = doc(db, "novels", selectedNovelForCover.id)
+        // Assuming updateDoc is imported from firebase/firestore
+        await updateDoc(novelRef, { coverImage: null })
+        // Update local state
+        setUserNovels((prevNovels) =>
+          prevNovels.map((novel) => (novel.id === selectedNovelForCover.id ? { ...novel, coverImage: null } : novel)),
+        )
+        setSelectedNovelForCover((prev) => (prev ? { ...prev, coverImage: null } : null))
+        setNovelCoverError("Novel cover removed successfully!")
+        setTimeout(() => setNovelCoverError(""), 3000)
+      } catch (err) {
+        console.error("Error removing novel cover:", err)
+        setNovelCoverError("Failed to remove novel cover. Please try again.")
+      } finally {
+        setUploadingNovelCover(false)
+      }
+    },
+    [selectedNovelForCover],
+  )
 
-    try {
-      setUploadingNovelCover(true)
-      setNovelCoverError("")
-
-      const novelRef = doc(db, "novels", selectedNovelForCover.id)
-      await updateDoc(novelRef, { coverImage: null })
-
-      // Update local state
-      setUserNovels((prevNovels) =>
-        prevNovels.map((novel) => (novel.id === selectedNovelForCover.id ? { ...novel, coverImage: null } : novel)),
-      )
-      setSelectedNovelForCover((prev) => (prev ? { ...prev, coverImage: null } : null))
-
-      setNovelCoverError("Novel cover removed successfully!")
-      setTimeout(() => setNovelCoverError(""), 3000)
-    } catch (err) {
-      console.error("Error removing novel cover:", err)
-      setNovelCoverError("Failed to remove novel cover. Please try again.")
-    } finally {
-      setUploadingNovelCover(false)
-    }
-  }
-
-  const openNovelCoverModal = (novel: Novel) => {
+  const openNovelCoverModal = useCallback((novel: Novel) => {
     setSelectedNovelForCover(novel)
     setShowNovelCoverModal(true)
-  }
+  }, [])
 
-  const closeNovelCoverModal = () => {
+  const closeNovelCoverModal = useCallback(() => {
     setShowNovelCoverModal(false)
     setSelectedNovelForCover(null)
     setNovelCoverError("") // Clear any previous errors
-  }
+  }, [])
 
-  const getUserInitials = (name: string | null | undefined) => {
+  const getUserInitials = useCallback((name: string | null | undefined) => {
     if (!name) return "U"
     return name.charAt(0).toUpperCase()
-  }
+  }, [])
 
   const filteredNovels = userNovels.filter((novel) => {
     switch (activeTab) {
@@ -279,7 +362,7 @@ const Profile = () => {
     }
   })
 
-  const getStatusBadge = (novel: Novel) => {
+  const getStatusBadge = useCallback((novel: Novel) => {
     if (novel.published) {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/30 text-green-400">
@@ -293,15 +376,82 @@ const Profile = () => {
         </span>
       )
     }
-  }
+  }, [])
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     })
-  }
+  }, [])
+
+  // Handle follow/unfollow
+  const handleFollowToggle = useCallback(
+    async () => {
+      if (!currentUser || !profileUser || isOwnProfile) return
+      setIsTogglingFollow(true) // Set loading state
+      try {
+        await toggleFollow(profileUser.uid, isFollowing)
+        // Optimistically update UI
+        setIsFollowing((prev) => !prev)
+        setFollowersCount((prev) => (isFollowing ? prev - 1 : prev + 1))
+      } catch (err) {
+        console.error("Error toggling follow:", err)
+        // Revert UI if error
+        setIsFollowing((prev) => prev)
+        setFollowersCount((prev) => prev)
+      } finally {
+        setIsTogglingFollow(false) // Reset loading state
+      }
+    },
+    [currentUser, profileUser, isOwnProfile, isFollowing, toggleFollow],
+  )
+
+  // Handle posting new announcement
+  const handlePostAnnouncement = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!newAnnouncementContent.trim() || !currentUser) return
+
+      setSubmittingAnnouncement(true)
+      try {
+        await addDoc(collection(db, "announcements"), {
+          authorId: currentUser.uid,
+          content: newAnnouncementContent.trim(),
+          createdAt: new Date().toISOString(),
+        })
+        setNewAnnouncementContent("")
+        showSuccessToast("Announcement posted!")
+      } catch (error) {
+        console.error("Error posting announcement:", error)
+        showErrorToast("Failed to post announcement.")
+      } finally {
+        setSubmittingAnnouncement(false)
+      }
+    },
+    [newAnnouncementContent, currentUser],
+  )
+
+  // Handle deleting an announcement
+  const handleDeleteAnnouncement = useCallback(
+    async (announcementId: string) => {
+      if (!currentUser || !isOwnProfile) return // Only author can delete
+      if (!window.confirm("Are you sure you want to delete this announcement?")) return
+
+      setDeletingAnnouncementId(announcementId)
+      try {
+        await deleteDoc(doc(db, "announcements", announcementId))
+        showSuccessToast("Announcement deleted!")
+      } catch (error) {
+        console.error("Error deleting announcement:", error)
+        showErrorToast("Failed to delete announcement.")
+      } finally {
+        setDeletingAnnouncementId(null)
+      }
+    },
+    [currentUser, isOwnProfile],
+  )
 
   if (!currentUser && !userId) {
     return (
@@ -434,6 +584,40 @@ const Profile = () => {
                 {profileUser?.displayName || "User"}
               </h1>
               <p className="text-gray-400 mt-1 break-all text-sm sm:text-base">{profileUser?.email}</p>
+
+              {/* Bio Section */}
+              <div className="mt-4">
+                <p className="text-gray-300 text-sm sm:text-base whitespace-pre-wrap">
+                  {profileUser?.bio || (isOwnProfile ? "Add a short bio about yourself." : "No bio available.")}
+                </p>
+              </div>
+
+              {/* Social Media Links */}
+              <div className="mt-4 flex flex-wrap gap-3">
+                {profileUser?.instagramUrl && (
+                  <a
+                    href={profileUser.instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-400 hover:text-purple-400 transition-colors flex items-center text-sm"
+                    title="Instagram Profile"
+                  >
+                    <FaInstagram className="h-5 w-5 mr-1" /> Instagram
+                  </a>
+                )}
+                {profileUser?.twitterUrl && (
+                  <a
+                    href={profileUser.twitterUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-400 hover:text-purple-400 transition-colors flex items-center text-sm"
+                    title="Twitter Profile"
+                  >
+                    <FaTwitter className="h-5 w-5 mr-1" /> Twitter
+                  </a>
+                )}
+              </div>
+
               {/* Photo Error/Success Message */}
               {isOwnProfile && photoError && (
                 <div
@@ -444,8 +628,8 @@ const Profile = () => {
                   {photoError}
                 </div>
               )}
-              {/* Photo Upload Instructions */}
-              <div className="mt-2 grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-400">
+
+              <div className="mt-4 flex flex-wrap gap-4 text-xs sm:text-sm text-gray-400">
                 <div className="flex items-center justify-center sm:justify-start">
                   <svg className="h-3 w-3 sm:h-4 sm:w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -494,29 +678,170 @@ const Profile = () => {
                     {userNovels.reduce((total, novel) => total + (novel.likes || 0), 0)} Total Likes
                   </span>
                 </div>
-              </div>
-            </div>
-            {isOwnProfile && (
-              <div className="flex justify-center sm:justify-end w-full sm:w-auto">
-                <Link
-                  to="/submit"
-                  className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors"
-                >
+                
+                {/* New: Followers and Following Counts */}
+                <div className="flex items-center justify-center sm:justify-start">
                   <svg
-                    className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    viewBox="0 0 24 24"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="lucide lucide-users mr-1"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
-                  <span className="hidden sm:inline">Submit New Novel</span>
-                  <span className="sm:hidden">New Novel</span>
-                </Link>
+                  <span className="truncate">{followersCount} Followers</span>
+                </div>
+                <div className="flex items-center justify-center sm:justify-start">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="lucide lucide-user-plus mr-1"
+                  >
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <line x1="19" x2="19" y1="8" y2="14" />
+                    <line x1="22" x2="16" y1="11" y2="11" />
+                  </svg>
+                  <span className="truncate">{followingCount} Following</span>
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* Action Buttons (Submit Novel / Follow / Edit Profile) */}
+            <div className="flex flex-col justify-center sm:justify-end w-full sm:w-auto space-y-2">
+              {isOwnProfile ? (
+                <>
+                  <Link
+                    to="/submit"
+                    className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors"
+                  >
+                    <svg
+                      className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <span className="hidden sm:inline">Submit New Novel</span>
+                    <span className="sm:hidden">New Novel</span>
+                  </Link>
+                  <button
+                    onClick={() => setShowEditProfileModal(true)}
+                    className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 transition-colors"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="lucide lucide-pencil mr-1 sm:mr-2"
+                    >
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                    Edit Profile
+                  </button>
+                </>
+              ) : (
+                currentUser &&
+                profileUser && (
+                  <button
+                    onClick={handleFollowToggle}
+                    disabled={!currentUser || !profileUser || isTogglingFollow} // Disable when toggling
+                    className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors ${
+                      isFollowing ? "bg-gray-600 hover:bg-gray-700" : "bg-purple-600 hover:bg-purple-700"
+                    } ${isTogglingFollow ? "opacity-50 cursor-not-allowed" : ""}`} // Add opacity for loading
+                  >
+                    {isTogglingFollow ? ( // Show loading text and spinner
+                      <>
+                        <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        {isFollowing ? "Unfollowing..." : "Following..."}
+                      </>
+                    ) : isFollowing ? ( // Show normal text
+                      <>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="lucide lucide-user-minus mr-2"
+                        >
+                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <line x1="22" x2="16" y1="11" y2="11" />
+                        </svg>
+                        Unfollow
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="lucide lucide-user-plus mr-2"
+                        >
+                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <line x1="19" x2="19" y1="8" y2="14" />
+                          <line x1="22" x2="16" y1="11" y2="11" />
+                        </svg>
+                        Follow
+                      </>
+                    )}
+                  </button>
+                )
+              )}
+            </div>
           </div>
         </div>
+
         {/* Photo Modal */}
         {showPhotoModal && profileUser?.photoURL && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -538,6 +863,124 @@ const Profile = () => {
             </div>
           </div>
         )}
+
+        {/* Announcements Section */}
+        <div className="bg-gray-800 rounded-xl shadow-md p-4 sm:p-6 mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 flex items-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-megaphone mr-2 text-purple-400"
+            >
+              <path d="m3 11 18-2L13 3 3 11Z" />
+              <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+              <path d="M11.6 16.8a3 3 0 1 0-5.8-1.6" />
+              <path d="M2 11c0 7.3-2 9-2 9h22s-2-1.7-2-9" />
+              <path d="M18 11a3 3 0 0 0-3-3H2" />
+            </svg>
+            Announcements
+          </h2>
+          {isOwnProfile && (
+            <form onSubmit={handlePostAnnouncement} className="mb-6 p-4 bg-gray-700 rounded-lg border border-gray-600">
+              <textarea
+                value={newAnnouncementContent}
+                onChange={(e) => setNewAnnouncementContent(e.target.value)}
+                placeholder="Post a new announcement for your followers..."
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                rows={3}
+                maxLength={500}
+              />
+              <div className="flex justify-end mt-3">
+                <button
+                  type="submit"
+                  disabled={!newAnnouncementContent.trim() || submittingAnnouncement}
+                  className="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  {submittingAnnouncement ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Posting...
+                    </>
+                  ) : (
+                    <>
+                      <FaPlus className="h-3 w-3 mr-2" />
+                      Post Announcement
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="space-y-4">
+            {announcements.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <p>No announcements yet.</p>
+                {!isOwnProfile && <p className="text-sm mt-1">Follow this author to see their updates!</p>}
+              </div>
+            ) : (
+              announcements.map((announcement) => (
+                <div key={announcement.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600 relative">
+                  <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">{announcement.content}</p>
+                  <div className="flex justify-between items-center mt-3 text-xs text-gray-400">
+                    <span>Posted: {formatDate(announcement.createdAt)}</span>
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => handleDeleteAnnouncement(announcement.id)}
+                        disabled={deletingAnnouncementId === announcement.id}
+                        className="text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                        title="Delete announcement"
+                      >
+                        {deletingAnnouncementId === announcement.id ? (
+                          <svg className="animate-spin h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24">
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                        ) : (
+                          <FaTrash className="h-3 w-3 mr-1" />
+                        )}
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         {/* Novels Section */}
         <div className="bg-gray-800 rounded-xl shadow-md">
           {/* Tab Navigation */}
@@ -605,15 +1048,15 @@ const Profile = () => {
                   {activeTab === "all"
                     ? "No novels yet"
                     : activeTab === "published"
-                      ? "No published novels"
-                      : "No pending novels"}
+                    ? "No published novels"
+                    : "No pending novels"}
                 </h3>
                 <p className="mt-1 text-sm text-gray-400">
                   {activeTab === "all"
                     ? "Get started by submitting your first novel."
                     : activeTab === "published"
-                      ? "Your published novels will appear here."
-                      : "Novels awaiting review will appear here."}
+                    ? "Your published novels will appear here."
+                    : "Novels awaiting review will appear here."}
                 </p>
                 {activeTab === "all" && isOwnProfile && (
                   <div className="mt-6">
@@ -875,8 +1318,15 @@ const Profile = () => {
           </div>
         </div>
       )}
+      {/* Edit Profile Modal */}
+      {isOwnProfile && profileUser && (
+        <EditProfileModal
+          isOpen={showEditProfileModal}
+          onClose={() => setShowEditProfileModal(false)}
+          profileUser={profileUser}
+        />
+      )}
     </div>
   )
 }
-
 export default Profile

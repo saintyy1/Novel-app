@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
           <div className="prose-invert max-w-none">
             <h2 className="text-2xl font-bold text-white mb-6">Introduction</h2>
             <p className="text-gray-300 mb-6">
-              At NovelNest, we are committed to protecting your privacy and ensuring the security
+              At Novlnest, we are committed to protecting your privacy and ensuring the security
               of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard
               your information when you visit our website and use our services.
             </p>

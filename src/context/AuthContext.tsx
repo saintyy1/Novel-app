@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import {
@@ -12,7 +11,7 @@ import {
   sendPasswordResetEmail,
   signInWithPopup,
 } from "firebase/auth"
-import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore"
+import { doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs } from "firebase/firestore" // Import arrayUnion and arrayRemove, and new Firestore functions
 import { auth, db, googleProvider } from "../firebase/config"
 
 // Extend the Firebase User type with our custom properties
@@ -21,6 +20,11 @@ export interface ExtendedUser extends User {
   createdAt?: string
   updatedAt?: string
   disabled?: boolean
+  bio?: string // New: User's biography
+  followers?: string[] // New: UIDs of users following this user
+  following?: string[] // New: UIDs of users this user is following
+  instagramUrl?: string // New: Instagram profile URL
+  twitterUrl?: string // New: TikTok profile URL
 }
 
 interface AuthContextType {
@@ -33,6 +37,8 @@ interface AuthContextType {
   isAdmin: boolean
   refreshUser: () => Promise<void>
   updateUserPhoto: (photoBase64: string | null) => Promise<void>
+  updateUserProfile: (displayName: string, bio: string, instagramUrl: string, twitterUrl: string) => Promise<void> // Updated signature
+  toggleFollow: (targetUserId: string, isFollowing: boolean) => Promise<void> // New
   signInWithGoogle: () => Promise<void>
 }
 
@@ -54,7 +60,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userDoc = await getDoc(doc(db, "users", user.uid))
       if (userDoc.exists()) {
         const data = userDoc.data()
-
         // Extend the Firebase user with Firestore data
         const extendedUser: ExtendedUser = {
           ...user,
@@ -64,8 +69,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Always use Firestore photoURL, fallback to Firebase Auth photoURL
           photoURL: data.photoURL || user.photoURL,
           displayName: data.displayName || user.displayName || user.email?.split('@')[0] || 'User',
+          bio: data.bio || '', // New
+          followers: data.followers || [], // New
+          following: data.following || [], // New
+          instagramUrl: data.instagramUrl || '', // New
+          twitterUrl: data.twitterUrl || '', // New
         }
-
         setCurrentUser(extendedUser)
         setFirebaseUser(user)
         setIsAdmin(data.isAdmin === true)
@@ -79,18 +88,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           photoURL: user.photoURL, // Keep original Firebase Auth photoURL if it exists
           isAdmin: false,
           createdAt: new Date().toISOString(),
+          bio: '', // New: Initialize bio
+          followers: [], // New: Initialize followers
+          following: [], // New: Initialize following
+          instagramUrl: '', // New: Initialize social links
+          twitterUrl: '', // New: Initialize social links
         }
-
         await setDoc(doc(db, "users", user.uid), newUserData)
-
         const extendedUser: ExtendedUser = {
           ...user,
           isAdmin: false,
           createdAt: newUserData.createdAt,
           displayName: newUserData.displayName,
           photoURL: newUserData.photoURL,
+          bio: newUserData.bio, // New
+          followers: newUserData.followers, // New
+          following: newUserData.following, // New
+          instagramUrl: newUserData.instagramUrl, // New
+          twitterUrl: newUserData.twitterUrl // New
         }
-
         setCurrentUser(extendedUser)
         setFirebaseUser(user)
         setIsAdmin(false)
@@ -114,7 +130,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateUserPhoto = async (photoBase64: string | null) => {
     if (!currentUser || !firebaseUser) throw new Error("No user logged in")
-
     try {
       // Only update Firestore - don't update Firebase Auth photoURL
       // because base64 strings are too long for Firebase Auth
@@ -122,7 +137,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         photoURL: photoBase64,
         updatedAt: new Date().toISOString(),
       })
-
       // Update local state immediately
       setCurrentUser((prev) => (prev ? { ...prev, photoURL: photoBase64 } : null))
     } catch (error) {
@@ -131,15 +145,82 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  // Updated function to update user's display name, bio, and social links
+  const updateUserProfile = async (displayName: string, bio: string, instagramUrl: string, twitterUrl: string) => {
+    if (!currentUser || !firebaseUser) throw new Error("No user logged in")
+    try {
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        displayName: displayName,
+        bio: bio,
+        instagramUrl: instagramUrl, // Save new social link
+        twitterUrl: twitterUrl, // Save new social link
+        updatedAt: new Date().toISOString(),
+      })
+      // Update Firebase Auth display name if it changed
+      if (firebaseUser.displayName !== displayName) {
+        await updateProfile(firebaseUser, { displayName })
+      }
+
+      // Update authorName in all novels by this user
+      if (currentUser.displayName !== displayName) {
+        const novelsRef = collection(db, "novels")
+        const q = query(novelsRef, where("authorId", "==", currentUser.uid))
+        const querySnapshot = await getDocs(q)
+
+        for (const novelDoc of querySnapshot.docs) {
+          const novelRef = doc(db, "novels", novelDoc.id)
+          await updateDoc(novelRef, { authorName: displayName })
+        }
+      }
+
+      // Update local state
+      setCurrentUser((prev) => (prev ? { ...prev, displayName, bio, instagramUrl, twitterUrl } : null))
+    } catch (error) {
+      console.error("Error updating user profile:", error)
+      throw error
+    }
+  }
+
+  // New function to toggle follow status
+  const toggleFollow = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
+    if (!currentUser) throw new Error("No user logged in")
+    if (currentUser.uid === targetUserId) throw new Error("Cannot follow yourself")
+
+    const currentUserRef = doc(db, "users", currentUser.uid)
+    const targetUserRef = doc(db, "users", targetUserId)
+
+    try {
+      // Update current user's 'following' array
+      await updateDoc(currentUserRef, {
+        following: isCurrentlyFollowing
+          ? arrayRemove(targetUserId)
+          : arrayUnion(targetUserId),
+        updatedAt: new Date().toISOString(),
+      })
+
+      // Update target user's 'followers' array
+      await updateDoc(targetUserRef, {
+        followers: isCurrentlyFollowing
+          ? arrayRemove(currentUser.uid)
+          : arrayUnion(currentUser.uid),
+        updatedAt: new Date().toISOString(),
+      })
+
+      // Refresh current user's data to reflect changes
+      await refreshUser()
+    } catch (error) {
+      console.error("Error toggling follow status:", error)
+      throw error
+    }
+  }
+
   const register = async (email: string, password: string, displayName: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
-
     // Update the user's display name in Firebase Auth
     await updateProfile(user, {
       displayName: displayName,
     })
-
     // Create user document in Firestore
     const newUserData = {
       uid: user.uid,
@@ -148,10 +229,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       photoURL: null, // Start with no photo
       isAdmin: false,
       createdAt: new Date().toISOString(),
+      bio: '', // New: Initialize bio
+      followers: [], // New: Initialize followers
+      following: [], // New: Initialize following
+      instagramUrl: '', // New: Initialize social links
+      twitterUrl: '', // New: Initialize social links
     }
-
     await setDoc(doc(db, "users", user.uid), newUserData)
-
     // Set extended user
     const extendedUser: ExtendedUser = {
       ...user,
@@ -159,8 +243,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       photoURL: null,
       isAdmin: false,
       createdAt: newUserData.createdAt,
+      bio: newUserData.bio, // New
+      followers: newUserData.followers, // New
+      following: newUserData.following, // New
+      instagramUrl: newUserData.instagramUrl, // New
+      twitterUrl: newUserData.twitterUrl, // New
     }
-
     setCurrentUser(extendedUser)
     setFirebaseUser(user)
   }
@@ -184,10 +272,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await signInWithPopup(auth, googleProvider)
       const user = result.user
-
       // Check if user document exists
       const userDoc = await getDoc(doc(db, "users", user.uid))
-      
       if (!userDoc.exists()) {
         // Create new user document if it doesn't exist
         const newUserData = {
@@ -197,11 +283,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           photoURL: null,
           isAdmin: false,
           createdAt: new Date().toISOString(),
+          bio: '', // New: Initialize bio
+          followers: [], // New: Initialize followers
+          following: [], // New: Initialize following
+          instagramUrl: '', // New: Initialize social links
+          twitterUrl: '', // New: Initialize social links
         }
-
         await setDoc(doc(db, "users", user.uid), newUserData)
       }
-
       // Fetch user data to update context
       await fetchUserData(user)
     } catch (error) {
@@ -221,7 +310,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setLoading(false)
     })
-
     return unsubscribe
   }, [])
 
@@ -235,6 +323,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAdmin,
     refreshUser,
     updateUserPhoto,
+    updateUserProfile, // New
+    toggleFollow, // New
     signInWithGoogle,
   }
 

@@ -327,9 +327,9 @@ const Contact = () => {
                   </p>
                 </div>
                 <div className="border-l-4 border-indigo-500 pl-4">
-                  <h3 className="text-lg font-medium text-white mb-2">Is NovelNest free to use?</h3>
+                  <h3 className="text-lg font-medium text-white mb-2">Is Novlnest free to use?</h3>
                   <p className="text-gray-300 text-sm">
-                    Yes! NovelNest is completely free for both writers and readers.
+                    Yes! Novlnest is completely free for both writers and readers.
                   </p>
                 </div>
                 <div className="border-l-4 border-green-500 pl-4">

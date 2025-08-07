@@ -24,7 +24,7 @@ const About = () => {
               </svg>
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-4">About NovelNest</h1>
+          <h1 className="text-4xl font-bold text-white mb-4">About Novlnest</h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
             A platform where stories come to life and readers discover their next favorite adventure.
           </p>
@@ -35,13 +35,13 @@ const About = () => {
           <div className="prose dark:prose-invert max-w-none">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Our Story</h2>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              NovelNest was born from a simple belief: every story deserves to be told, and every reader deserves to
+              Novlnest was born from a simple belief: every story deserves to be told, and every reader deserves to
               find stories that speak to their soul. Founded in 2025, we set out to create a platform that bridges the
               gap between aspiring writers and passionate readers.
             </p>
 
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              In a world where traditional publishing can be challenging to navigate, NovelNest provides a welcoming
+              In a world where traditional publishing can be challenging to navigate, Novlnest provides a welcoming
               space for writers to share their creativity and for readers to discover fresh, diverse voices. Whether
               you're crafting your first short story or your tenth novel, our platform is designed to support your
               journey.
@@ -143,7 +143,7 @@ const About = () => {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 mt-8">Join Our Community</h2>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
               Whether you're a writer looking to share your stories or a reader seeking your next great adventure,
-              NovelNest is here for you. Join thousands of storytellers and story-lovers who have made NovelNest their
+              Novlnest is here for you. Join thousands of storytellers and story-lovers who have made Novlnest their
               literary home.
             </p>
 

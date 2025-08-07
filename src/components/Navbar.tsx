@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-
 const Navbar = () => {
   const { currentUser, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
@@ -41,11 +40,9 @@ const Navbar = () => {
         setIsUserDropdownOpen(false)
       }
     }
-
     if (isUserDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside)
     }
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside)
     }
@@ -65,7 +62,7 @@ const Navbar = () => {
       >
         {currentUser?.photoURL ? (
           <img
-            src={currentUser.photoURL}
+            src={currentUser.photoURL || "/placeholder.svg"}
             alt={currentUser.displayName || "User"}
             className="h-full w-full object-cover"
             onError={(e) => {
@@ -108,10 +105,9 @@ const Navbar = () => {
                   />
                 </svg>
               </div>
-              <span className="ml-2 text-xl font-bold text-white">NovelNest</span>
+              <span className="ml-2 text-xl font-bold text-white">NovlNest</span>
             </Link>
           </div>
-
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
             <Link
@@ -124,7 +120,6 @@ const Navbar = () => {
             >
               Home
             </Link>
-
             <Link
               to="/novels"
               className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
@@ -135,7 +130,6 @@ const Navbar = () => {
             >
               Browse
             </Link>
-
             {currentUser ? (
               <>
                 <Link
@@ -148,7 +142,6 @@ const Navbar = () => {
                 >
                   Submit Novel
                 </Link>
-
                 {isAdmin && (
                   <>
                     <Link
@@ -173,7 +166,6 @@ const Navbar = () => {
                     </Link>
                   </>
                 )}
-
                 {/* Desktop User Dropdown */}
                 <div className="relative ml-4" ref={desktopDropdownRef}>
                   <button
@@ -191,7 +183,6 @@ const Navbar = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-
                   {/* Desktop Dropdown Menu */}
                   {isUserDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-60 bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
@@ -260,7 +251,6 @@ const Navbar = () => {
               </>
             )}
           </div>
-
           {/* Mobile User Avatar/Menu */}
           <div className="md:hidden flex items-center">
             <button
@@ -282,7 +272,6 @@ const Navbar = () => {
                 </div>
               )}
             </button>
-
             {/* Mobile Dropdown Menu */}
             {isUserDropdownOpen && (
               <div
@@ -304,7 +293,6 @@ const Navbar = () => {
                           </div>
                         </div>
                       </div>
-
                       {/* Navigation Links */}
                       <Link
                         to="/"
@@ -327,7 +315,6 @@ const Navbar = () => {
                           Home
                         </div>
                       </Link>
-
                       <Link
                         to="/novels"
                         onClick={closeDropdown}
@@ -349,7 +336,6 @@ const Navbar = () => {
                           Browse
                         </div>
                       </Link>
-
                       <Link
                         to="/submit"
                         onClick={closeDropdown}
@@ -371,7 +357,6 @@ const Navbar = () => {
                           Submit Novel
                         </div>
                       </Link>
-
                       {isAdmin && (
                         <>
                           <Link
@@ -401,7 +386,6 @@ const Navbar = () => {
                               Admin
                             </div>
                           </Link>
-
                           <Link
                             to="/generate"
                             onClick={closeDropdown}
@@ -425,7 +409,6 @@ const Navbar = () => {
                           </Link>
                         </>
                       )}
-
                       <div className="border-t border-gray-700 mt-1 pt-1">
                         <Link
                           to="/profile"
@@ -448,7 +431,6 @@ const Navbar = () => {
                             Profile
                           </div>
                         </Link>
-
                         <button
                           onClick={handleLogout}
                           className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30 transition-colors"
@@ -491,7 +473,6 @@ const Navbar = () => {
                           Home
                         </div>
                       </Link>
-
                       <Link
                         to="/novels"
                         onClick={closeDropdown}
@@ -513,7 +494,6 @@ const Navbar = () => {
                           Browse
                         </div>
                       </Link>
-
                       <div className="border-t border-gray-700 mt-1 pt-1">
                         <Link
                           to="/login"
@@ -532,7 +512,6 @@ const Navbar = () => {
                             Login
                           </div>
                         </Link>
-
                         <Link
                           to="/register"
                           onClick={closeDropdown}
@@ -562,5 +541,4 @@ const Navbar = () => {
     </nav>
   )
 }
-
 export default Navbar

@@ -15,13 +15,13 @@ const TermsOfService = () => {
           <div className="prose-invert max-w-none">
             <h2 className="text-2xl font-bold text-white mb-6">Agreement to Terms</h2>
             <p className="text-gray-300 mb-6">
-              By accessing and using NovelNest, you accept and agree to be bound by the terms and
+              By accessing and using Novlnest, you accept and agree to be bound by the terms and
               provision of this agreement. If you do not agree to abide by the above, please do not use this service.
             </p>
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">Description of Service</h2>
             <p className="text-gray-300 mb-6">
-              NovelNest is a platform that allows users to publish, share, and read original novels and stories. Our
+              Novlnest is a platform that allows users to publish, share, and read original novels and stories. Our
               service includes features for content creation, community interaction, and content discovery.
             </p>
 
@@ -41,7 +41,7 @@ const TermsOfService = () => {
 
             <h3 className="text-xl font-semibold text-white mb-4">Your Content</h3>
             <p className="text-gray-300 mb-4">
-              You retain ownership of the content you create and publish on NovelNest. By publishing content, you grant
+              You retain ownership of the content you create and publish on Novlnest. By publishing content, you grant
               us a non-exclusive, worldwide, royalty-free license to use, display, and distribute your content on our
               platform.
             </p>
@@ -62,7 +62,7 @@ const TermsOfService = () => {
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">Intellectual Property</h2>
             <p className="text-gray-300 mb-6">
-              The NovelNest platform, including its design, functionality, and original content, is protected by
+              The Novlnest platform, including its design, functionality, and original content, is protected by
               copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or
               create derivative works of our platform without explicit permission.
             </p>
@@ -108,7 +108,7 @@ const TermsOfService = () => {
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">Limitation of Liability</h2>
             <p className="text-gray-300 mb-6">
-              In no event shall NovelNest, nor its directors, employees, partners, agents, suppliers, or affiliates, be
+              In no event shall Novlnest, nor its directors, employees, partners, agents, suppliers, or affiliates, be
               liable for any indirect, incidental, punitive, consequential, or special damages arising out of or related
               to your use of the service.
             </p>

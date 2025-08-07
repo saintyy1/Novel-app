@@ -412,7 +412,7 @@ const NovelOverview = () => {
   }, [])
 
   const CommentItem = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => (
-    <div className={`bg-white/5 rounded-lg p-4 border border-white/10 ${isReply ? "ml-8 mt-2" : ""}`}>
+    <div className={`bg-white/5 rounded-lg p-4 border border-white/10 ${isReply ? "mt-2" : ""}`}>
       <div className="flex items-start space-x-3">
         <div className="flex-shrink-0">
           {comment.userPhoto ? (
