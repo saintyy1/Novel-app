@@ -20,8 +20,10 @@ import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import type { ExtendedUser } from "../context/AuthContext"
 import EditProfileModal from "../components/EditProfileModal" // Import the new modal component
-import { FaInstagram, FaTwitter, FaPlus, FaTrash } from "react-icons/fa" // Import social media icons and new icons
+import UserListDrawer from "../components/UserListDrawer" // Import the new UserListDrawer
+import { FaInstagram, FaTwitter } from "react-icons/fa" // Import social media icons
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
+import { Users, UserPlus, UserMinus, Megaphone, Plus, Trash2, Camera, X, Pencil } from 'lucide-react' // Use Lucide icons
 
 interface Announcement {
   id: string
@@ -42,28 +44,29 @@ const Profile = () => {
   const [photoError, setPhotoError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
-
   // New state for novel cover management
   const [selectedNovelForCover, setSelectedNovelForCover] = useState<Novel | null>(null)
   const [showNovelCoverModal, setShowNovelCoverModal] = useState(false)
   const [uploadingNovelCover, setUploadingNovelCover] = useState(false)
   const [novelCoverError, setNovelCoverError] = useState("")
   const novelCoverFileInputRef = useRef<HTMLInputElement>(null)
-
   // States for follow feature
   const [isFollowing, setIsFollowing] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [isTogglingFollow, setIsTogglingFollow] = useState(false)
-
   // New state for Edit Profile Modal
   const [showEditProfileModal, setShowEditProfileModal] = useState(false)
-
   // New states for Announcement Board
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [newAnnouncementContent, setNewAnnouncementContent] = useState("")
   const [submittingAnnouncement, setSubmittingAnnouncement] = useState(false)
   const [deletingAnnouncementId, setDeletingAnnouncementId] = useState<string | null>(null)
+
+  // New states for UserListDrawer
+  const [showFollowListDrawer, setShowFollowListDrawer] = useState(false)
+  const [followListType, setFollowListType] = useState<"followers" | "following" | null>(null)
+  const [displayedUserIds, setDisplayedUserIds] = useState<string[]>([])
 
   const isOwnProfile = !userId || userId === currentUser?.uid
 
@@ -77,7 +80,6 @@ const Profile = () => {
         setLoading(true)
         setError("")
         let fetchedUser: ExtendedUser | null = null
-
         // If viewing another user's profile, fetch their data
         if (userId && userId !== currentUser?.uid) {
           const userDoc = await getDoc(doc(db, "users", userId))
@@ -91,17 +93,14 @@ const Profile = () => {
           // Viewing own profile
           fetchedUser = currentUser
         }
-
         setProfileUser(fetchedUser)
         setFollowersCount(fetchedUser?.followers?.length || 0)
         setFollowingCount(fetchedUser?.following?.length || 0)
-
         if (currentUser && fetchedUser) {
           setIsFollowing(fetchedUser.followers?.includes(currentUser.uid) || false)
         } else {
           setIsFollowing(false)
         }
-
         // Fetch novels for the profile user
         const targetUserId = userId || currentUser?.uid
         if (targetUserId) {
@@ -133,13 +132,11 @@ const Profile = () => {
   // Fetch announcements for the profile user
   useEffect(() => {
     if (!profileUser?.uid) return
-
     const announcementsQuery = query(
       collection(db, "announcements"),
       where("authorId", "==", profileUser.uid),
       orderBy("createdAt", "desc"),
     )
-
     const unsubscribe = onSnapshot(
       announcementsQuery,
       (snapshot) => {
@@ -154,7 +151,6 @@ const Profile = () => {
         showErrorToast("Failed to load announcements.")
       },
     )
-
     return () => unsubscribe()
   }, [profileUser?.uid])
 
@@ -163,7 +159,7 @@ const Profile = () => {
       const canvas = document.createElement("canvas")
       const ctx = canvas.getContext("2d")!
       const img = new Image()
-      img.crossOrigin = "anonymous" // Important for CORS issues
+      img.crossOrigin = "anonymous" // Important for CORS issues [^1]
       img.onload = () => {
         // Calculate new dimensions
         let { width, height } = img
@@ -217,6 +213,7 @@ const Profile = () => {
           setPhotoError("Image is too large even after compression. Please use a smaller image.")
           return
         }
+
         // Update user photo in Firestore only
         await updateUserPhoto(resizedBase64)
         setPhotoError("Profile picture updated successfully!")
@@ -241,6 +238,7 @@ const Profile = () => {
   const removeProfilePicture = useCallback(
     async () => {
       if (!currentUser) return
+
       try {
         setUploadingPhoto(true)
         setPhotoError("")
@@ -266,6 +264,7 @@ const Profile = () => {
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       if (!file || !selectedNovelForCover) return
+
       if (file.size > 10 * 1024 * 1024) {
         setNovelCoverError("Cover image must be less than 10MB")
         return
@@ -274,6 +273,7 @@ const Profile = () => {
         setNovelCoverError("Cover image must be JPEG, PNG, or WebP format")
         return
       }
+
       try {
         setUploadingNovelCover(true)
         setNovelCoverError("")
@@ -283,10 +283,12 @@ const Profile = () => {
           setNovelCoverError("Image is too large even after compression. Please use a smaller image.")
           return
         }
+
         // Update novel document in Firestore
         const novelRef = doc(db, "novels", selectedNovelForCover.id)
         // Assuming updateDoc is imported from firebase/firestore
         await updateDoc(novelRef, { coverImage: resizedBase64 })
+
         // Update local state
         setUserNovels((prevNovels) =>
           prevNovels.map((novel) =>
@@ -312,12 +314,14 @@ const Profile = () => {
   const removeNovelCover = useCallback(
     async () => {
       if (!selectedNovelForCover) return
+
       try {
         setUploadingNovelCover(true)
         setNovelCoverError("")
         const novelRef = doc(db, "novels", selectedNovelForCover.id)
         // Assuming updateDoc is imported from firebase/firestore
         await updateDoc(novelRef, { coverImage: null })
+
         // Update local state
         setUserNovels((prevNovels) =>
           prevNovels.map((novel) => (novel.id === selectedNovelForCover.id ? { ...novel, coverImage: null } : novel)),
@@ -378,12 +382,19 @@ const Profile = () => {
     }
   }, [])
 
-  const formatDate = useCallback((dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDateTime = useCallback((dateString: string) => {
+    const date = new Date(dateString)
+    const datePart = date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     })
+    const timePart = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+    return `${datePart} ${timePart}`
   }, [])
 
   // Handle follow/unfollow
@@ -413,7 +424,6 @@ const Profile = () => {
     async (e: React.FormEvent) => {
       e.preventDefault()
       if (!newAnnouncementContent.trim() || !currentUser) return
-
       setSubmittingAnnouncement(true)
       try {
         await addDoc(collection(db, "announcements"), {
@@ -438,7 +448,6 @@ const Profile = () => {
     async (announcementId: string) => {
       if (!currentUser || !isOwnProfile) return // Only author can delete
       if (!window.confirm("Are you sure you want to delete this announcement?")) return
-
       setDeletingAnnouncementId(announcementId)
       try {
         await deleteDoc(doc(db, "announcements", announcementId))
@@ -451,6 +460,18 @@ const Profile = () => {
       }
     },
     [currentUser, isOwnProfile],
+  )
+
+  // Handle showing followers/following list
+  const handleShowFollowList = useCallback(
+    (type: "followers" | "following") => {
+      if (profileUser) {
+        setFollowListType(type)
+        setDisplayedUserIds(type === "followers" ? profileUser.followers || [] : profileUser.following || [])
+        setShowFollowListDrawer(true)
+      }
+    },
+    [profileUser],
   )
 
   if (!currentUser && !userId) {
@@ -533,20 +554,7 @@ const Profile = () => {
                         ></path>
                       </svg>
                     ) : (
-                      <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
+                      <Camera className="h-3 w-3 sm:h-4 sm:w-4" />
                     )}
                   </button>
                   {profileUser?.photoURL && (
@@ -556,14 +564,7 @@ const Profile = () => {
                       className="bg-red-600 hover:bg-red-700 text-white p-1.5 sm:p-2 rounded-full shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Remove profile picture"
                     >
-                      <svg className="h-3 w-3 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
+                      <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                     </button>
                   )}
                 </div>
@@ -584,16 +585,14 @@ const Profile = () => {
                 {profileUser?.displayName || "User"}
               </h1>
               <p className="text-gray-400 mt-1 break-all text-sm sm:text-base">{profileUser?.email}</p>
-
               {/* Bio Section */}
               <div className="mt-4">
                 <p className="text-gray-300 text-sm sm:text-base whitespace-pre-wrap">
                   {profileUser?.bio || (isOwnProfile ? "Add a short bio about yourself." : "No bio available.")}
                 </p>
               </div>
-
               {/* Social Media Links */}
-              <div className="mt-4 flex flex-wrap gap-3 justify-center sm:justify-start">
+              <div className="mt-4 flex flex-wrap gap-4 justify-center sm:justify-start">
                 {profileUser?.instagramUrl && (
                   <a
                     href={profileUser.instagramUrl}
@@ -602,7 +601,7 @@ const Profile = () => {
                     className="text-purple-600 hover:text-purple-400 transition-colors flex items-center text-sm"
                     title="Instagram Profile"
                   >
-                    <FaInstagram className="h-5 w-5 mr-1" /> Instagram
+                    <FaInstagram className="h-5 w-5" />
                   </a>
                 )}
                 {profileUser?.twitterUrl && (
@@ -613,11 +612,10 @@ const Profile = () => {
                     className="text-blue-600 hover:text-blue-400 transition-colors flex items-center text-sm"
                     title="Twitter Profile"
                   >
-                    <FaTwitter className="h-5 w-5 mr-1" /> Twitter
+                    <FaTwitter className="h-5 w-5" />
                   </a>
                 )}
               </div>
-
               {/* Photo Error/Success Message */}
               {isOwnProfile && photoError && (
                 <div
@@ -628,8 +626,7 @@ const Profile = () => {
                   {photoError}
                 </div>
               )}
-
-              <div className="mt-4 flex flex-wrap gap-4 text-xs sm:text-sm text-gray-400 justify-center sm:justify-start">
+              <div className="mt-4 flex flex-wrap gap-4 text-xs sm:text-sm text-gray-200 justify-center sm:justify-start">
                 <div className="flex items-center">
                   <svg className="h-3 w-3 sm:h-4 sm:w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -640,54 +637,31 @@ const Profile = () => {
                     />
                   </svg>
                   <span className="truncate">
-                    {userNovels.reduce((total, novel) => total + (novel.likes || 0), 0)} Likes
+                    <span className="font-bold text-white">{userNovels.reduce((total, novel) => total + (novel.likes || 0), 0)}</span> Likes
                   </span>
                 </div>
-                
-                {/* New: Followers and Following Counts */}
-                <div className="flex items-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-users mr-1"
-                  >
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                  <span className="truncate">{followersCount} Followers</span>
+                {/* Followers Count - Clickable */}
+                <div
+                  className="flex items-center cursor-pointer hover:text-gray-400 transition-all duration-200"
+                  onClick={() => handleShowFollowList("followers")}
+                >
+                  <Users className="h-4 w-4 mr-1" />
+                  <span className="truncate">
+                    <span className="font-bold text-white">{followersCount} </span>
+                    {followersCount === 1 ? "Follower" : "Followers"}
+                  </span>
                 </div>
-                <div className="flex items-center justify-center sm:justify-start">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-user-plus mr-1"
-                  >
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <line x1="19" x2="19" y1="8" y2="14" />
-                    <line x1="22" x2="16" y1="11" y2="11" />
-                  </svg>
-                  <span className="truncate">{followingCount} Following</span>
+
+                {/* Following Count - Clickable */}
+                <div
+                  className="flex items-center justify-center sm:justify-start cursor-pointer hover:text-gray-400 transition-all duration-200"
+                  onClick={() => handleShowFollowList("following")}
+                >
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  <span className="truncate"><span className="font-bold text-white">{followingCount}</span> Following</span>
                 </div>
               </div>
             </div>
-
             {/* Action Buttons (Submit Novel / Follow / Edit Profile) */}
             <div className="flex flex-col justify-center sm:justify-end w-full sm:w-auto space-y-2">
               {isOwnProfile ? (
@@ -696,14 +670,7 @@ const Profile = () => {
                     to="/submit"
                     className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors"
                   >
-                    <svg
-                      className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
+                    <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     <span className="hidden sm:inline">Submit New Novel</span>
                     <span className="sm:hidden">New Novel</span>
                   </Link>
@@ -711,21 +678,7 @@ const Profile = () => {
                     onClick={() => setShowEditProfileModal(true)}
                     className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 transition-colors"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="lucide lucide-pencil mr-1 sm:mr-2"
-                    >
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                    </svg>
+                    <Pencil className="h-4 w-4 mr-1 sm:mr-2" />
                     Edit Profile
                   </button>
                 </>
@@ -760,44 +713,11 @@ const Profile = () => {
                       </>
                     ) : isFollowing ? ( // Show normal text
                       <>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="lucide lucide-user-minus mr-2"
-                        >
-                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                          <circle cx="9" cy="7" r="4" />
-                          <line x1="22" x2="16" y1="11" y2="11" />
-                        </svg>
-                        Unfollow
+                        <UserMinus className="h-4 w-4 mr-2" /> Unfollow
                       </>
                     ) : (
                       <>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="lucide lucide-user-plus mr-2"
-                        >
-                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                          <circle cx="9" cy="7" r="4" />
-                          <line x1="19" x2="19" y1="8" y2="14" />
-                          <line x1="22" x2="16" y1="11" y2="11" />
-                        </svg>
-                        Follow
+                        <UserPlus className="h-4 w-4 mr-2" /> Follow
                       </>
                     )}
                   </button>
@@ -806,7 +726,6 @@ const Profile = () => {
             </div>
           </div>
         </div>
-
         {/* Photo Modal */}
         {showPhotoModal && profileUser?.photoURL && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -815,9 +734,8 @@ const Profile = () => {
                 onClick={() => setShowPhotoModal(false)}
                 className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
               >
-                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="h-8 w-8" />
+                <span className="sr-only">Close</span>
               </button>
               <img
                 src={profileUser.photoURL || "/placeholder.svg"}
@@ -828,28 +746,10 @@ const Profile = () => {
             </div>
           </div>
         )}
-
         {/* Announcements Section */}
         <div className="bg-gray-800 rounded-xl shadow-md p-4 sm:p-6 mb-8">
           <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 flex items-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-megaphone mr-2 text-purple-400"
-            >
-              <path d="m3 11 18-2L13 3 3 11Z" />
-              <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
-              <path d="M11.6 16.8a3 3 0 1 0-5.8-1.6" />
-              <path d="M2 11c0 7.3-2 9-2 9h22s-2-1.7-2-9" />
-              <path d="M18 11a3 3 0 0 0-3-3H2" />
-            </svg>
+            <Megaphone className="h-6 w-6 mr-2 text-purple-400" />
             Announcements
           </h2>
           {isOwnProfile && (
@@ -889,7 +789,7 @@ const Profile = () => {
                     </>
                   ) : (
                     <>
-                      <FaPlus className="h-3 w-3 mr-2" />
+                      <Plus className="h-3 w-3 mr-2" />
                       Post Announcement
                     </>
                   )}
@@ -897,7 +797,6 @@ const Profile = () => {
               </div>
             </form>
           )}
-
           <div className="space-y-4">
             {announcements.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
@@ -909,7 +808,7 @@ const Profile = () => {
                 <div key={announcement.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600 relative">
                   <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">{announcement.content}</p>
                   <div className="flex justify-between items-center mt-3 text-xs text-gray-400">
-                    <span>Posted: {formatDate(announcement.createdAt)}</span>
+                    <span>{formatDateTime(announcement.createdAt)}</span>
                     {isOwnProfile && (
                       <button
                         onClick={() => handleDeleteAnnouncement(announcement.id)}
@@ -934,7 +833,7 @@ const Profile = () => {
                             ></path>
                           </svg>
                         ) : (
-                          <FaTrash className="h-3 w-3 mr-1" />
+                          <Trash2 className="h-3 w-3 mr-1" />
                         )}
                         Delete
                       </button>
@@ -945,7 +844,6 @@ const Profile = () => {
             )}
           </div>
         </div>
-
         {/* Novels Section */}
         <div className="bg-gray-800 rounded-xl shadow-md">
           {/* Tab Navigation */}
@@ -1013,15 +911,15 @@ const Profile = () => {
                   {activeTab === "all"
                     ? "No novels yet"
                     : activeTab === "published"
-                    ? "No published novels"
-                    : "No pending novels"}
+                      ? "No published novels"
+                      : "No pending novels"}
                 </h3>
                 <p className="mt-1 text-sm text-gray-400">
                   {activeTab === "all"
                     ? "Get started by submitting your first novel."
                     : activeTab === "published"
-                    ? "Your published novels will appear here."
-                    : "Novels awaiting review will appear here."}
+                      ? "Your published novels will appear here."
+                      : "Novels awaiting review will appear here."}
                 </p>
                 {activeTab === "all" && isOwnProfile && (
                   <div className="mt-6">
@@ -1029,14 +927,7 @@ const Profile = () => {
                       to="/submit"
                       className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
                     >
-                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                        />
-                      </svg>
+                      <Plus className="h-4 w-4 mr-2" />
                       Submit Your First Novel
                     </Link>
                   </div>
@@ -1088,26 +979,13 @@ const Profile = () => {
                           className="absolute top-2 left-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full shadow-lg transition-colors z-10"
                           title="Edit novel cover"
                         >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
-                          </svg>
+                          <Camera className="h-4 w-4" />
                         </button>
                       )}
                     </div>
                     {/* Novel Content */}
                     <div className="p-6">
-                      <div className="text-xs text-gray-500 mb-4">Created: {formatDate(novel.createdAt)}</div>
+                      <div className="text-xs text-gray-500 mb-4">Created: {formatDateTime(novel.createdAt)}</div>
                       {/* Action Buttons */}
                       <div className="flex space-x-3">
                         {novel.published ? (
@@ -1136,14 +1014,7 @@ const Profile = () => {
                                 to={`/novel/${novel.id}/add-chapters`}
                                 className="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30"
                               >
-                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                  />
-                                </svg>
+                                <Plus className="h-4 w-4" />
                               </Link>
                             )}
                           </>
@@ -1177,9 +1048,8 @@ const Profile = () => {
               className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
               title="Close"
             >
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="h-6 w-6" />
+              <span className="sr-only">Close</span>
             </button>
             <h2 className="text-xl font-bold text-white mb-4">Edit Cover for "{selectedNovelForCover.title}"</h2>
             <div className="flex flex-col items-center space-y-4">
@@ -1225,20 +1095,7 @@ const Profile = () => {
                         ></path>
                       </svg>
                     ) : (
-                      <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
+                      <Camera className="h-5 w-5 mr-2" />
                     )}
                     Upload New Cover
                   </button>
@@ -1248,14 +1105,7 @@ const Profile = () => {
                       disabled={uploadingNovelCover}
                       className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
+                      <Trash2 className="h-5 w-5 mr-2" />
                       Remove Cover
                     </button>
                   )}
@@ -1291,7 +1141,17 @@ const Profile = () => {
           profileUser={profileUser}
         />
       )}
+      {/* User List Drawer */}
+      {showFollowListDrawer && (
+        <UserListDrawer
+          isOpen={showFollowListDrawer}
+          onClose={() => setShowFollowListDrawer(false)}
+          userIds={displayedUserIds}
+          title={followListType === "followers" ? "Followers" : "Following"}
+        />
+      )}
     </div>
   )
 }
+
 export default Profile

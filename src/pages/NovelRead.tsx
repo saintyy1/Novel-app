@@ -431,7 +431,7 @@ const NovelRead = () => {
   }
 
   // Helper: Paginate paragraphs into pages
-  const paginateContentIntoPages = (paragraphs: string[], paragraphsPerPage = 8) => {
+  const paginateContentIntoPages = (paragraphs: string[], paragraphsPerPage = 6) => {
     const contentPages: string[][] = []
     for (let i = 0; i < paragraphs.length; i += paragraphsPerPage) {
       contentPages.push(paragraphs.slice(i, i + paragraphsPerPage))
@@ -444,7 +444,7 @@ const NovelRead = () => {
     if (!novel || chapterIndex >= novel.chapters.length) return 0
     const chapterContent = novel.chapters[chapterIndex]?.content || ""
     const formattedParagraphs = formatContent(chapterContent)
-    const contentPages = paginateContentIntoPages(formattedParagraphs, 8)
+    const contentPages = paginateContentIntoPages(formattedParagraphs, 6)
     return 1 + contentPages.length // 1 for title page + content pages
   }
 
@@ -464,7 +464,7 @@ const NovelRead = () => {
   // Prepare pages for the current chapter, including the title page
   const chapterContent = novel?.chapters[currentChapter]?.content || ""
   const formattedParagraphs = formatContent(chapterContent)
-  const contentPages = paginateContentIntoPages(formattedParagraphs, 8) // 8 paragraphs per page
+  const contentPages = paginateContentIntoPages(formattedParagraphs, 6) // 6 paragraphs per page
   const chapterPages: ("title" | string[])[] = []
   if (novel) {
     chapterPages.push("title") // First page is always the chapter title page
@@ -490,7 +490,7 @@ const NovelRead = () => {
         const prevChapter = currentChapter - 1
         const prevChapterContent = novel?.chapters[prevChapter]?.content || ""
         const prevFormattedParagraphs = formatContent(prevChapterContent)
-        const prevContentPages = paginateContentIntoPages(prevFormattedParagraphs, 8)
+        const prevContentPages = paginateContentIntoPages(prevFormattedParagraphs, 6)
         const prevChapterPages = ["title", ...prevContentPages]
         const targetPage = prevChapterPages.length - 1
 
