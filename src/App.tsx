@@ -36,10 +36,8 @@ function AppContent() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:userId" element={<Profile />} />
             <Route path="/novels" element={<Novels />} />
-            {/* New route for trending/new-releases */}
             <Route path="/novels/:type" element={<Novels />} />
             <Route path="/novel/:id" element={<NovelOverview />} />
             <Route path="/novel/:id/read" element={<NovelRead />} />

@@ -21,7 +21,7 @@ import type { Novel } from "../types/novel"
 import type { ExtendedUser } from "../context/AuthContext"
 import EditProfileModal from "../components/EditProfileModal" // Import the new modal component
 import UserListDrawer from "../components/UserListDrawer" // Import the new UserListDrawer
-import { FaInstagram, FaTwitter } from "react-icons/fa" // Import social media icons
+import { FaInstagram, FaTwitter, FaTimes, FaFacebook, FaWhatsapp, FaCopy, FaShare } from "react-icons/fa" // Import social media icons
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
 import { Users, UserPlus, UserMinus, Megaphone, Plus, Trash2, Camera, X, Pencil } from 'lucide-react' // Use Lucide icons
 
@@ -47,6 +47,8 @@ const Profile = () => {
   // New state for novel cover management
   const [selectedNovelForCover, setSelectedNovelForCover] = useState<Novel | null>(null)
   const [showNovelCoverModal, setShowNovelCoverModal] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false)
+  const [copySuccess, setCopySuccess] = useState<boolean>(false)
   const [uploadingNovelCover, setUploadingNovelCover] = useState(false)
   const [novelCoverError, setNovelCoverError] = useState("")
   const novelCoverFileInputRef = useRef<HTMLInputElement>(null)
@@ -69,6 +71,7 @@ const Profile = () => {
   const [displayedUserIds, setDisplayedUserIds] = useState<string[]>([])
 
   const isOwnProfile = !userId || userId === currentUser?.uid
+  const displayName = profileUser?.displayName || currentUser?.displayName || "User"
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -349,6 +352,83 @@ const Profile = () => {
     setSelectedNovelForCover(null)
     setNovelCoverError("") // Clear any previous errors
   }, [])
+
+  const handleCopyLink = async () => {
+    const novelUrl = `${window.location.origin}/profile/${userId}`
+    try {
+      await navigator.clipboard.writeText(novelUrl)
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
+    } catch (error) {
+      console.error("Failed to copy link:", error)
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea")
+      textArea.value = novelUrl
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand("copy")
+      document.body.removeChild(textArea)
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
+    }
+  }
+
+  const handleSocialShare = (platform: string) => {
+    if (!userId) return
+    const novelUrl = `${window.location.origin}/profile/${userId}`
+    const shareText = `Follow ${displayName} on NovlNest!`
+    let shareUrl = ""
+    switch (platform) {
+      case "facebook":
+        // Use the Facebook app URL scheme for mobile
+        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          shareUrl = `fb://share?link=${encodeURIComponent(novelUrl)}`
+        } else {
+          shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(novelUrl)}`
+        }
+        break
+      case "twitter":
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(novelUrl)}`
+        break
+      case "whatsapp":
+        // Use the WhatsApp app URL scheme for mobile
+        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          shareUrl = `whatsapp://send?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`
+        } else {
+          shareUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`
+        }
+        break
+      default:
+        return
+    }
+    // For mobile apps, try to open the app first, fallback to web if it fails
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      const appWindow = window.open(shareUrl, "_blank")
+      // If app window failed to open (app not installed), fallback to web version
+      if (!appWindow || appWindow.closed || typeof appWindow.closed === "undefined") {
+        setTimeout(() => {
+          switch (platform) {
+            case "facebook":
+              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(novelUrl)}`, "_blank")
+              break
+            case "whatsapp":
+              window.open(
+                `https://web.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`,
+                "_blank",
+              )
+              break
+          }
+        }, 1000)
+      }
+    } else {
+      // For desktop, open in a popup window
+      window.open(shareUrl, "_blank", "width=600,height=400")
+    }
+  }
+
+  const handleShare = () => {
+    setShowProfileModal(true)
+  }
 
   const getUserInitials = useCallback((name: string | null | undefined) => {
     if (!name) return "U"
@@ -680,6 +760,13 @@ const Profile = () => {
                   >
                     <Pencil className="h-4 w-4 mr-1 sm:mr-2" />
                     Edit Profile
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 transition-colors"
+                  >
+                    <FaShare className="h-4 w-4 mr-2" />
+                    Share Profile
                   </button>
                 </>
               ) : (
@@ -1039,6 +1126,67 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+            {showProfileModal && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+                <div className="bg-gray-800 rounded-2xl p-4 sm:p-6 max-w-md w-full mx-2 sm:mx-0 border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-white">My Profile</h3>
+                    <button
+                      onClick={() => setShowProfileModal(false)}
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      <FaTimes className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {/* Copy Link */}
+                    <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 inline-grid mr-3">
+                          <p className="text-sm text-gray-300 mb-1">Share Link</p>
+                          <p className="text-xs text-gray-400 truncate">{`${window.location.origin}/profile/${userId}`}</p>
+                        </div>
+                        <button
+                          onClick={handleCopyLink}
+                          className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
+                          }`}
+                        >
+                          <FaCopy className="h-4 w-4 mr-2" />
+                          {copySuccess ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+                    </div>
+                    {/* Social Media Buttons */}
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-300 font-medium">Share on social media</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <button
+                          onClick={() => handleSocialShare("facebook")}
+                          className="flex flex-col items-center justify-center py-[0.5rem] bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                        >
+                          <FaFacebook className="h-6 w-6 text-white" />
+                        </button>
+                        <button
+                          onClick={() => handleSocialShare("twitter")}
+                          className="flex flex-col items-center justify-center py-[0.5rem] bg-sky-500 hover:bg-sky-600 rounded-lg transition-colors"
+                        >
+                          <FaTwitter className="h-6 w-6 text-white" />
+                        </button>
+                        <button
+                          onClick={() => handleSocialShare("whatsapp")}
+                          className="flex flex-col items-center justify-center py-[0.5rem] bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                        >
+                          <FaWhatsapp className="h-6 w-6 text-white" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
       {/* Novel Cover Modal */}
       {showNovelCoverModal && selectedNovelForCover && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">

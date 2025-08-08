@@ -197,7 +197,7 @@ const Navbar = () => {
                           </div>
                         </div>
                         <Link
-                          to="/profile"
+                          to={`/profile/${currentUser.uid}`}
                           onClick={closeDropdown}
                           className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         >
@@ -411,7 +411,7 @@ const Navbar = () => {
                       )}
                       <div className="border-t border-gray-700 mt-1 pt-1">
                         <Link
-                          to="/profile"
+                          to={`/profile/${currentUser.uid}`}
                           onClick={closeDropdown}
                           className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
                             isActive("/profile")
