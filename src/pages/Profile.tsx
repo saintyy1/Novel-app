@@ -1,4 +1,5 @@
 "use client"
+
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Link, useParams } from "react-router-dom"
@@ -21,9 +22,10 @@ import type { Novel } from "../types/novel"
 import type { ExtendedUser } from "../context/AuthContext"
 import EditProfileModal from "../components/EditProfileModal" // Import the new modal component
 import UserListDrawer from "../components/UserListDrawer" // Import the new UserListDrawer
-import { FaInstagram, FaTwitter, FaTimes, FaFacebook, FaWhatsapp, FaCopy, FaShare } from "react-icons/fa" // Import social media icons
+import { FaInstagram, FaTimes, FaFacebook, FaWhatsapp, FaCopy, FaShare } from "react-icons/fa"
+import { FaXTwitter } from "react-icons/fa6"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
-import { Users, UserPlus, UserMinus, Megaphone, Plus, Trash2, Camera, X, Pencil } from 'lucide-react' // Use Lucide icons
+import { Users, UserPlus, UserMinus, Megaphone, Plus, Trash2, Camera, X, Pencil } from "lucide-react" // Use Lucide icons
 
 interface Announcement {
   id: string
@@ -37,7 +39,7 @@ const Profile = () => {
   const { currentUser, updateUserPhoto, toggleFollow } = useAuth()
   const [profileUser, setProfileUser] = useState<ExtendedUser | null>(null)
   const [userNovels, setUserNovels] = useState<Novel[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true) // Initialize loading to true
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState<"published" | "pending" | "all">("all")
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
@@ -64,7 +66,6 @@ const Profile = () => {
   const [newAnnouncementContent, setNewAnnouncementContent] = useState("")
   const [submittingAnnouncement, setSubmittingAnnouncement] = useState(false)
   const [deletingAnnouncementId, setDeletingAnnouncementId] = useState<string | null>(null)
-
   // New states for UserListDrawer
   const [showFollowListDrawer, setShowFollowListDrawer] = useState(false)
   const [followListType, setFollowListType] = useState<"followers" | "following" | null>(null)
@@ -104,6 +105,7 @@ const Profile = () => {
         } else {
           setIsFollowing(false)
         }
+
         // Fetch novels for the profile user
         const targetUserId = userId || currentUser?.uid
         if (targetUserId) {
@@ -209,6 +211,7 @@ const Profile = () => {
         setPhotoError("")
         // Resize and compress the image more aggressively for Firestore storage
         const resizedBase64 = await resizeImage(file, 200, 200, 0.7)
+
         // Check if the compressed image is reasonable size for Firestore
         // Firestore has a 1MB document limit, so we need to be conservative
         if (resizedBase64.length > 200000) {
@@ -238,29 +241,25 @@ const Profile = () => {
     [currentUser, resizeImage, updateUserPhoto],
   )
 
-  const removeProfilePicture = useCallback(
-    async () => {
-      if (!currentUser) return
-
-      try {
-        setUploadingPhoto(true)
+  const removeProfilePicture = useCallback(async () => {
+    if (!currentUser) return
+    try {
+      setUploadingPhoto(true)
+      setPhotoError("")
+      // Remove photo from Firestore
+      await updateUserPhoto(null)
+      setPhotoError("Profile picture removed successfully!")
+      // Clear success message after 3 seconds
+      setTimeout(() => {
         setPhotoError("")
-        // Remove photo from Firestore
-        await updateUserPhoto(null)
-        setPhotoError("Profile picture removed successfully!")
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setPhotoError("")
-        }, 3000)
-      } catch (err) {
-        console.error("Error removing profile picture:", err)
-        setPhotoError("Failed to remove profile picture. Please try again.")
-      } finally {
-        setUploadingPhoto(false)
-      }
-    },
-    [currentUser, updateUserPhoto],
-  )
+      }, 3000)
+    } catch (err) {
+      console.error("Error removing profile picture:", err)
+      setPhotoError("Failed to remove profile picture. Please try again.")
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }, [currentUser, updateUserPhoto])
 
   // New functions for novel cover management
   const handleNovelCoverUpload = useCallback(
@@ -281,6 +280,7 @@ const Profile = () => {
         setUploadingNovelCover(true)
         setNovelCoverError("")
         const resizedBase64 = await resizeImage(file, 400, 600, 0.8) // Adjust dimensions for novel covers
+
         if (resizedBase64.length > 500000) {
           // ~400KB limit for novel covers
           setNovelCoverError("Image is too large even after compression. Please use a smaller image.")
@@ -314,33 +314,29 @@ const Profile = () => {
     [resizeImage, selectedNovelForCover],
   )
 
-  const removeNovelCover = useCallback(
-    async () => {
-      if (!selectedNovelForCover) return
+  const removeNovelCover = useCallback(async () => {
+    if (!selectedNovelForCover) return
+    try {
+      setUploadingNovelCover(true)
+      setNovelCoverError("")
+      const novelRef = doc(db, "novels", selectedNovelForCover.id)
+      // Assuming updateDoc is imported from firebase/firestore
+      await updateDoc(novelRef, { coverImage: null })
 
-      try {
-        setUploadingNovelCover(true)
-        setNovelCoverError("")
-        const novelRef = doc(db, "novels", selectedNovelForCover.id)
-        // Assuming updateDoc is imported from firebase/firestore
-        await updateDoc(novelRef, { coverImage: null })
-
-        // Update local state
-        setUserNovels((prevNovels) =>
-          prevNovels.map((novel) => (novel.id === selectedNovelForCover.id ? { ...novel, coverImage: null } : novel)),
-        )
-        setSelectedNovelForCover((prev) => (prev ? { ...prev, coverImage: null } : null))
-        setNovelCoverError("Novel cover removed successfully!")
-        setTimeout(() => setNovelCoverError(""), 3000)
-      } catch (err) {
-        console.error("Error removing novel cover:", err)
-        setNovelCoverError("Failed to remove novel cover. Please try again.")
-      } finally {
-        setUploadingNovelCover(false)
-      }
-    },
-    [selectedNovelForCover],
-  )
+      // Update local state
+      setUserNovels((prevNovels) =>
+        prevNovels.map((novel) => (novel.id === selectedNovelForCover.id ? { ...novel, coverImage: null } : novel)),
+      )
+      setSelectedNovelForCover((prev) => (prev ? { ...prev, coverImage: null } : null))
+      setNovelCoverError("Novel cover removed successfully!")
+      setTimeout(() => setNovelCoverError(""), 3000)
+    } catch (err) {
+      console.error("Error removing novel cover:", err)
+      setNovelCoverError("Failed to remove novel cover. Please try again.")
+    } finally {
+      setUploadingNovelCover(false)
+    }
+  }, [selectedNovelForCover])
 
   const openNovelCoverModal = useCallback((novel: Novel) => {
     setSelectedNovelForCover(novel)
@@ -378,6 +374,7 @@ const Profile = () => {
     const novelUrl = `${window.location.origin}/profile/${userId}`
     const shareText = `Follow ${displayName} on NovlNest!`
     let shareUrl = ""
+
     switch (platform) {
       case "facebook":
         // Use the Facebook app URL scheme for mobile
@@ -401,6 +398,7 @@ const Profile = () => {
       default:
         return
     }
+
     // For mobile apps, try to open the app first, fallback to web if it fails
     if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
       const appWindow = window.open(shareUrl, "_blank")
@@ -478,32 +476,30 @@ const Profile = () => {
   }, [])
 
   // Handle follow/unfollow
-  const handleFollowToggle = useCallback(
-    async () => {
-      if (!currentUser || !profileUser || isOwnProfile) return
-      setIsTogglingFollow(true) // Set loading state
-      try {
-        await toggleFollow(profileUser.uid, isFollowing)
-        // Optimistically update UI
-        setIsFollowing((prev) => !prev)
-        setFollowersCount((prev) => (isFollowing ? prev - 1 : prev + 1))
-      } catch (err) {
-        console.error("Error toggling follow:", err)
-        // Revert UI if error
-        setIsFollowing((prev) => prev)
-        setFollowersCount((prev) => prev)
-      } finally {
-        setIsTogglingFollow(false) // Reset loading state
-      }
-    },
-    [currentUser, profileUser, isOwnProfile, isFollowing, toggleFollow],
-  )
+  const handleFollowToggle = useCallback(async () => {
+    if (!currentUser || !profileUser || isOwnProfile) return
+    setIsTogglingFollow(true) // Set loading state
+    try {
+      await toggleFollow(profileUser.uid, isFollowing)
+      // Optimistically update UI
+      setIsFollowing((prev) => !prev)
+      setFollowersCount((prev) => (isFollowing ? prev - 1 : prev + 1))
+    } catch (err) {
+      console.error("Error toggling follow:", err)
+      // Revert UI if error
+      setIsFollowing((prev) => prev)
+      setFollowersCount((prev) => prev)
+    } finally {
+      setIsTogglingFollow(false) // Reset loading state
+    }
+  }, [currentUser, profileUser, isOwnProfile, isFollowing, toggleFollow])
 
   // Handle posting new announcement
   const handlePostAnnouncement = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault()
       if (!newAnnouncementContent.trim() || !currentUser) return
+
       setSubmittingAnnouncement(true)
       try {
         await addDoc(collection(db, "announcements"), {
@@ -528,6 +524,7 @@ const Profile = () => {
     async (announcementId: string) => {
       if (!currentUser || !isOwnProfile) return // Only author can delete
       if (!window.confirm("Are you sure you want to delete this announcement?")) return
+
       setDeletingAnnouncementId(announcementId)
       try {
         await deleteDoc(doc(db, "announcements", announcementId))
@@ -566,6 +563,15 @@ const Profile = () => {
             Go to Login
           </Link>
         </div>
+      </div>
+    )
+  }
+
+  // Full-page loading spinner
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-600"></div>
       </div>
     )
   }
@@ -689,10 +695,10 @@ const Profile = () => {
                     href={profileUser.twitterUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-400 transition-colors flex items-center text-sm"
+                    className="text-gray-600 hover:text-gray-400 transition-colors flex items-center text-sm"
                     title="Twitter Profile"
                   >
-                    <FaTwitter className="h-5 w-5" />
+                    <FaXTwitter className="h-5 w-5" />
                   </a>
                 )}
               </div>
@@ -717,7 +723,10 @@ const Profile = () => {
                     />
                   </svg>
                   <span className="truncate">
-                    <span className="font-bold text-white">{userNovels.reduce((total, novel) => total + (novel.likes || 0), 0)}</span> Likes
+                    <span className="font-bold text-white">
+                      {userNovels.reduce((total, novel) => total + (novel.likes || 0), 0)}
+                    </span>{" "}
+                    Likes
                   </span>
                 </div>
                 {/* Followers Count - Clickable */}
@@ -731,21 +740,23 @@ const Profile = () => {
                     {followersCount === 1 ? "Follower" : "Followers"}
                   </span>
                 </div>
-
                 {/* Following Count - Clickable */}
                 <div
                   className="flex items-center justify-center sm:justify-start cursor-pointer hover:text-gray-400 transition-all duration-200"
                   onClick={() => handleShowFollowList("following")}
                 >
                   <UserPlus className="h-4 w-4 mr-1" />
-                  <span className="truncate"><span className="font-bold text-white">{followingCount}</span> Following</span>
+                  <span className="truncate">
+                    <span className="font-bold text-white">{followingCount}</span> Following
+                  </span>
                 </div>
               </div>
             </div>
             {/* Action Buttons (Submit Novel / Follow / Edit Profile) */}
-            <div className="flex flex-col justify-center sm:justify-end w-full sm:w-auto space-y-2">
+            <div className="flex flex-col sm:flex-col justify-center sm:justify-end w-full sm:w-auto gap-2">
               {isOwnProfile ? (
                 <>
+                  {/* New Novel Button always on top */}
                   <Link
                     to="/submit"
                     className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors"
@@ -754,65 +765,80 @@ const Profile = () => {
                     <span className="hidden sm:inline">Submit New Novel</span>
                     <span className="sm:hidden">New Novel</span>
                   </Link>
-                  <button
-                    onClick={() => setShowEditProfileModal(true)}
-                    className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 transition-colors"
-                  >
-                    <Pencil className="h-4 w-4 mr-1 sm:mr-2" />
-                    Edit Profile
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 transition-colors"
-                  >
-                    <FaShare className="h-4 w-4 mr-2" />
-                    Share Profile
-                  </button>
+                  {/* Edit + Share below, side-by-side on mobile, stacked on sm+ */}
+                  <div className="flex flex-row sm:flex-col gap-2">
+                    <button
+                      onClick={() => setShowEditProfileModal(true)}
+                      className="inline-flex items-center justify-center w-full px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 transition-colors"
+                    >
+                      <Pencil className="h-4 w-4 mr-1 sm:mr-2" />
+                      Edit Profile
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      className="inline-flex items-center justify-center px-3 w-full sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 transition-colors"
+                    >
+                      <FaShare className="h-4 w-4 mr-2" />
+                      Share Profile
+                    </button>
+                  </div>
                 </>
               ) : (
                 currentUser &&
                 profileUser && (
-                  <button
-                    onClick={handleFollowToggle}
-                    disabled={!currentUser || !profileUser || isTogglingFollow} // Disable when toggling
-                    className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors mx-auto ${
-                      isFollowing ? "bg-gray-600 hover:bg-gray-700" : "bg-purple-600 hover:bg-purple-700"
-                    } ${isTogglingFollow ? "opacity-50 cursor-not-allowed" : ""}`} // Add opacity for loading
-                  >
-                    {isTogglingFollow ? ( // Show loading text and spinner
-                      <>
-                        <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        {isFollowing ? "Unfollowing..." : "Following..."}
-                      </>
-                    ) : isFollowing ? ( // Show normal text
-                      <>
-                        <UserMinus className="h-4 w-4 mr-2" /> Unfollow
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="h-4 w-4 mr-2" /> Follow
-                      </>
-                    )}
-                  </button>
+                  <div className="flex flex-row justify-center sm:flex-col gap-2">
+                    {/* Follow / Unfollow Button */}
+                    <button
+                      onClick={handleFollowToggle}
+                      disabled={!currentUser || !profileUser || isTogglingFollow}
+                      className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors ${
+                        isFollowing ? "bg-gray-600 hover:bg-gray-700" : "bg-purple-600 hover:bg-purple-700"
+                      } ${isTogglingFollow ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                      {isTogglingFollow ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          {isFollowing ? "Unfollowing..." : "Following..."}
+                        </>
+                      ) : isFollowing ? (
+                        <>
+                          <UserMinus className="h-4 w-4 mr-2" /> Unfollow
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="h-4 w-4 mr-2" /> Follow
+                        </>
+                      )}
+                    </button>
+                    {/* Share Button next to Follow on mobile, stacked on sm+ */}
+                    <button
+                      onClick={handleShare}
+                      className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 transition-colors"
+                    >
+                      <FaShare className="h-4 w-4 mr-2" />
+                      Share Profile
+                    </button>
+                  </div>
                 )
               )}
             </div>
           </div>
         </div>
+
         {/* Photo Modal */}
         {showPhotoModal && profileUser?.photoURL && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -833,6 +859,7 @@ const Profile = () => {
             </div>
           </div>
         )}
+
         {/* Announcements Section */}
         <div className="bg-gray-800 rounded-xl shadow-md p-4 sm:p-6 mb-8">
           <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 flex items-center">
@@ -931,6 +958,7 @@ const Profile = () => {
             )}
           </div>
         </div>
+
         {/* Novels Section */}
         <div className="bg-gray-800 rounded-xl shadow-md">
           {/* Tab Navigation */}
@@ -970,11 +998,7 @@ const Profile = () => {
           </div>
           {/* Content */}
           <div className="p-6">
-            {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-              </div>
-            ) : error ? (
+            {error ? (
               <div className="text-center py-12">
                 <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg">{error}</div>
               </div>
@@ -1128,65 +1152,68 @@ const Profile = () => {
       </div>
 
       {/* Share Modal */}
-            {showProfileModal && (
-              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-                <div className="bg-gray-800 rounded-2xl p-4 sm:p-6 max-w-md w-full mx-2 sm:mx-0 border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-white">My Profile</h3>
-                    <button
-                      onClick={() => setShowProfileModal(false)}
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      <FaTimes className="h-5 w-5" />
-                    </button>
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-gray-800 rounded-2xl p-4 sm:p-6 max-w-md w-full mx-2 sm:mx-0 border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">
+                {isOwnProfile ? "My Profile" : `${profileUser?.displayName || "User"}'s Profile`}
+              </h3>
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              {/* Copy Link */}
+              <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 inline-grid mr-3">
+                    <p className="text-sm text-gray-300 mb-1">Share Link</p>
+                    <p className="text-xs text-gray-400 truncate">{`${window.location.origin}/profile/${userId}`}</p>
                   </div>
-                  <div className="space-y-4">
-                    {/* Copy Link */}
-                    <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 inline-grid mr-3">
-                          <p className="text-sm text-gray-300 mb-1">Share Link</p>
-                          <p className="text-xs text-gray-400 truncate">{`${window.location.origin}/profile/${userId}`}</p>
-                        </div>
-                        <button
-                          onClick={handleCopyLink}
-                          className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
-                          }`}
-                        >
-                          <FaCopy className="h-4 w-4 mr-2" />
-                          {copySuccess ? "Copied!" : "Copy"}
-                        </button>
-                      </div>
-                    </div>
-                    {/* Social Media Buttons */}
-                    <div className="space-y-3">
-                      <p className="text-sm text-gray-300 font-medium">Share on social media</p>
-                      <div className="grid grid-cols-3 gap-3">
-                        <button
-                          onClick={() => handleSocialShare("facebook")}
-                          className="flex flex-col items-center justify-center py-[0.5rem] bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                        >
-                          <FaFacebook className="h-6 w-6 text-white" />
-                        </button>
-                        <button
-                          onClick={() => handleSocialShare("twitter")}
-                          className="flex flex-col items-center justify-center py-[0.5rem] bg-sky-500 hover:bg-sky-600 rounded-lg transition-colors"
-                        >
-                          <FaTwitter className="h-6 w-6 text-white" />
-                        </button>
-                        <button
-                          onClick={() => handleSocialShare("whatsapp")}
-                          className="flex flex-col items-center justify-center py-[0.5rem] bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
-                        >
-                          <FaWhatsapp className="h-6 w-6 text-white" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <button
+                    onClick={handleCopyLink}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
+                    }`}
+                  >
+                    <FaCopy className="h-4 w-4 mr-2" />
+                    {copySuccess ? "Copied!" : "Copy"}
+                  </button>
                 </div>
               </div>
-            )}
+              {/* Social Media Buttons */}
+              <div className="space-y-3">
+                <p className="text-sm text-gray-300 font-medium">Share on social media</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    onClick={() => handleSocialShare("facebook")}
+                    className="flex flex-col items-center justify-center py-[0.5rem] bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  >
+                    <FaFacebook className="h-6 w-6 text-white" />
+                  </button>
+                  <button
+                    onClick={() => handleSocialShare("twitter")}
+                    className="flex flex-col items-center justify-center py-[0.5rem] bg-sky-500 hover:bg-sky-600 rounded-lg transition-colors"
+                  >
+                    <FaXTwitter className="h-6 w-6 text-white" />
+                  </button>
+                  <button
+                    onClick={() => handleSocialShare("whatsapp")}
+                    className="flex flex-col items-center justify-center py-[0.5rem] bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                  >
+                    <FaWhatsapp className="h-6 w-6 text-white" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Novel Cover Modal */}
       {showNovelCoverModal && selectedNovelForCover && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -1281,6 +1308,7 @@ const Profile = () => {
           </div>
         </div>
       )}
+
       {/* Edit Profile Modal */}
       {isOwnProfile && profileUser && (
         <EditProfileModal
@@ -1289,6 +1317,7 @@ const Profile = () => {
           profileUser={profileUser}
         />
       )}
+
       {/* User List Drawer */}
       {showFollowListDrawer && (
         <UserListDrawer

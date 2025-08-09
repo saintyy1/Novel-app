@@ -1,4 +1,5 @@
 "use client"
+
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, Link } from "react-router-dom"
@@ -20,8 +21,9 @@ import {
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
-import { FaShare, FaCopy, FaFacebook, FaTwitter, FaWhatsapp, FaTimes, FaReply, FaTrash } from "react-icons/fa"
+import { FaShare, FaCopy, FaFacebook, FaWhatsapp, FaTimes, FaReply, FaTrash } from "react-icons/fa"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
+import { FaXTwitter } from "react-icons/fa6" // Import FaXTwitter
 
 interface Comment {
   id: string
@@ -57,6 +59,18 @@ const NovelOverview = () => {
   const commentTextareaRef = useRef<HTMLTextAreaElement>(null)
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
+    const topLevelComments = allComments.filter((comment) => !comment.parentId)
+    const replies = allComments.filter((comment) => comment.parentId)
+
+    return topLevelComments.map((comment) => ({
+      ...comment,
+      replies: replies
+        .filter((reply) => reply.parentId === comment.id)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    }))
+  }, [])
+
   useEffect(() => {
     const fetchNovel = async () => {
       if (!id) return
@@ -64,28 +78,24 @@ const NovelOverview = () => {
         setLoading(true)
         const novelDocRef = doc(db, "novels", id)
         const novelDoc = await getDoc(novelDocRef)
-
         if (novelDoc.exists()) {
           const novelData = novelDoc.data() as Novel
           setNovel({
             ...novelData,
             id: novelDoc.id,
           } as Novel)
-
           // Update liked status based on fetched data
           if (currentUser && novelData.likedBy && novelData.likedBy.includes(currentUser.uid)) {
             setLiked(true)
           } else {
             setLiked(false)
           }
-
           // Handle view count increment for unique users
           if (currentUser) {
             const viewKey = `novel_view_${id}_${currentUser.uid}`
             const lastViewTimestamp = localStorage.getItem(viewKey)
             const now = Date.now()
             const twentyFourHours = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
-
             if (!lastViewTimestamp || now - Number(lastViewTimestamp) > twentyFourHours) {
               // Increment view count in Firestore
               await updateDoc(novelDocRef, {
@@ -113,78 +123,94 @@ const NovelOverview = () => {
   useEffect(() => {
     if (!id) return
     const commentsQuery = query(collection(db, "comments"), where("novelId", "==", id), orderBy("createdAt", "desc"))
-    const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
+
+    const unsubscribe = onSnapshot(commentsQuery, async (snapshot) => {
+      setCommentsLoading(true) // Set loading for comments
       const commentsData: Comment[] = []
+      const uniqueUserIds = new Set<string>()
+
       snapshot.forEach((doc) => {
-        commentsData.push({
-          id: doc.id,
-          ...doc.data(),
-        } as Comment)
+        const comment = { id: doc.id, ...doc.data() } as Comment
+        commentsData.push(comment)
+        uniqueUserIds.add(comment.userId)
       })
+
+      // Fetch user data for all unique user IDs
+      const usersMap = new Map<string, { displayName: string; photoURL?: string }>()
+      const userPromises = Array.from(uniqueUserIds).map(async (uid) => {
+        const userDoc = await getDoc(doc(db, "users", uid))
+        if (userDoc.exists()) {
+          const userData = userDoc.data()
+          usersMap.set(uid, {
+            displayName: userData.displayName || "Anonymous",
+            photoURL: userData.photoURL || undefined,
+          })
+        } else {
+          // Handle case where user might have been deleted
+          usersMap.set(uid, { displayName: "Deleted User", photoURL: undefined })
+        }
+      })
+      await Promise.all(userPromises)
+
+      // Enrich comments with latest user data
+      const enrichedComments = commentsData.map((comment) => {
+        const userData = usersMap.get(comment.userId)
+        return {
+          ...comment,
+          userName: userData?.displayName || comment.userName, // Fallback to stored if not found
+          userPhoto: userData?.photoURL || comment.userPhoto, // Fallback to stored if not found
+        }
+      })
+
       // Organize comments with replies
-      const organizedComments = organizeCommentsWithReplies(commentsData)
+      const organizedComments = organizeCommentsWithReplies(enrichedComments)
       setComments(organizedComments)
       setCommentsLoading(false)
     })
+
     return () => unsubscribe()
   }, [id])
 
-  const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
-    const topLevelComments = allComments.filter((comment) => !comment.parentId)
-    const replies = allComments.filter((comment) => comment.parentId)
-    return topLevelComments.map((comment) => ({
-      ...comment,
-      replies: replies
-        .filter((reply) => reply.parentId === comment.id)
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
-    }))
-  }, [])
-
   const handleLike = async () => {
-  // Add early returns and error checks
-  if (!novel?.id) {
-    console.error("Novel ID is missing")
-    showErrorToast("Unable to like - novel ID is missing")
-    return
-  }
-
-  if (!currentUser) {
-    console.error("User is not logged in")
-    showErrorToast("Please login to like novels")
-    return
-  }
-
-  try {
-    const novelRef = doc(db, "novels", novel.id)
-    const newLikeStatus = !liked
-    setLiked(newLikeStatus) // Optimistic update
-
-    // Check if document exists before updating
-    const novelDoc = await getDoc(novelRef)
-    if (!novelDoc.exists()) {
-      throw new Error("Novel document not found")
+    // Add early returns and error checks
+    if (!novel?.id) {
+      console.error("Novel ID is missing")
+      showErrorToast("Unable to like - novel ID is missing")
+      return
     }
-
-    await updateDoc(novelRef, {
-      likes: increment(newLikeStatus ? 1 : -1),
-      likedBy: newLikeStatus ? arrayUnion(currentUser.uid) : arrayRemove(currentUser.uid)
-    })
-
-    // Re-fetch novel data to ensure consistency
-    const updatedNovelDoc = await getDoc(novelRef)
-    if (updatedNovelDoc.exists()) {
-      const updatedNovelData = updatedNovelDoc.data() as Novel
-      setNovel({
-        ...updatedNovelData,
-        id: novel.id // Preserve the ID
-      } as Novel)
+    if (!currentUser) {
+      console.error("User is not logged in")
+      showErrorToast("Please login to like novels")
+      return
     }
-  } catch (error) {
-    console.error("Error updating likes:", error)
-    setLiked(!liked) // Revert optimistic update on error
-    showErrorToast("Failed to update like status")
+    try {
+      const novelRef = doc(db, "novels", novel.id)
+      const newLikeStatus = !liked
+      setLiked(newLikeStatus) // Optimistic update
+      // Check if document exists before updating
+      const novelDoc = await getDoc(novelRef)
+      if (!novelDoc.exists()) {
+        throw new Error("Novel document not found")
+      }
+      await updateDoc(novelRef, {
+        likes: increment(newLikeStatus ? 1 : -1),
+        likedBy: newLikeStatus ? arrayUnion(currentUser.uid) : arrayRemove(currentUser.uid),
+      })
+      // Re-fetch novel data to ensure consistency
+      const updatedNovelDoc = await getDoc(novelRef)
+      if (updatedNovelDoc.exists()) {
+        const updatedNovelData = updatedNovelDoc.data() as Novel
+        setNovel({
+          ...updatedNovelData,
+          id: novel.id, // Preserve the ID
+        } as Novel)
+      }
+    } catch (error) {
+      console.error("Error updating likes:", error)
+      setLiked(!liked) // Revert optimistic update on error
+      showErrorToast("Failed to update like status")
+    }
   }
-}
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -302,6 +328,7 @@ const NovelOverview = () => {
     const novelUrl = `${window.location.origin}/novel/${novel.id}`
     const shareText = `Check out "${novel.title}" by ${novel.authorName} on NovelNest!`
     let shareUrl = ""
+
     switch (platform) {
       case "facebook":
         // Use the Facebook app URL scheme for mobile
@@ -312,7 +339,9 @@ const NovelOverview = () => {
         }
         break
       case "twitter":
-        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(novelUrl)}`
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(
+          novelUrl,
+        )}`
         break
       case "whatsapp":
         // Use the WhatsApp app URL scheme for mobile
@@ -325,6 +354,7 @@ const NovelOverview = () => {
       default:
         return
     }
+
     // For mobile apps, try to open the app first, fallback to web if it fails
     if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
       const appWindow = window.open(shareUrl, "_blank")
@@ -414,7 +444,7 @@ const NovelOverview = () => {
   const CommentItem = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => (
     <div className={`bg-white/5 rounded-lg p-4 border border-white/10 ${isReply ? "mt-2" : ""}`}>
       <div className="flex items-start space-x-3">
-        <div className="flex-shrink-0">
+        <Link to={`/profile/${comment.userId}`} className="flex-shrink-0 cursor-pointer">
           {comment.userPhoto ? (
             <img
               src={comment.userPhoto || "/placeholder.svg"}
@@ -426,10 +456,15 @@ const NovelOverview = () => {
               {getUserInitials(comment.userName)}
             </div>
           )}
-        </div>
+        </Link>
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-1">
-            <h4 className="text-white text-sm font-semibold">{comment.userName}</h4>
+            <Link
+              to={`/profile/${comment.userId}`}
+              className="text-white text-sm font-semibold hover:underline cursor-pointer"
+            >
+              {comment.userName}
+            </Link>
             <span className="text-gray-400 text-xs">{formatDate(comment.createdAt)}</span>
             {comment.userId === novel?.authorId && (
               <span className="px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
@@ -456,7 +491,7 @@ const NovelOverview = () => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                  d="M4.318 6.318a4 4 0 000 6.364L12 20.364l7.682-7.682a4 4 0 00-6.364-6.364L12 7.636l-1.318-1.318a4 4 0 00-6.364 0z"
                 />
               </svg>
               {comment.likes || 0}
@@ -591,25 +626,22 @@ const NovelOverview = () => {
   }
 
   const isAuthor = currentUser && novel.authorId === currentUser.uid
- 
+
   const truncateToTwoSentences = (text: string) => {
-  // Early return if text is empty or short
-  if (!text || text.length <= 100) return text
+    // Early return if text is empty or short
+    if (!text || text.length <= 100) return text
+    // Split into sentences
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || []
 
-  // Split into sentences
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || []
-  
-  // If no complete sentences found, truncate by character
-  if (sentences.length === 0) {
-    return text.slice(0, 100) + '...'
+    // If no complete sentences found, truncate by character
+    if (sentences.length === 0) {
+      return text.slice(0, 100) + "..."
+    }
+    // If only one sentence and it's long, return just that sentence
+    if (sentences.length === 1) {
+      return sentences[0]
+    }
   }
-
-  // If only one sentence and it's long, return just that sentence
-  if (sentences.length === 1) {
-    return sentences[0]
-  }
-}
-
 
   return (
     <div className="min-h-screen py-4 sm:py-8">
@@ -1064,7 +1096,7 @@ const NovelOverview = () => {
                     onClick={() => handleSocialShare("twitter")}
                     className="flex flex-col items-center justify-center py-[0.5rem] bg-sky-500 hover:bg-sky-600 rounded-lg transition-colors"
                   >
-                    <FaTwitter className="h-6 w-6 text-white" />
+                    <FaXTwitter className="h-6 w-6 text-white" />
                   </button>
                   <button
                     onClick={() => handleSocialShare("whatsapp")}

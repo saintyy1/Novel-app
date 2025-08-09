@@ -4,7 +4,8 @@ import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { useAuth, type ExtendedUser } from "../context/AuthContext"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
-import { FaTimes, FaInstagram, FaTwitter } from "react-icons/fa"
+import { FaTimes, FaInstagram } from "react-icons/fa"
+import { FaXTwitter } from "react-icons/fa6"
 
 interface EditProfileModalProps {
   isOpen: boolean
@@ -140,11 +141,11 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
 
           <div>
             <label htmlFor="twitterUrl" className="block text-sm font-medium text-gray-300 mb-1">
-              TikTok URL
+              Twitter URL
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FaTwitter className="h-5 w-5 text-gray-400" />
+                <FaXTwitter className="h-5 w-5 text-gray-400" />
               </div>
               <input
                 type="url"
