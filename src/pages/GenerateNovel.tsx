@@ -60,64 +60,91 @@ const GenerateNovel = () => {
     }
   }
 
-  const MAX_WIDTH = 600
+  async function resizeAndConvertToBase64Under1MB(file: File): Promise<string> {
+    const maxBytes = 1 * 1024 * 1024; // 1MB
+    const img = await loadImage(file);
 
-  const resizeAndConvertToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
+    let quality = 0.9; // start with high quality
+    let width = img.width;
+    let height = img.height;
 
-      reader.onload = (event) => {
-        const img = new Image()
-        img.src = event.target?.result as string
+    let base64 = "";
 
-        img.onload = () => {
-          const canvas = document.createElement('canvas')
-          const scaleFactor = MAX_WIDTH / img.width
-          canvas.width = MAX_WIDTH
-          canvas.height = img.height * scaleFactor
+    // Keep reducing size/quality until under 1MB
+    do {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
 
-          const ctx = canvas.getContext('2d')
-          if (!ctx) return reject("Canvas context not found")
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas not supported");
+      ctx.drawImage(img, 0, 0, width, height);
 
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      base64 = canvas.toDataURL(file.type, quality);
 
-          const base64 = canvas.toDataURL('image/jpeg', 0.7)
-          resolve(base64)
+      // If too large, reduce quality or dimensions
+      if (base64SizeInBytes(base64) > maxBytes) {
+        if (quality > 0.5) {
+          quality -= 0.05; // reduce quality gradually
+        } else {
+          width *= 0.9; // shrink dimensions by 10%
+          height *= 0.9;
         }
-
-        img.onerror = reject
+      } else {
+        break;
       }
+    } while (base64SizeInBytes(base64) > maxBytes);
 
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
+    return base64;
   }
+
+  // Load an image from file
+  function loadImage(file: File): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = reader.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Calculate base64 size in bytes
+  function base64SizeInBytes(base64String: string) {
+    const padding = (base64String.endsWith("==") ? 2 : base64String.endsWith("=") ? 1 : 0);
+    const base64Body = base64String.split(",")[1] || base64String;
+    return (base64Body.length * 3) / 4 - padding;
+  }
+
 
   const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
+      const file = e.target.files[0];
 
-      if (file.size > 10 * 1024 * 1024) {
-        setError("Cover image must be less than 10MB")
-        return
-      }
-
+      // Validate type first
       if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
-        setError("Cover image must be JPEG, PNG or WebP format")
-        return
+        setError("Cover image must be JPEG, PNG or WebP format");
+        return;
       }
 
       try {
-        const base64 = await resizeAndConvertToBase64(file)
-        setCoverImage(base64)
-        setCoverPreview(base64)
-        setError("")
+        // Automatically resize & compress to <1MB
+        const base64 = await resizeAndConvertToBase64Under1MB(file);
+       
+        setCoverImage(base64);
+        setCoverPreview(base64);
+        setError("");
       } catch (err) {
-        console.error("Image processing failed:", err)
-        setError("Failed to process image")
+        console.error("Image processing failed:", err);
+        setError("Failed to process image");
       }
     }
-  }
+  };
+
 
   const removeCoverImage = () => {
     setCoverImage(null)
@@ -302,8 +329,8 @@ const GenerateNovel = () => {
                 <label
                   key={genre}
                   className={`flex items-center justify-center px-3 py-2 rounded-lg border ${genres.includes(genre)
-                      ? "bg-purple-900/40 border-purple-700 text-purple-300"
-                      : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+                    ? "bg-purple-900/40 border-purple-700 text-purple-300"
+                    : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
                     } cursor-pointer transition-colors text-sm`}
                 >
                   <input

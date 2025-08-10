@@ -11,7 +11,20 @@ import {
   sendPasswordResetEmail,
   signInWithPopup,
 } from "firebase/auth"
-import { doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs } from "firebase/firestore" // Import arrayUnion and arrayRemove, and new Firestore functions
+import {
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  orderBy, // Import orderBy for fetching announcements
+} from "firebase/firestore" // Import arrayUnion, arrayRemove, and new Firestore functions
 import { auth, db, googleProvider } from "../firebase/config"
 
 // Extend the Firebase User type with our custom properties
@@ -24,7 +37,9 @@ export interface ExtendedUser extends User {
   followers?: string[] // New: UIDs of users following this user
   following?: string[] // New: UIDs of users this user is following
   instagramUrl?: string // New: Instagram profile URL
-  twitterUrl?: string // New: TikTok profile URL
+  twitterUrl?: string // New: twitter profile URL
+  library?: string[] // New: IDs of novels liked by the user
+  finishedReads?: string[] // New: IDs of novels marked as finished by the user
 }
 
 interface AuthContextType {
@@ -40,12 +55,77 @@ interface AuthContextType {
   updateUserProfile: (displayName: string, bio: string, instagramUrl: string, twitterUrl: string) => Promise<void> // Updated signature
   toggleFollow: (targetUserId: string, isFollowing: boolean) => Promise<void> // New
   signInWithGoogle: () => Promise<void>
+  updateUserLibrary: (novelId: string, add: boolean, novelTitle: string, novelAuthorId: string) => Promise<void> // New: For adding/removing novels from library
+  markNovelAsFinished: (
+    novelId: string,
+    novelTitle: string,
+    novelAuthorId: string,
+    markAsFinished: boolean,
+  ) => Promise<void> // New: For marking novels as finished
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
 
 export const useAuth = () => {
   return useContext(AuthContext)
+}
+
+// Map to store cooldown timers for rapid follow notifications (e.g., 5 seconds)
+// Key: `${fromUserId}-${toUserId}`, Value: NodeJS.Timeout
+const notificationCooldowns = new Map<string, NodeJS.Timeout>()
+
+// Map to store the timestamp of the last unfollow action for a user pair (for 12-hour suppression)
+// Key: `${fromUserId}-${toUserId}`, Value: timestamp (milliseconds)
+const lastUnfollowTimestamps = new Map<string, number>()
+
+const TWELVE_HOURS_IN_MS = 12 * 60 * 60 * 1000
+
+// Add these helper functions outside the AuthProvider component, but within the file scope
+const TWENTY_FOUR_HOURS_IN_MS = 24 * 60 * 60 * 1000
+
+const getNovelLikeCooldownKey = (userId: string, novelId: string) => `novel_like_cooldown_${userId}_${novelId}`
+const getNovelAddedToLibraryCooldownKey = (userId: string, novelId: string) =>
+  `novel_added_to_library_cooldown_${userId}_${novelId}`
+
+const setNovelLikeCooldown = (userId: string, novelId: string) => {
+  if (typeof window !== "undefined") {
+    // Ensure localStorage is available
+    localStorage.setItem(getNovelLikeCooldownKey(userId, novelId), Date.now().toString())
+  }
+}
+
+const clearNovelLikeCooldown = (userId: string, novelId: string) => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(getNovelLikeCooldownKey(userId, novelId))
+  }
+}
+
+const checkNovelLikeCooldown = (userId: string, novelId: string): boolean => {
+  if (typeof window === "undefined") return false // Cannot check cooldown on server
+  const lastLikeTimestamp = localStorage.getItem(getNovelLikeCooldownKey(userId, novelId))
+  if (!lastLikeTimestamp) return false // No cooldown set
+  const now = Date.now()
+  return now - Number(lastLikeTimestamp) < TWENTY_FOUR_HOURS_IN_MS
+}
+
+const setNovelAddedToLibraryCooldown = (userId: string, novelId: string) => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(getNovelAddedToLibraryCooldownKey(userId, novelId), Date.now().toString())
+  }
+}
+
+const clearNovelAddedToLibraryCooldown = (userId: string, novelId: string) => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(getNovelAddedToLibraryCooldownKey(userId, novelId))
+  }
+}
+
+const checkNovelAddedToLibraryCooldown = (userId: string, novelId: string): boolean => {
+  if (typeof window === "undefined") return false
+  const lastAddedTimestamp = localStorage.getItem(getNovelAddedToLibraryCooldownKey(userId, novelId))
+  if (!lastAddedTimestamp) return false
+  const now = Date.now()
+  return now - Number(lastAddedTimestamp) < TWENTY_FOUR_HOURS_IN_MS
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -68,12 +148,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updatedAt: data.updatedAt,
           // Always use Firestore photoURL, fallback to Firebase Auth photoURL
           photoURL: data.photoURL || user.photoURL,
-          displayName: data.displayName || user.displayName || user.email?.split('@')[0] || 'User',
-          bio: data.bio || '', // New
+          displayName: data.displayName || user.displayName || user.email?.split("@")[0] || "User",
+          bio: data.bio || "", // New
           followers: data.followers || [], // New
           following: data.following || [], // New
-          instagramUrl: data.instagramUrl || '', // New
-          twitterUrl: data.twitterUrl || '', // New
+          instagramUrl: data.instagramUrl || "", // New
+          twitterUrl: data.twitterUrl || "", // New
+          library: data.library || [], // New: Initialize library
+          finishedReads: data.finishedReads || [], // Add this line
         }
         setCurrentUser(extendedUser)
         setFirebaseUser(user)
@@ -84,15 +166,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newUserData = {
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName || user.email?.split('@')[0] || 'User',
+          displayName: user.displayName || user.email?.split("@")[0] || "User",
           photoURL: user.photoURL, // Keep original Firebase Auth photoURL if it exists
           isAdmin: false,
           createdAt: new Date().toISOString(),
-          bio: '', // New: Initialize bio
-          followers: [], // New: Initialize followers
-          following: [], // New: Initialize following
-          instagramUrl: '', // New: Initialize social links
-          twitterUrl: '', // New: Initialize social links
+          bio: "", // New: Initialize bio
+          followers: [], // New
+          following: [], // New
+          instagramUrl: "", // New: Initialize social links
+          twitterUrl: "", // New: Initialize social links
+          library: [], // New: Initialize library
+          finishedReads: [], // Add this line
         }
         await setDoc(doc(db, "users", user.uid), newUserData)
         const extendedUser: ExtendedUser = {
@@ -105,7 +189,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           followers: newUserData.followers, // New
           following: newUserData.following, // New
           instagramUrl: newUserData.instagramUrl, // New
-          twitterUrl: newUserData.twitterUrl // New
+          twitterUrl: newUserData.twitterUrl, // New
+          library: newUserData.library, // New
+          finishedReads: newUserData.finishedReads, // Add this line
         }
         setCurrentUser(extendedUser)
         setFirebaseUser(user)
@@ -160,19 +246,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (firebaseUser.displayName !== displayName) {
         await updateProfile(firebaseUser, { displayName })
       }
-
-      // Update authorName in all novels by this user
+      // Update authorName in all novels by this user if display name changed
       if (currentUser.displayName !== displayName) {
         const novelsRef = collection(db, "novels")
         const q = query(novelsRef, where("authorId", "==", currentUser.uid))
         const querySnapshot = await getDocs(q)
-
         for (const novelDoc of querySnapshot.docs) {
           const novelRef = doc(db, "novels", novelDoc.id)
           await updateDoc(novelRef, { authorName: displayName })
         }
       }
-
       // Update local state
       setCurrentUser((prev) => (prev ? { ...prev, displayName, bio, instagramUrl, twitterUrl } : null))
     } catch (error) {
@@ -188,28 +271,224 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const currentUserRef = doc(db, "users", currentUser.uid)
     const targetUserRef = doc(db, "users", targetUserId)
+    const cooldownKey = `${currentUser.uid}-${targetUserId}`
 
     try {
       // Update current user's 'following' array
       await updateDoc(currentUserRef, {
-        following: isCurrentlyFollowing
-          ? arrayRemove(targetUserId)
-          : arrayUnion(targetUserId),
+        following: isCurrentlyFollowing ? arrayRemove(targetUserId) : arrayUnion(targetUserId),
         updatedAt: new Date().toISOString(),
       })
 
       // Update target user's 'followers' array
       await updateDoc(targetUserRef, {
-        followers: isCurrentlyFollowing
-          ? arrayRemove(currentUser.uid)
-          : arrayUnion(currentUser.uid),
+        followers: isCurrentlyFollowing ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid),
         updatedAt: new Date().toISOString(),
       })
+
+      // Logic for adding notification
+      if (!isCurrentlyFollowing) {
+        // User is now following (was not following before)
+        const lastUnfollowTime = lastUnfollowTimestamps.get(cooldownKey)
+        const currentTime = Date.now()
+
+        // Check for re-follow within 12 hours
+        if (lastUnfollowTime && currentTime - lastUnfollowTime < TWELVE_HOURS_IN_MS) {
+          console.log("Follow notification suppressed due to re-follow within 12 hours:", cooldownKey)
+          // Optionally, clear the unfollow timestamp if they re-followed within the window
+          // This prevents the same unfollow from suppressing future notifications after the 12h window
+          lastUnfollowTimestamps.delete(cooldownKey)
+          return // Skip notification
+        }
+
+        // Check for rapid-click debounce (5 seconds)
+        if (notificationCooldowns.has(cooldownKey)) {
+          console.log("Follow notification debounced for rapid clicks:", cooldownKey)
+          return // Skip if recently sent due to rapid clicks
+        }
+
+        // Set a rapid-click cooldown for this specific follow action
+        const timeout = setTimeout(() => {
+          notificationCooldowns.delete(cooldownKey)
+        }, 5000) // 5 seconds cooldown
+        notificationCooldowns.set(cooldownKey, timeout)
+
+        // Add the actual follow notification
+        await addDoc(collection(db, "notifications"), {
+          toUserId: targetUserId,
+          fromUserId: currentUser.uid,
+          fromUserName: currentUser.displayName || "Anonymous User",
+          type: "follow",
+          createdAt: new Date().toISOString(),
+          read: false,
+        })
+
+        // Fetch and notify about existing announcements from the followed author
+        const announcementsQuery = query(
+          collection(db, "announcements"),
+          where("authorId", "==", targetUserId),
+          orderBy("createdAt", "desc"),
+        )
+        const announcementsSnapshot = await getDocs(announcementsQuery)
+
+        for (const doc of announcementsSnapshot.docs) {
+          const announcementData = doc.data()
+          await addDoc(collection(db, "notifications"), {
+            toUserId: currentUser.uid, // Notification for the follower
+            fromUserId: targetUserId, // From the author
+            fromUserName: announcementData.authorName || "Author", // Use author's name from announcement or default
+            type: "followed_author_announcement", // New notification type
+            announcementContent: announcementData.content,
+            createdAt: new Date().toISOString(),
+            read: false,
+          })
+        }
+
+        // Clear unfollow timestamp after a successful follow (if a notification was sent)
+        lastUnfollowTimestamps.delete(cooldownKey)
+      } else {
+        // User is now unfollowing (was following before)
+        // Record the unfollow timestamp
+        lastUnfollowTimestamps.set(cooldownKey, Date.now())
+      }
 
       // Refresh current user's data to reflect changes
       await refreshUser()
     } catch (error) {
       console.error("Error toggling follow status:", error)
+      // Clear cooldowns if an error occurred during the notification attempt
+      if (notificationCooldowns.has(cooldownKey)) {
+        clearTimeout(notificationCooldowns.get(cooldownKey)!)
+        notificationCooldowns.delete(cooldownKey)
+      }
+      // Do NOT clear lastUnfollowTimestamps here, as the unfollow might have succeeded
+      throw error
+    }
+  }
+
+  // New function to update user's library
+  const updateUserLibrary = async (novelId: string, add: boolean, novelTitle: string, novelAuthorId: string) => {
+    if (!currentUser) throw new Error("No user logged in")
+    const userRef = doc(db, "users", currentUser.uid)
+    try {
+      await updateDoc(userRef, {
+        library: add ? arrayUnion(novelId) : arrayRemove(novelId),
+        updatedAt: new Date().toISOString(),
+      })
+      // Update local state
+      setCurrentUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              library: add ? [...(prev.library || []), novelId] : (prev.library || []).filter((id) => id !== novelId),
+            }
+          : null,
+      )
+
+      // Handle novel_like notification and cooldown
+      if (add && novelAuthorId !== currentUser.uid) {
+        if (!checkNovelLikeCooldown(currentUser.uid, novelId)) {
+          await addDoc(collection(db, "notifications"), {
+            toUserId: novelAuthorId,
+            fromUserId: currentUser.uid,
+            fromUserName: currentUser.displayName || "Anonymous User",
+            type: "novel_like",
+            novelId: novelId,
+            novelTitle: novelTitle,
+            createdAt: new Date().toISOString(),
+            read: false,
+          })
+          setNovelLikeCooldown(currentUser.uid, novelId)
+        } else {
+          console.log(`Novel like notification suppressed for ${currentUser.uid} on novel ${novelId} due to cooldown.`)
+        }
+
+        // Handle novel_added_to_library notification and cooldown
+        if (!checkNovelAddedToLibraryCooldown(currentUser.uid, novelId)) {
+          await addDoc(collection(db, "notifications"), {
+            toUserId: novelAuthorId,
+            fromUserId: currentUser.uid,
+            fromUserName: currentUser.displayName || "Anonymous User",
+            type: "novel_added_to_library", // New notification type
+            novelId: novelId,
+            novelTitle: novelTitle,
+            createdAt: new Date().toISOString(),
+            read: false,
+          })
+          setNovelAddedToLibraryCooldown(currentUser.uid, novelId)
+        } else {
+          console.log(
+            `Novel added to library notification suppressed for ${currentUser.uid} on novel ${novelId} due to cooldown.`,
+          )
+        }
+      } else if (!add) {
+        // If unliking, clear the cooldown to allow a new notification on re-like
+        clearNovelLikeCooldown(currentUser.uid, novelId)
+        clearNovelAddedToLibraryCooldown(currentUser.uid, novelId) // Also clear for added to library
+      }
+    } catch (error) {
+      console.error("Error updating user library:", error)
+      throw error
+    }
+  }
+
+  const markNovelAsFinished = async (
+    novelId: string,
+    novelTitle: string,
+    novelAuthorId: string,
+    markAsFinished: boolean,
+  ) => {
+    if (!currentUser) throw new Error("No user logged in")
+    const userRef = doc(db, "users", currentUser.uid)
+    try {
+      if (markAsFinished) {
+        // Add to finishedReads and remove from library
+        await updateDoc(userRef, {
+          finishedReads: arrayUnion(novelId),
+          library: arrayRemove(novelId),
+          updatedAt: new Date().toISOString(),
+        })
+        setCurrentUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                finishedReads: [...(prev.finishedReads || []), novelId],
+                library: (prev.library || []).filter((id) => id !== novelId),
+              }
+            : null,
+        )
+        // Optionally, notify author that novel was finished (if not self)
+        if (novelAuthorId !== currentUser.uid) {
+          await addDoc(collection(db, "notifications"), {
+            toUserId: novelAuthorId,
+            fromUserId: currentUser.uid,
+            fromUserName: currentUser.displayName || "Anonymous User",
+            type: "novel_finished", // New notification type
+            novelId: novelId,
+            novelTitle: novelTitle,
+            createdAt: new Date().toISOString(),
+            read: false,
+          })
+        }
+      } else {
+        // Remove from finishedReads and add back to library (optional, or just remove)
+        await updateDoc(userRef, {
+          finishedReads: arrayRemove(novelId),
+          library: arrayUnion(novelId), // Add back to library if un-finishing
+          updatedAt: new Date().toISOString(),
+        })
+        setCurrentUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                finishedReads: (prev.finishedReads || []).filter((id) => id !== novelId),
+                library: [...(prev.library || []), novelId],
+              }
+            : null,
+        )
+      }
+    } catch (error) {
+      console.error("Error marking novel as finished:", error)
       throw error
     }
   }
@@ -229,11 +508,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       photoURL: null, // Start with no photo
       isAdmin: false,
       createdAt: new Date().toISOString(),
-      bio: '', // New: Initialize bio
-      followers: [], // New: Initialize followers
-      following: [], // New: Initialize following
-      instagramUrl: '', // New: Initialize social links
-      twitterUrl: '', // New: Initialize social links
+      bio: "", // New: Initialize bio
+      followers: [], // New
+      following: [], // New
+      instagramUrl: "", // New: Initialize social links
+      twitterUrl: "", // New: Initialize social links
+      library: [], // New: Initialize library
+      finishedReads: [], // Add this line
     }
     await setDoc(doc(db, "users", user.uid), newUserData)
     // Set extended user
@@ -248,6 +529,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       following: newUserData.following, // New
       instagramUrl: newUserData.instagramUrl, // New
       twitterUrl: newUserData.twitterUrl, // New
+      library: newUserData.library, // New
+      finishedReads: newUserData.finishedReads, // Add this line
     }
     setCurrentUser(extendedUser)
     setFirebaseUser(user)
@@ -262,6 +545,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAdmin(false)
     setCurrentUser(null)
     setFirebaseUser(null)
+    // Clear all active cooldowns and unfollow timestamps on logout
+    notificationCooldowns.forEach((timeout) => clearTimeout(timeout))
+    notificationCooldowns.clear()
+    lastUnfollowTimestamps.clear()
   }
 
   const resetPassword = async (email: string) => {
@@ -279,15 +566,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newUserData = {
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName || user.email?.split('@')[0] || 'User',
+          displayName: user.displayName || user.email?.split("@")[0] || "User",
           photoURL: null,
           isAdmin: false,
           createdAt: new Date().toISOString(),
-          bio: '', // New: Initialize bio
-          followers: [], // New: Initialize followers
-          following: [], // New: Initialize following
-          instagramUrl: '', // New: Initialize social links
-          twitterUrl: '', // New: Initialize social links
+          bio: "", // New: Initialize bio
+          followers: [], // New
+          following: [], // New
+          instagramUrl: "", // New: Initialize social links
+          twitterUrl: "", // New: Initialize social links
+          library: [], // New: Initialize library
+          finishedReads: [], // Add this line
         }
         await setDoc(doc(db, "users", user.uid), newUserData)
       }
@@ -307,6 +596,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAdmin(false)
         setCurrentUser(null)
         setFirebaseUser(null)
+        // Clear all active cooldowns and unfollow timestamps on auth state change (e.g., logout)
+        notificationCooldowns.forEach((timeout) => clearTimeout(timeout))
+        notificationCooldowns.clear()
+        lastUnfollowTimestamps.clear()
       }
       setLoading(false)
     })
@@ -326,6 +619,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateUserProfile, // New
     toggleFollow, // New
     signInWithGoogle,
+    updateUserLibrary, // New
+    markNovelAsFinished, // New
   }
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>

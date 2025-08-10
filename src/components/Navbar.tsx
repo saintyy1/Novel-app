@@ -2,6 +2,8 @@
 import { useState, useRef, useEffect } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import { Bell } from "lucide-react" // Import the Bell icon
+
 const Navbar = () => {
   const { currentUser, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
@@ -76,9 +78,7 @@ const Navbar = () => {
             }}
           />
         ) : null}
-        <span className={currentUser?.photoURL ? "hidden" : ""}>
-          {getUserInitials(currentUser?.displayName)}
-        </span>
+        <span className={currentUser?.photoURL ? "hidden" : ""}>{getUserInitials(currentUser?.displayName)}</span>
       </div>
     )
   }
@@ -133,6 +133,16 @@ const Navbar = () => {
             {currentUser ? (
               <>
                 <Link
+                  to="/library"
+                  className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
+                    isActive("/library")
+                      ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
+                      : "text-[#E0E0E0]"
+                  }`}
+                >
+                  Library
+                </Link>
+                <Link
                   to="/submit"
                   className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
                     isActive("/submit")
@@ -141,6 +151,16 @@ const Navbar = () => {
                   }`}
                 >
                   Submit Novel
+                </Link>
+                <Link
+                  to="/notifications"
+                  className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
+                    isActive("/notifications")
+                      ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
+                      : "text-[#E0E0E0]"
+                  }`}
+                >
+                  Notifications
                 </Link>
                 {isAdmin && (
                   <>
@@ -286,9 +306,7 @@ const Navbar = () => {
                         <div className="flex items-center">
                           <UserAvatar size="h-10 w-10" textSize="text-sm" />
                           <div className="ml-3">
-                            <p className="text-sm font-medium text-white">
-                              {currentUser.displayName || "User"}
-                            </p>
+                            <p className="text-sm font-medium text-white">{currentUser.displayName || "User"}</p>
                             <p className="text-xs text-gray-400">{currentUser.email}</p>
                           </div>
                         </div>
@@ -298,9 +316,7 @@ const Navbar = () => {
                         to="/"
                         onClick={closeDropdown}
                         className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/")
-                            ? "text-purple-400 bg-purple-900/20"
-                            : "text-gray-300"
+                          isActive("/") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
                         }`}
                       >
                         <div className="flex items-center">
@@ -319,9 +335,7 @@ const Navbar = () => {
                         to="/novels"
                         onClick={closeDropdown}
                         className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/novels")
-                            ? "text-purple-400 bg-purple-900/20"
-                            : "text-gray-300"
+                          isActive("/novels") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
                         }`}
                       >
                         <div className="flex items-center">
@@ -337,12 +351,39 @@ const Navbar = () => {
                         </div>
                       </Link>
                       <Link
+                        to="/library"
+                        onClick={closeDropdown}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
+                          isActive("/library") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="lucide lucide-library mr-3"
+                          >
+                            <path d="m16 6 4 14" />
+                            <path d="M12 6v14" />
+                            <path d="M8 8v12" />
+                            <path d="M4 4v16" />
+                            <path d="M20 2h-8a2 2 0 0 0-2 2v16h12V4a2 2 0 0 0-2-2Z" />
+                          </svg>
+                          Library
+                        </div>
+                      </Link>
+                      <Link
                         to="/submit"
                         onClick={closeDropdown}
                         className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/submit")
-                            ? "text-purple-400 bg-purple-900/20"
-                            : "text-gray-300"
+                          isActive("/submit") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
                         }`}
                       >
                         <div className="flex items-center">
@@ -357,15 +398,25 @@ const Navbar = () => {
                           Submit Novel
                         </div>
                       </Link>
+                      <Link
+                        to="/notifications"
+                        onClick={closeDropdown}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
+                          isActive("/notifications") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <Bell className="h-4 w-4 mr-3" />
+                          Notifications
+                        </div>
+                      </Link>
                       {isAdmin && (
                         <>
                           <Link
                             to="/admin"
                             onClick={closeDropdown}
                             className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                              isActive("/admin")
-                                ? "text-purple-400 bg-purple-900/20"
-                                : "text-gray-300"
+                              isActive("/admin") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
                             }`}
                           >
                             <div className="flex items-center">
@@ -390,9 +441,7 @@ const Navbar = () => {
                             to="/generate"
                             onClick={closeDropdown}
                             className={`block px-4 py-2 text-sm bg-gray-700 transition-colors ${
-                              isActive("/generate")
-                                ? "text-purple-400 bg-purple-900/20"
-                                : "text-gray-300"
+                              isActive("/generate") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
                             }`}
                           >
                             <div className="flex items-center">
@@ -414,9 +463,7 @@ const Navbar = () => {
                           to={`/profile/${currentUser.uid}`}
                           onClick={closeDropdown}
                           className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                            isActive("/profile")
-                              ? "text-purple-400 bg-purple-900/20"
-                              : "text-gray-300"
+                            isActive("/profile") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
                           }`}
                         >
                           <div className="flex items-center">
@@ -456,9 +503,7 @@ const Navbar = () => {
                         to="/"
                         onClick={closeDropdown}
                         className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/")
-                            ? "text-purple-400 bg-purple-900/20"
-                            : "text-gray-300"
+                          isActive("/") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
                         }`}
                       >
                         <div className="flex items-center">
@@ -477,9 +522,7 @@ const Navbar = () => {
                         to="/novels"
                         onClick={closeDropdown}
                         className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/novels")
-                            ? "text-purple-400 bg-purple-900/20"
-                            : "text-gray-300"
+                          isActive("/novels") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
                         }`}
                       >
                         <div className="flex items-center">

@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, Link } from "react-router-dom"
@@ -24,6 +23,8 @@ import type { Novel } from "../types/novel"
 import { FaShare, FaCopy, FaFacebook, FaWhatsapp, FaTimes, FaReply, FaTrash } from "react-icons/fa"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
 import { FaXTwitter } from "react-icons/fa6" // Import FaXTwitter
+import { CheckCircle } from "lucide-react" // Import CheckCircle
+import { BookOpen } from "lucide-react"
 
 interface Comment {
   id: string
@@ -54,21 +55,22 @@ const NovelOverview = () => {
   const [replyContent, setReplyContent] = useState<string>("")
   const [submittingReply, setSubmittingReply] = useState<boolean>(false)
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false)
+  const [isFinished, setIsFinished] = useState<boolean>(false)
   const [deletingComment, setDeletingComment] = useState<string | null>(null)
-  const { currentUser } = useAuth()
+  const { currentUser, updateUserLibrary, markNovelAsFinished } = useAuth() // Destructure updateUserLibrary
   const commentTextareaRef = useRef<HTMLTextAreaElement>(null)
-  const replyTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const replyTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
-  const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
-    const topLevelComments = allComments.filter((comment) => !comment.parentId)
-    const replies = allComments.filter((comment) => comment.parentId)
-
-    return topLevelComments.map((comment) => ({
-      ...comment,
-      replies: replies
-        .filter((reply) => reply.parentId === comment.id)
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
-    }))
+  const buildCommentTree = useCallback((allComments: Comment[], parentId: string | null = null): Comment[] => {
+    const children: Comment[] = []
+    allComments.forEach((comment) => {
+      if (comment.parentId === parentId) {
+        const nestedReplies = buildCommentTree(allComments, comment.id)
+        children.push({ ...comment, replies: nestedReplies })
+      }
+    })
+    // Sort replies chronologically (oldest first)
+    return children.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
   }, [])
 
   useEffect(() => {
@@ -76,6 +78,7 @@ const NovelOverview = () => {
       if (!id) return
       try {
         setLoading(true)
+        setError("")
         const novelDocRef = doc(db, "novels", id)
         const novelDoc = await getDoc(novelDocRef)
         if (novelDoc.exists()) {
@@ -84,11 +87,17 @@ const NovelOverview = () => {
             ...novelData,
             id: novelDoc.id,
           } as Novel)
-          // Update liked status based on fetched data
-          if (currentUser && novelData.likedBy && novelData.likedBy.includes(currentUser.uid)) {
+          // Update liked status based on fetched data and user's library
+          if (currentUser && currentUser.library?.includes(novelDoc.id)) {
             setLiked(true)
           } else {
             setLiked(false)
+          }
+          // Set finished status based on fetched data and user's finishedReads
+          if (currentUser && currentUser.finishedReads?.includes(novelDoc.id)) {
+            setIsFinished(true)
+          } else {
+            setIsFinished(false)
           }
           // Handle view count increment for unique users
           if (currentUser) {
@@ -122,19 +131,17 @@ const NovelOverview = () => {
 
   useEffect(() => {
     if (!id) return
+    // Fetch all comments for the novel, ordered by creation date descending for top-level comments
     const commentsQuery = query(collection(db, "comments"), where("novelId", "==", id), orderBy("createdAt", "desc"))
-
     const unsubscribe = onSnapshot(commentsQuery, async (snapshot) => {
       setCommentsLoading(true) // Set loading for comments
       const commentsData: Comment[] = []
       const uniqueUserIds = new Set<string>()
-
       snapshot.forEach((doc) => {
         const comment = { id: doc.id, ...doc.data() } as Comment
         commentsData.push(comment)
         uniqueUserIds.add(comment.userId)
       })
-
       // Fetch user data for all unique user IDs
       const usersMap = new Map<string, { displayName: string; photoURL?: string }>()
       const userPromises = Array.from(uniqueUserIds).map(async (uid) => {
@@ -151,7 +158,6 @@ const NovelOverview = () => {
         }
       })
       await Promise.all(userPromises)
-
       // Enrich comments with latest user data
       const enrichedComments = commentsData.map((comment) => {
         const userData = usersMap.get(comment.userId)
@@ -161,15 +167,17 @@ const NovelOverview = () => {
           userPhoto: userData?.photoURL || comment.userPhoto, // Fallback to stored if not found
         }
       })
-
-      // Organize comments with replies
-      const organizedComments = organizeCommentsWithReplies(enrichedComments)
+      // Filter for top-level comments and then build the nested tree
+      const topLevelComments = enrichedComments.filter((comment) => !comment.parentId)
+      const organizedComments = topLevelComments.map((comment) => ({
+        ...comment,
+        replies: buildCommentTree(enrichedComments, comment.id),
+      }))
       setComments(organizedComments)
       setCommentsLoading(false)
     })
-
     return () => unsubscribe()
-  }, [id])
+  }, [id, buildCommentTree])
 
   const handleLike = async () => {
     // Add early returns and error checks
@@ -187,15 +195,13 @@ const NovelOverview = () => {
       const novelRef = doc(db, "novels", novel.id)
       const newLikeStatus = !liked
       setLiked(newLikeStatus) // Optimistic update
-      // Check if document exists before updating
-      const novelDoc = await getDoc(novelRef)
-      if (!novelDoc.exists()) {
-        throw new Error("Novel document not found")
-      }
+      // Update novel's likes and likedBy array
       await updateDoc(novelRef, {
         likes: increment(newLikeStatus ? 1 : -1),
         likedBy: newLikeStatus ? arrayUnion(currentUser.uid) : arrayRemove(currentUser.uid),
       })
+      // Update user's library
+      await updateUserLibrary(novel.id, newLikeStatus, novel.title, novel.authorId)
       // Re-fetch novel data to ensure consistency
       const updatedNovelDoc = await getDoc(novelRef)
       if (updatedNovelDoc.exists()) {
@@ -212,6 +218,7 @@ const NovelOverview = () => {
     }
   }
 
+
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newComment.trim() || !currentUser || !novel) return
@@ -227,6 +234,22 @@ const NovelOverview = () => {
         likes: 0,
         likedBy: [],
       })
+
+      // Add notification for the novel's author if different from current user
+      if (novel.authorId !== currentUser.uid) {
+        await addDoc(collection(db, "notifications"), {
+          toUserId: novel.authorId,
+          fromUserId: currentUser.uid,
+          fromUserName: currentUser.displayName || "Anonymous User",
+          type: "novel_comment",
+          novelId: novel.id,
+          novelTitle: novel.title,
+          commentContent: newComment.trim(),
+          createdAt: new Date().toISOString(),
+          read: false,
+        })
+      }
+
       setNewComment("")
       showSuccessToast("Comment posted successfully!")
     } catch (error) {
@@ -252,6 +275,49 @@ const NovelOverview = () => {
         likedBy: [],
         parentId: parentId,
       })
+
+      // Fetch the parent comment to get its author's ID and content for notification
+      const parentCommentDoc = await getDoc(doc(db, "comments", parentId))
+      const parentCommentData = parentCommentDoc.exists() ? parentCommentDoc.data() : null
+      const parentCommentAuthorId = parentCommentData?.userId
+      const parentCommentContent = parentCommentData?.content
+
+      // Add notification for the novel's author (if different from current user)
+      if (novel.authorId !== currentUser.uid) {
+        await addDoc(collection(db, "notifications"), {
+          toUserId: novel.authorId,
+          fromUserId: currentUser.uid,
+          fromUserName: currentUser.displayName || "Anonymous User",
+          type: "novel_reply", // Type for reply to novel's comment
+          novelId: novel.id,
+          novelTitle: novel.title,
+          commentContent: replyContent.trim(), // The content of the reply
+          parentId: parentId,
+          createdAt: new Date().toISOString(),
+          read: false,
+        })
+      }
+
+      // Also notify the parent comment's author if they are not the novel author and not the current user
+      if (
+        parentCommentAuthorId &&
+        parentCommentAuthorId !== novel.authorId &&
+        parentCommentAuthorId !== currentUser.uid
+      ) {
+        await addDoc(collection(db, "notifications"), {
+          toUserId: parentCommentAuthorId,
+          fromUserId: currentUser.uid,
+          fromUserName: currentUser.displayName || "Anonymous User",
+          type: "comment_reply", // Type for reply to another user's comment
+          novelId: novel.id,
+          novelTitle: novel.title,
+          commentContent: replyContent.trim(), // The content of the reply
+          parentId: parentId,
+          createdAt: new Date().toISOString(),
+          read: false,
+        })
+      }
+
       setReplyContent("")
       setReplyingTo(null)
       showSuccessToast("Reply posted successfully!")
@@ -328,7 +394,6 @@ const NovelOverview = () => {
     const novelUrl = `${window.location.origin}/novel/${novel.id}`
     const shareText = `Check out "${novel.title}" by ${novel.authorName} on NovelNest!`
     let shareUrl = ""
-
     switch (platform) {
       case "facebook":
         // Use the Facebook app URL scheme for mobile
@@ -354,7 +419,6 @@ const NovelOverview = () => {
       default:
         return
     }
-
     // For mobile apps, try to open the app first, fallback to web if it fails
     if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
       const appWindow = window.open(shareUrl, "_blank")
@@ -405,6 +469,23 @@ const NovelOverview = () => {
     return comment.userId === currentUser.uid || (novel && novel.authorId === currentUser.uid)
   }
 
+  const handleMarkAsFinished = async () => {
+    if (!novel?.id || !currentUser) {
+      showErrorToast("Unable to mark as finished - novel or user data missing.")
+      return
+    }
+    try {
+      const newFinishedStatus = !isFinished
+      await markNovelAsFinished(novel.id, novel.title, novel.authorId, newFinishedStatus)
+      setIsFinished(newFinishedStatus) // Optimistic update
+      showSuccessToast(newFinishedStatus ? "Novel marked as finished!" : "Novel marked as unfinished.")
+    } catch (error) {
+      console.error("Error marking novel as finished:", error)
+      showErrorToast("Failed to update finished status.")
+      setIsFinished(!isFinished) // Revert optimistic update on error
+    }
+  }
+
   // Memoized handlers to prevent unnecessary re-renders
   const handleNewCommentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const cursorPosition = e.target.selectionStart
@@ -441,30 +522,65 @@ const NovelOverview = () => {
     setReplyContent("")
   }, [])
 
-  const CommentItem = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => (
+  interface CommentItemProps {
+    comment: Comment
+    isReply?: boolean
+    replyingTo: string | null
+    setReplyingTo: (id: string | null) => void
+    replyContent: string
+    setReplyContent: (content: string) => void
+    submittingReply: boolean
+    handleReplySubmit: (parentId: string) => Promise<void>
+    handleCancelReply: () => void
+    currentUser: typeof currentUser
+    novel: typeof novel
+    replyTextareaRef: React.RefObject<HTMLTextAreaElement | null>
+    handleReplyContentChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
+    handleDeleteComment: (commentId: string) => Promise<void>
+    deletingComment: string | null
+    handleCommentLike: (commentId: string, isLiked: boolean) => Promise<void>
+  }
+
+  const CommentItem: React.FC<CommentItemProps> = ({
+    comment,
+    isReply = false,
+    replyingTo,
+    setReplyingTo,
+    replyContent,
+    setReplyContent,
+    submittingReply,
+    handleReplySubmit,
+    handleCancelReply,
+    currentUser,
+    novel,
+    replyTextareaRef,
+    handleReplyContentChange,
+    handleDeleteComment,
+    deletingComment,
+    handleCommentLike,
+  }) => (
     <div className={`bg-white/5 rounded-lg p-4 border border-white/10 ${isReply ? "mt-2" : ""}`}>
       <div className="flex items-start space-x-3">
-        <Link to={`/profile/${comment.userId}`} className="flex-shrink-0 cursor-pointer">
-          {comment.userPhoto ? (
-            <img
-              src={comment.userPhoto || "/placeholder.svg"}
-              alt={comment.userName}
-              className="h-8 w-8 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-              {getUserInitials(comment.userName)}
-            </div>
-          )}
-        </Link>
+       <Link to={`/profile/${comment.userId}`} className="flex-shrink-0">
+        {comment.userPhoto ? (
+          <img
+            src={comment.userPhoto || "/placeholder.svg"}
+            alt={comment.userName}
+            className="h-8 w-8 rounded-full object-cover"
+          />
+        ) : (
+          <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+            {getUserInitials(comment.userName)}
+          </div>
+        )}
+      </Link>
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-1">
-            <Link
-              to={`/profile/${comment.userId}`}
-              className="text-white text-sm font-semibold hover:underline cursor-pointer"
-            >
-              {comment.userName}
-            </Link>
+            <h4 className="text-white text-sm font-semibold">
+              <Link to={`/profile/${comment.userId}`} className="hover:underline">
+                {comment.userName}
+              </Link>
+            </h4>
             <span className="text-gray-400 text-xs">{formatDate(comment.createdAt)}</span>
             {comment.userId === novel?.authorId && (
               <span className="px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
@@ -491,13 +607,13 @@ const NovelOverview = () => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
-                  d="M4.318 6.318a4 4 0 000 6.364L12 20.364l7.682-7.682a4 4 0 00-6.364-6.364L12 7.636l-1.318-1.318a4 4 0 00-6.364 0z"
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                 />
               </svg>
               {comment.likes || 0}
             </button>
-            {/* Reply Button - Only for top-level comments */}
-            {!isReply && currentUser && (
+            {/* Reply Button - Now for any comment */}
+            {currentUser && (
               <button
                 onClick={() => handleReplyToggle(comment.id)}
                 className="inline-flex items-center text-xs text-gray-400 hover:text-purple-400 transition-colors"
@@ -588,7 +704,25 @@ const NovelOverview = () => {
       {comment.replies && comment.replies.length > 0 && (
         <div className="mt-3">
           {comment.replies.map((reply) => (
-            <CommentItem key={reply.id} comment={reply} isReply={true} />
+            <CommentItem
+              key={reply.id}
+              comment={reply}
+              isReply={true}
+              replyingTo={replyingTo}
+              setReplyingTo={setReplyingTo}
+              replyContent={replyContent}
+              setReplyContent={setReplyContent}
+              submittingReply={submittingReply}
+              handleReplySubmit={handleReplySubmit}
+              handleCancelReply={handleCancelReply}
+              currentUser={currentUser}
+              novel={novel}
+              replyTextareaRef={replyTextareaRef}
+              handleReplyContentChange={handleReplyContentChange}
+              handleDeleteComment={handleDeleteComment}
+              deletingComment={deletingComment}
+              handleCommentLike={handleCommentLike}
+            />
           ))}
         </div>
       )}
@@ -626,13 +760,11 @@ const NovelOverview = () => {
   }
 
   const isAuthor = currentUser && novel.authorId === currentUser.uid
-
   const truncateToTwoSentences = (text: string) => {
     // Early return if text is empty or short
     if (!text || text.length <= 100) return text
     // Split into sentences
     const sentences = text.match(/[^.!?]+[.!?]+/g) || []
-
     // If no complete sentences found, truncate by character
     if (sentences.length === 0) {
       return text.slice(0, 100) + "..."
@@ -641,6 +773,8 @@ const NovelOverview = () => {
     if (sentences.length === 1) {
       return sentences[0]
     }
+    // Return the first two sentences
+    return sentences.slice(0, 2).join(" ") + (sentences.length > 2 ? "..." : "")
   }
 
   return (
@@ -782,6 +916,29 @@ const NovelOverview = () => {
                       <FaShare className="h-4 w-4 mr-2" />
                       Share
                     </button>
+                    {currentUser && ( // Only show if logged in
+                      <button
+                        onClick={handleMarkAsFinished}
+                        disabled={!currentUser || (isFinished && !currentUser.finishedReads?.includes(novel.id))} // Disable if not logged in or if already finished and not in finishedReads
+                        className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold rounded-xl transition-all duration-200 border transform hover:scale-105 ${
+                          isFinished
+                            ? "bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30"
+                            : "bg-white/10 hover:bg-white/20 text-white border-white/20 hover:border-white/30"
+                        }`}
+                      >
+                        {isFinished ? (
+                          <>
+                            <CheckCircle className="h-5 w-5 mr-2" />
+                            Finished!
+                          </>
+                        ) : (
+                          <>
+                            <BookOpen className="h-5 w-5 mr-2" />
+                            Mark as Finished
+                          </>
+                        )}
+                      </button>
+                    )}
                     {isAuthor && (
                       <>
                         <Link
@@ -957,7 +1114,7 @@ const NovelOverview = () => {
               {currentUser ? (
                 <form onSubmit={handleCommentSubmit} className="mb-4 sm:mb-6">
                   <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
+                    <Link to={`/profile/${currentUser.uid}`} className="flex-shrink-0">
                       {currentUser.photoURL ? (
                         <img
                           src={currentUser.photoURL || "/placeholder.svg"}
@@ -969,7 +1126,7 @@ const NovelOverview = () => {
                           {getUserInitials(currentUser.displayName || "User")}
                         </div>
                       )}
-                    </div>
+                    </Link>
                     <div className="flex-1">
                       <textarea
                         ref={commentTextareaRef}
@@ -1043,7 +1200,26 @@ const NovelOverview = () => {
                     <p className="text-gray-500 text-xs mt-1">Be the first to share your thoughts!</p>
                   </div>
                 ) : (
-                  comments.map((comment) => <CommentItem key={comment.id} comment={comment} />)
+                  comments.map((comment) => (
+                    <CommentItem
+                      key={comment.id}
+                      comment={comment}
+                      replyingTo={replyingTo}
+                      setReplyingTo={setReplyingTo}
+                      replyContent={replyContent}
+                      setReplyContent={setReplyContent}
+                      submittingReply={submittingReply}
+                      handleReplySubmit={handleReplySubmit}
+                      handleCancelReply={handleCancelReply}
+                      currentUser={currentUser}
+                      novel={novel}
+                      replyTextareaRef={replyTextareaRef}
+                      handleReplyContentChange={handleReplyContentChange}
+                      handleDeleteComment={handleDeleteComment}
+                      deletingComment={deletingComment}
+                      handleCommentLike={handleCommentLike}
+                    />
+                  ))
                 )}
               </div>
             </div>
@@ -1067,7 +1243,7 @@ const NovelOverview = () => {
               {/* Copy Link */}
               <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
                 <div className="flex items-center justify-between">
-                  <div className="flex-1 inline-grid mr-3">
+                  <div className="flex-1 mr-3">
                     <p className="text-sm text-gray-300 mb-1">Share Link</p>
                     <p className="text-xs text-gray-400 truncate">{`${window.location.origin}/novel/${novel.id}`}</p>
                   </div>

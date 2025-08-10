@@ -8,6 +8,8 @@ import GenerateNovel from "./pages/GenerateNovel"
 import LoginPage from "./pages/LoginPage"
 import Home from "./pages/Home"
 import Profile from "./pages/Profile"
+import NotificationsPage from "./pages/Notifications"
+import LibraryPage from "./pages/Library"
 import Novels from "./pages/Novels"
 import NovelOverview from "./pages/NovelOverview"
 import NovelRead from "./pages/NovelRead"
@@ -34,6 +36,8 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/library" element={<LibraryPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/profile/:userId" element={<Profile />} />

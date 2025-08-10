@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Link, useParams } from "react-router-dom"
@@ -158,6 +157,34 @@ const Profile = () => {
     )
     return () => unsubscribe()
   }, [profileUser?.uid])
+
+  const refreshProfileUser = useCallback(async () => {
+    if (!currentUser && !userId) {
+      return
+    }
+    try {
+      let fetchedUser: ExtendedUser | null = null
+      if (userId && userId !== currentUser?.uid) {
+        const userDoc = await getDoc(doc(db, "users", userId))
+        if (userDoc.exists()) {
+          fetchedUser = { uid: userDoc.id, ...userDoc.data() } as ExtendedUser
+        }
+      } else {
+        fetchedUser = currentUser
+      }
+      setProfileUser(fetchedUser)
+      setFollowersCount(fetchedUser?.followers?.length || 0)
+      setFollowingCount(fetchedUser?.following?.length || 0)
+      if (currentUser && fetchedUser) {
+        setIsFollowing(fetchedUser.followers?.includes(currentUser.uid) || false)
+      } else {
+        setIsFollowing(false)
+      }
+    } catch (err) {
+      console.error("Error refreshing profile user data:", err)
+      showErrorToast("Failed to refresh profile data.")
+    }
+  }, [currentUser, userId])
 
   const resizeImage = useCallback((file: File, maxWidth = 200, maxHeight = 200, quality = 0.7): Promise<string> => {
     return new Promise((resolve) => {
@@ -478,35 +505,68 @@ const Profile = () => {
   // Handle follow/unfollow
   const handleFollowToggle = useCallback(async () => {
     if (!currentUser || !profileUser || isOwnProfile) return
+
+    const initialIsFollowing = isFollowing // Store initial state
+    const initialFollowersCount = followersCount // Store initial count
+
     setIsTogglingFollow(true) // Set loading state
     try {
-      await toggleFollow(profileUser.uid, isFollowing)
+      await toggleFollow(profileUser.uid, initialIsFollowing) // Use initial state for the toggle logic
+
       // Optimistically update UI
       setIsFollowing((prev) => !prev)
-      setFollowersCount((prev) => (isFollowing ? prev - 1 : prev + 1))
+      setFollowersCount((prev) => (initialIsFollowing ? prev - 1 : prev + 1))
+
+      // Show toast notification for the follower
+      if (!initialIsFollowing) {
+        // Use initial state to determine toast message
+        showSuccessToast(`You are now following ${profileUser.displayName || "this user"}!`)
+      } else {
+        showSuccessToast(`You have unfollowed ${profileUser.displayName || "this user"}.`)
+      }
+
+      // Refresh profile user data to ensure full synchronization
+      await refreshProfileUser()
     } catch (err) {
       console.error("Error toggling follow:", err)
+      showErrorToast("Failed to update follow status. Please try again.") // Show error toast
       // Revert UI if error
-      setIsFollowing((prev) => prev)
-      setFollowersCount((prev) => prev)
+      setIsFollowing(initialIsFollowing) // Revert to initial state
+      setFollowersCount(initialFollowersCount) // Revert to initial count
     } finally {
       setIsTogglingFollow(false) // Reset loading state
     }
-  }, [currentUser, profileUser, isOwnProfile, isFollowing, toggleFollow])
+  }, [currentUser, profileUser, isOwnProfile, isFollowing, followersCount, toggleFollow, refreshProfileUser])
 
   // Handle posting new announcement
   const handlePostAnnouncement = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault()
-      if (!newAnnouncementContent.trim() || !currentUser) return
-
+      if (!newAnnouncementContent.trim() || !currentUser || !profileUser) return
       setSubmittingAnnouncement(true)
       try {
-        await addDoc(collection(db, "announcements"), {
+        const newAnnouncementRef = await addDoc(collection(db, "announcements"), {
           authorId: currentUser.uid,
           content: newAnnouncementContent.trim(),
           createdAt: new Date().toISOString(),
         })
+
+        // Notify all followers of the current user (author)
+        if (profileUser.followers && profileUser.followers.length > 0) {
+          const notificationPromises = profileUser.followers.map((followerId) =>
+            addDoc(collection(db, "notifications"), {
+              toUserId: followerId,
+              fromUserId: currentUser.uid,
+              fromUserName: currentUser.displayName || "Author",
+              type: "followed_author_announcement",
+              announcementContent: newAnnouncementContent.trim(),
+              createdAt: new Date().toISOString(),
+              read: false,
+            }),
+          )
+          await Promise.all(notificationPromises)
+        }
+
         setNewAnnouncementContent("")
         showSuccessToast("Announcement posted!")
       } catch (error) {
@@ -516,7 +576,7 @@ const Profile = () => {
         setSubmittingAnnouncement(false)
       }
     },
-    [newAnnouncementContent, currentUser],
+    [newAnnouncementContent, currentUser, profileUser],
   )
 
   // Handle deleting an announcement
@@ -524,7 +584,6 @@ const Profile = () => {
     async (announcementId: string) => {
       if (!currentUser || !isOwnProfile) return // Only author can delete
       if (!window.confirm("Are you sure you want to delete this announcement?")) return
-
       setDeletingAnnouncementId(announcementId)
       try {
         await deleteDoc(doc(db, "announcements", announcementId))
