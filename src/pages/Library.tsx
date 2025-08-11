@@ -126,12 +126,13 @@ const LibraryPage = () => {
         className="group relative w-44 h-64 rounded-lg shadow-xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl flex-shrink-0"
       >
         {/* Book Cover */}
-        {novel.coverImage && !currentImageError ? (
+        {novel.coverSmallImage && !currentImageError ? (
           <img
-            src={novel.coverImage || "/placeholder.svg"}
+            src={novel.coverSmallImage || "/placeholder.svg"}
             alt={`Cover for ${novel.title}`}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             onError={handleCardImageError}
+            loading="lazy"
           />
         ) : (
           <div
@@ -211,7 +212,7 @@ const LibraryPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">
         <h1 className="text-3xl font-bold text-white mb-8 flex items-center">
           <BookOpen className="h-8 w-8 mr-3 text-purple-400" />
-          My Library
+          Library
         </h1>
         {error && (
           <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg mb-6">{error}</div>

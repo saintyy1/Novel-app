@@ -19,6 +19,7 @@ const SubmitNovel = () => {
   const [genres, setGenres] = useState<string[]>([])
   const [chapters, setChapters] = useState([{ title: "", content: "" }])
   const [coverImage, setCoverImage] = useState<string | null>(null)
+  const [coverImageSmall, setCoverImageSmall] = useState<string | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -81,17 +82,16 @@ const SubmitNovel = () => {
     }
   }
 
+  // Resize to <1MB (your existing function, unchanged)
   async function resizeAndConvertToBase64Under1MB(file: File): Promise<string> {
   const maxBytes = 1 * 1024 * 1024; // 1MB
   const img = await loadImage(file);
 
-  let quality = 0.9; // start with high quality
+  let quality = 0.9;
   let width = img.width;
   let height = img.height;
-
   let base64 = "";
 
-  // Keep reducing size/quality until under 1MB
   do {
     const canvas = document.createElement("canvas");
     canvas.width = width;
@@ -103,12 +103,11 @@ const SubmitNovel = () => {
 
     base64 = canvas.toDataURL(file.type, quality);
 
-    // If too large, reduce quality or dimensions
     if (base64SizeInBytes(base64) > maxBytes) {
       if (quality > 0.5) {
-        quality -= 0.05; // reduce quality gradually
+        quality -= 0.05;
       } else {
-        width *= 0.9; // shrink dimensions by 10%
+        width *= 0.9;
         height *= 0.9;
       }
     } else {
@@ -117,6 +116,37 @@ const SubmitNovel = () => {
   } while (base64SizeInBytes(base64) > maxBytes);
 
   return base64;
+}
+
+// Generate a very small thumbnail (100–200px wide, ~5–10 KB)
+async function generateSmallBase64(file: File, maxWidth = 200, maxHeight = 300): Promise<string> {
+  const img = await loadImage(file);
+
+  let width = img.width;
+  let height = img.height;
+
+  if (width > height) {
+    if (width > maxWidth) {
+      height *= maxWidth / width;
+      width = maxWidth;
+    }
+  } else {
+    if (height > maxHeight) {
+      width *= maxHeight / height;
+      height = maxHeight;
+    }
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas not supported");
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // 0.7 quality to keep it tiny
+  return canvas.toDataURL("image/jpeg", 0.7);
 }
 
 // Load an image from file
@@ -155,8 +185,10 @@ function base64SizeInBytes(base64String: string) {
     try {
       // Automatically resize & compress to <1MB
       const base64 = await resizeAndConvertToBase64Under1MB(file);
+      const smallBase64 = await generateSmallBase64(file);
     
       setCoverImage(base64);
+      setCoverImageSmall(smallBase64);
       setCoverPreview(base64);
       setError("");
     } catch (err) {
@@ -169,6 +201,7 @@ function base64SizeInBytes(base64String: string) {
 
   const removeCoverImage = () => {
     setCoverImage(null)
+    setCoverImageSmall(null);
     setCoverPreview(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
@@ -213,6 +246,7 @@ function base64SizeInBytes(base64String: string) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         coverImage: coverImage || null, // base64 string
+        coverImageSmall: coverImageSmall || null,
         likes: 0,
         views: 0,
       })

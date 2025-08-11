@@ -18,6 +18,7 @@ const GenerateNovel = () => {
   const [genres, setGenres] = useState<string[]>([])
   const [chapters, setChapters] = useState([{ title: "", content: "" }])
   const [coverImage, setCoverImage] = useState<string | null>(null)
+  const [coverImageSmall, setCoverImageSmall] = useState<string | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -60,99 +61,132 @@ const GenerateNovel = () => {
     }
   }
 
+  // Resize to <1MB (your existing function, unchanged)
   async function resizeAndConvertToBase64Under1MB(file: File): Promise<string> {
-    const maxBytes = 1 * 1024 * 1024; // 1MB
-    const img = await loadImage(file);
+  const maxBytes = 1 * 1024 * 1024; // 1MB
+  const img = await loadImage(file);
 
-    let quality = 0.9; // start with high quality
-    let width = img.width;
-    let height = img.height;
+  let quality = 0.9;
+  let width = img.width;
+  let height = img.height;
+  let base64 = "";
 
-    let base64 = "";
+  do {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
 
-    // Keep reducing size/quality until under 1MB
-    do {
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas not supported");
+    ctx.drawImage(img, 0, 0, width, height);
 
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas not supported");
-      ctx.drawImage(img, 0, 0, width, height);
+    base64 = canvas.toDataURL(file.type, quality);
 
-      base64 = canvas.toDataURL(file.type, quality);
-
-      // If too large, reduce quality or dimensions
-      if (base64SizeInBytes(base64) > maxBytes) {
-        if (quality > 0.5) {
-          quality -= 0.05; // reduce quality gradually
-        } else {
-          width *= 0.9; // shrink dimensions by 10%
-          height *= 0.9;
-        }
+    if (base64SizeInBytes(base64) > maxBytes) {
+      if (quality > 0.5) {
+        quality -= 0.05;
       } else {
-        break;
+        width *= 0.9;
+        height *= 0.9;
       }
-    } while (base64SizeInBytes(base64) > maxBytes);
+    } else {
+      break;
+    }
+  } while (base64SizeInBytes(base64) > maxBytes);
 
-    return base64;
+  return base64;
+}
+
+// Generate a very small thumbnail (100–200px wide, ~5–10 KB)
+async function generateSmallBase64(file: File, maxWidth = 200, maxHeight = 300): Promise<string> {
+  const img = await loadImage(file);
+
+  let width = img.width;
+  let height = img.height;
+
+  if (width > height) {
+    if (width > maxWidth) {
+      height *= maxWidth / width;
+      width = maxWidth;
+    }
+  } else {
+    if (height > maxHeight) {
+      width *= maxHeight / height;
+      height = maxHeight;
+    }
   }
 
-  // Load an image from file
-  function loadImage(file: File): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = reader.result as string;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
 
-  // Calculate base64 size in bytes
-  function base64SizeInBytes(base64String: string) {
-    const padding = (base64String.endsWith("==") ? 2 : base64String.endsWith("=") ? 1 : 0);
-    const base64Body = base64String.split(",")[1] || base64String;
-    return (base64Body.length * 3) / 4 - padding;
-  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas not supported");
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // 0.7 quality to keep it tiny
+  return canvas.toDataURL("image/jpeg", 0.7);
+}
+
+// Load an image from file
+function loadImage(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = reader.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Calculate base64 size in bytes
+function base64SizeInBytes(base64String: string) {
+  const padding = (base64String.endsWith("==") ? 2 : base64String.endsWith("=") ? 1 : 0);
+  const base64Body = base64String.split(",")[1] || base64String;
+  return (base64Body.length * 3) / 4 - padding;
+}
 
 
   const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+  if (e.target.files && e.target.files[0]) {
+    const file = e.target.files[0];
 
-      // Validate type first
-      if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
-        setError("Cover image must be JPEG, PNG or WebP format");
-        return;
-      }
-
-      try {
-        // Automatically resize & compress to <1MB
-        const base64 = await resizeAndConvertToBase64Under1MB(file);
-       
-        setCoverImage(base64);
-        setCoverPreview(base64);
-        setError("");
-      } catch (err) {
-        console.error("Image processing failed:", err);
-        setError("Failed to process image");
-      }
+    // Validate type first
+    if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
+      setError("Cover image must be JPEG, PNG or WebP format");
+      return;
     }
-  };
+
+    try {
+      // Automatically resize & compress to <1MB
+      const base64 = await resizeAndConvertToBase64Under1MB(file);
+      const smallBase64 = await generateSmallBase64(file);
+    
+      setCoverImage(base64);
+      setCoverImageSmall(smallBase64);
+      setCoverPreview(base64);
+      setError("");
+    } catch (err) {
+      console.error("Image processing failed:", err);
+      setError("Failed to process image");
+    }
+  }
+};
 
 
   const removeCoverImage = () => {
     setCoverImage(null)
+    setCoverImageSmall(null);
     setCoverPreview(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
   }
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -187,6 +221,7 @@ const GenerateNovel = () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         coverImage: coverImage || null, // base64 string
+        coverImageSmall: coverImageSmall || null,
         likes: 0,
         views: 0,
       })

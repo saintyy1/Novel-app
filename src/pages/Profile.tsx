@@ -223,9 +223,9 @@ const Profile = () => {
       if (!file || !currentUser) return
 
       // Validate file
-      if (file.size > 10 * 1024 * 1024) {
+      if (file.size > 2 * 1024 * 1024) {
         // 10MB limit for original file
-        setPhotoError("Profile picture must be less than 10MB")
+        setPhotoError("Profile picture must be less than 2MB")
         return
       }
       if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
@@ -294,8 +294,8 @@ const Profile = () => {
       const file = event.target.files?.[0]
       if (!file || !selectedNovelForCover) return
 
-      if (file.size > 10 * 1024 * 1024) {
-        setNovelCoverError("Cover image must be less than 10MB")
+      if (file.size > 1 * 1024 * 1024) {
+        setNovelCoverError("Cover image must be less than 1MB")
         return
       }
       if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
@@ -306,7 +306,7 @@ const Profile = () => {
       try {
         setUploadingNovelCover(true)
         setNovelCoverError("")
-        const resizedBase64 = await resizeImage(file, 400, 600, 0.8) // Adjust dimensions for novel covers
+        const resizedBase64 = await resizeImage(file, 400, 600, 0.8)
 
         if (resizedBase64.length > 500000) {
           // ~400KB limit for novel covers
@@ -1112,10 +1112,11 @@ const Profile = () => {
                   >
                     {/* Novel Cover/Header */}
                     <div className="relative h-48 bg-gradient-to-br from-purple-600/80 to-indigo-600/80 overflow-hidden">
-                      {novel.coverImage ? (
+                      {novel.coverSmallImage ? (
                         <img
-                          src={novel.coverImage || "/placeholder.svg"}
+                          src={novel.coverSmallImage || "/placeholder.svg"}
                           alt={novel.title}
+                          loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         />
                       ) : (

@@ -74,13 +74,14 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
               key={novel.id}
               className="flex-shrink-0 w-[calc(50%-1rem)] sm:w-[calc(33.33%-1rem)] md:w-[calc(25%-1rem)] lg:w-[calc(20%-1rem)] xl:w-[calc(16.66%-1rem)] h-64 relative rounded-lg shadow-md overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300"
             >
-              {novel.coverImage && !imageErrors[novel.id] ? (
+              {novel.coverSmallImage && !imageErrors[novel.id] ? (
                 <img
-                  src={novel.coverImage || "/placeholder.svg"}
+                  src={novel.coverSmallImage || "/placeholder.svg"}
                   alt={`Cover for ${novel.title}`}
                   className="w-full h-full object-cover"
                   onError={() => handleImageError(novel.id)}
-                />
+                  loading="lazy"
+                /> 
               ) : (
                 <div
                   className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(

@@ -214,12 +214,13 @@ const Novels: React.FC = () => {
             >
               {/* Image Section (fixed size) */}
               <div className="w-40 h-64 flex-shrink-0 relative">
-                {novel.coverImage && !imageErrors[novel.id] ? (
+                {novel.coverSmallImage && !imageErrors[novel.id] ? (
                   <img
-                    src={novel.coverImage || "/placeholder.svg"}
+                    src={novel.coverSmallImage || "/placeholder.svg"}
                     alt={`Cover for ${novel.title}`}
                     className="w-full h-full object-cover"
                     onError={() => handleImageError(novel.id)}
+                    loading="lazy"
                   />
                 ) : (
                 <div
