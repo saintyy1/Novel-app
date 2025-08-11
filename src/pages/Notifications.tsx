@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom" // Import useNavigate
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
-import { UserPlus, MessageSquare, Heart, CheckCircle, Mail, Megaphone, BookOpen } from "lucide-react" // Import Lucide icons
+import { UserPlus, MessageSquare, Heart, CheckCircle, Mail, Megaphone, BookOpen, FileText } from "lucide-react" // Import Lucide icons
 
 interface Notification {
   id: string
@@ -14,9 +14,11 @@ interface Notification {
     | "novel_comment"
     | "novel_reply"
     | "comment_reply"
+    | "announcement"
     | "novel_added_to_library"
     | "novel_finished"
     | "followed_author_announcement"
+    | "new_chapter" // Add new notification type for new chapters
   fromUserId?: string
   fromUserName?: string
   toUserId: string
@@ -25,6 +27,8 @@ interface Notification {
   commentContent?: string
   parentId?: string // For replies
   announcementContent?: string // For announcements
+  chapterCount?: number // Add chapter count for new chapter notifications
+  chapterTitles?: string[] // Add chapter titles for new chapter notifications
   createdAt: string
   read: boolean
   fromUserPhotoURL?: string
@@ -155,12 +159,15 @@ const NotificationsPage = () => {
         case "novel_reply":
         case "comment_reply":
           return <MessageSquare className="h-5 w-5 text-blue-400" />
-        case "followed_author_announcement": // Use Megaphone for followed author announcements
+        case "announcement":
+        case "followed_author_announcement":
           return <Megaphone className="h-5 w-5 text-yellow-400" />
-        case "novel_added_to_library": // New icon for added to library
+        case "novel_added_to_library":
           return <BookOpen className="h-5 w-5 text-green-400" />
-        case "novel_finished": // New icon for novel finished
+        case "novel_finished":
           return <CheckCircle className="h-5 w-5 text-green-400" />
+        case "new_chapter":
+          return <FileText className="h-5 w-5 text-blue-400" />
         default:
           return <Mail className="h-5 w-5 text-gray-400" />
       }
@@ -243,13 +250,19 @@ const NotificationsPage = () => {
             : "{notification.commentContent}"
           </>
         )
-      case "followed_author_announcement": // New message for followed author announcements
+      case "announcement":
+        return (
+          <>
+            {fromUserLink} posted a new announcement: "{notification.announcementContent}"
+          </>
+        )
+      case "followed_author_announcement":
         return (
           <>
             {fromUserLink} posted an announcement: "{notification.announcementContent}"
           </>
         )
-      case "novel_added_to_library": // New message for added to library
+      case "novel_added_to_library":
         return (
           <>
             {fromUserLink} added your novel{" "}
@@ -263,7 +276,7 @@ const NotificationsPage = () => {
             to their library.
           </>
         )
-      case "novel_finished": // New message for novel finished
+      case "novel_finished":
         return (
           <>
             {fromUserLink} marked your novel{" "}
@@ -275,6 +288,26 @@ const NotificationsPage = () => {
               "{notification.novelTitle}"
             </Link>{" "}
             as finished!
+          </>
+        )
+      case "new_chapter":
+        return (
+          <>
+            {fromUserLink} added{" "}
+            {notification.chapterCount === 1 ? "a new chapter" : `${notification.chapterCount} new chapters`} to{" "}
+            <Link
+              to={`/novel/${notification.novelId}`}
+              className="text-purple-400 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              "{notification.novelTitle}"
+            </Link>
+            {notification.chapterTitles && notification.chapterTitles.length > 0 && (
+              <span className="text-gray-300">
+                : {notification.chapterTitles.slice(0, 2).join(", ")}
+                {notification.chapterTitles.length > 2 && ` and ${notification.chapterTitles.length - 2} more`}
+              </span>
+            )}
           </>
         )
       default:
@@ -290,10 +323,12 @@ const NotificationsPage = () => {
       case "novel_comment":
       case "novel_reply":
       case "comment_reply":
-      case "novel_added_to_library": // Link to novel for added to library
-      case "novel_finished": // Link to novel for novel finished
+      case "novel_added_to_library":
+      case "novel_finished":
+      case "new_chapter":
         return `/novel/${notification.novelId}`
-      case "followed_author_announcement": // Link to author's profile for announcements
+      case "announcement":
+      case "followed_author_announcement":
         return `/profile/${notification.fromUserId}`
       default:
         return "#"
@@ -339,7 +374,7 @@ const NotificationsPage = () => {
   return (
     <div className="min-h-screen bg-gray-900 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">
-        <h1 className="text-3xl font-bold text-white mb-8">Notifications</h1>
+        <h1 className="text-3xl font-bold text-white mb-8">Your Notifications</h1>
         {error && (
           <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg mb-6">{error}</div>
         )}

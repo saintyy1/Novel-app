@@ -1,9 +1,8 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
-import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore"
+import { doc, getDoc, updateDoc, arrayUnion, collection, query, where, getDocs, addDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
@@ -19,7 +18,6 @@ const AddChapters = () => {
   const { id: novelId } = useParams<{ id: string }>()
   const { currentUser } = useAuth()
   const navigate = useNavigate()
-
   const [novel, setNovel] = useState<Novel | null>(null)
   const [newChapters, setNewChapters] = useState<Chapter[]>([{ title: "", content: "" }])
   const [loading, setLoading] = useState(true)
@@ -35,25 +33,21 @@ const AddChapters = () => {
         setLoading(false)
         return
       }
-
       if (!currentUser) {
         setError("You must be logged in to add chapters")
         setLoading(false)
         return
       }
-
       try {
         const novelDoc = await getDoc(doc(db, "novels", novelId))
         if (novelDoc.exists()) {
           const novelData = { id: novelDoc.id, ...novelDoc.data() } as Novel
-
           // Check if current user is the author
           if (novelData.authorId !== currentUser.uid) {
             setError("You are not authorized to add chapters to this novel.")
             setLoading(false)
             return
           }
-
           setNovel(novelData)
         } else {
           setError("Novel not found.")
@@ -65,7 +59,6 @@ const AddChapters = () => {
         setLoading(false)
       }
     }
-
     fetchNovel()
   }, [novelId, currentUser])
 
@@ -95,17 +88,14 @@ const AddChapters = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!novelId || !novel) return
 
     // Validate chapters
     const validChapters = newChapters.filter((chapter) => chapter.title.trim() && chapter.content.trim())
-
     if (validChapters.length === 0) {
       setError("Please add at least one chapter with both title and content.")
       return
     }
-
     if (validChapters.length !== newChapters.length) {
       setError("All chapters must have both title and content.")
       return
@@ -121,11 +111,41 @@ const AddChapters = () => {
         updatedAt: new Date().toISOString(),
       })
 
-      setSuccess(`Successfully added ${validChapters.length} new chapter(s)!`)
+      try {
+        // Find all users who have this novel in their library
+        const usersQuery = query(collection(db, "users"), where("library", "array-contains", novelId))
+        const usersSnapshot = await getDocs(usersQuery)
 
+        // Create notifications for each user who has the novel in their library
+        const notificationPromises = usersSnapshot.docs.map(async (userDoc) => {
+          const userId = userDoc.id
+          // Don't notify the author themselves
+          if (userId !== currentUser?.uid) {
+            await addDoc(collection(db, "notifications"), {
+              toUserId: userId,
+              fromUserId: currentUser?.uid,
+              fromUserName: currentUser?.displayName || "Author",
+              type: "new_chapter",
+              novelId: novelId,
+              novelTitle: novel.title,
+              chapterCount: validChapters.length,
+              chapterTitles: validChapters.map((chapter) => chapter.title),
+              createdAt: new Date().toISOString(),
+              read: false,
+            })
+          }
+        })
+
+        await Promise.all(notificationPromises)
+        console.log(`Sent new chapter notifications to ${usersSnapshot.docs.length} users`)
+      } catch (notificationError) {
+        console.error("Error sending chapter notifications:", notificationError)
+        // Don't fail the entire operation if notifications fail
+      }
+
+      setSuccess(`Successfully added ${validChapters.length} new chapter(s)!`)
       // Reset form
       setNewChapters([{ title: "", content: "" }])
-
       // Redirect after a short delay
       setTimeout(() => {
         navigate(`/novel/${novelId}`)
@@ -151,13 +171,8 @@ const AddChapters = () => {
   if (error && !novel) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-        <Link
-          to="/"
-          className="inline-flex items-center mt-4 text-purple-400 hover:text-purple-300"
-        >
+        <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg">{error}</div>
+        <Link to="/" className="inline-flex items-center mt-4 text-purple-400 hover:text-purple-300">
           ← Back to Home
         </Link>
       </div>
@@ -168,21 +183,15 @@ const AddChapters = () => {
     <div className="max-w-4xl mx-auto px-4 py-8 bg-gray-900 min-h-screen">
       {/* Header */}
       <div className="mb-8">
-        <Link
-          to={`/novel/${novelId}`}
-          className="inline-flex items-center text-purple-400 hover:text-purple-300 my-4"
-        >
+        <Link to={`/novel/${novelId}`} className="inline-flex items-center text-purple-400 hover:text-purple-300 my-4">
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
           </svg>
           Back to Novel
         </Link>
         <h1 className="text-3xl font-bold text-white">Add New Chapters</h1>
-        <p className="text-gray-400 mt-2">
-          Continue your story by adding new chapters to "{novel?.title}"
-        </p>
+        <p className="text-gray-400 mt-2">Continue your story by adding new chapters to "{novel?.title}"</p>
       </div>
-
       {/* Novel Info */}
       <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-8">
         <div className="flex items-start space-x-4">
@@ -196,27 +205,20 @@ const AddChapters = () => {
           <div className="flex-1">
             <h2 className="text-xl font-bold text-white">{novel?.title}</h2>
             <p className="text-gray-400 mt-1">By {novel?.authorName}</p>
-            <p className="text-sm text-gray-400 mt-2">
-              Current chapters: {novel?.chapters?.length || 0}
-            </p>
+            <p className="text-sm text-gray-400 mt-2">Current chapters: {novel?.chapters?.length || 0}</p>
           </div>
         </div>
       </div>
-
       {/* Success Message */}
       {success && (
         <div className="bg-green-900/30 border border-green-800 text-green-400 px-4 py-3 rounded-lg mb-6">
           {success}
         </div>
       )}
-
       {/* Error Message */}
       {error && (
-        <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
+        <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg mb-6">{error}</div>
       )}
-
       {/* Add Chapters Form */}
       <form onSubmit={handleSubmit}>
         <div className="mb-8">
@@ -233,14 +235,10 @@ const AddChapters = () => {
               Add Chapter
             </button>
           </div>
-
           {newChapters.map((chapter, index) => {
             const chapterNumber = (novel?.chapters?.length || 0) + index + 1
             return (
-              <div
-                key={index}
-                className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500"
-              >
+              <div key={index} className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-bold text-white">New Chapter {chapterNumber}</h3>
                   {newChapters.length > 1 && (
@@ -261,12 +259,8 @@ const AddChapters = () => {
                     </button>
                   )}
                 </div>
-
                 <div className="mb-4">
-                  <label
-                    htmlFor={`chapter-title-${index}`}
-                    className="block text-sm font-medium text-gray-300 mb-1"
-                  >
+                  <label htmlFor={`chapter-title-${index}`} className="block text-sm font-medium text-gray-300 mb-1">
                     Chapter Title
                   </label>
                   <input
@@ -279,41 +273,36 @@ const AddChapters = () => {
                     required
                   />
                 </div>
-
                 <div>
-                <label
-                  htmlFor={`chapter-content-${index}`}
-                  className="block text-sm font-medium text-gray-300 mb-1"
-                >
-                  Chapter Content
-                </label>
-                <button
-                  type="button"
-                  className="mb-2 px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  onClick={() => setShowPreview((prev) => !prev)}
-                >
-                  {showPreview ? 'Show Preview' : 'Hide Preview'}
-                </button>
-                <MDEditor
-                  value={chapter.content}
-                  onChange={(val) => handleChapterContentChange(index, val || "")}
-                  height={250}
-                  textareaProps={{
-                    id: `chapter-content-${index}`,
-                    required: true,
-                    placeholder: "Write your chapter content here..."
-                  }}
-                  previewOptions={{
-                    rehypePlugins: [[rehypeSanitize]]
-                  }}
-                  preview={showPreview ? 'edit' : 'preview'}
-                />
-              </div>
+                  <label htmlFor={`chapter-content-${index}`} className="block text-sm font-medium text-gray-300 mb-1">
+                    Chapter Content
+                  </label>
+                  <button
+                    type="button"
+                    className="mb-2 px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    onClick={() => setShowPreview((prev) => !prev)}
+                  >
+                    {showPreview ? "Show Preview" : "Hide Preview"}
+                  </button>
+                  <MDEditor
+                    value={chapter.content}
+                    onChange={(val) => handleChapterContentChange(index, val || "")}
+                    height={250}
+                    textareaProps={{
+                      id: `chapter-content-${index}`,
+                      required: true,
+                      placeholder: "Write your chapter content here...",
+                    }}
+                    previewOptions={{
+                      rehypePlugins: [[rehypeSanitize]],
+                    }}
+                    preview={showPreview ? "edit" : "preview"}
+                  />
+                </div>
               </div>
             )
           })}
         </div>
-
         {/* Submit Button */}
         <div className="flex justify-end space-x-4">
           <Link
