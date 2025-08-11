@@ -23,7 +23,8 @@ import {
   where,
   getDocs,
   addDoc,
-  orderBy, // Import orderBy for fetching announcements
+  orderBy,
+  writeBatch, 
 } from "firebase/firestore" // Import arrayUnion, arrayRemove, and new Firestore functions
 import { auth, db, googleProvider } from "../firebase/config"
 
@@ -33,13 +34,13 @@ export interface ExtendedUser extends User {
   createdAt?: string
   updatedAt?: string
   disabled?: boolean
-  bio?: string // New: User's biography
-  followers?: string[] // New: UIDs of users following this user
-  following?: string[] // New: UIDs of users this user is following
-  instagramUrl?: string // New: Instagram profile URL
-  twitterUrl?: string // New: twitter profile URL
-  library?: string[] // New: IDs of novels liked by the user
-  finishedReads?: string[] // New: IDs of novels marked as finished by the user
+  bio?: string 
+  followers?: string[] 
+  following?: string[] 
+  instagramUrl?: string 
+  twitterUrl?: string 
+  library?: string[]
+  finishedReads?: string[]
 }
 
 interface AuthContextType {
@@ -56,12 +57,9 @@ interface AuthContextType {
   toggleFollow: (targetUserId: string, isFollowing: boolean) => Promise<void> // New
   signInWithGoogle: () => Promise<void>
   updateUserLibrary: (novelId: string, add: boolean, novelTitle: string, novelAuthorId: string) => Promise<void> // New: For adding/removing novels from library
-  markNovelAsFinished: (
-    novelId: string,
-    novelTitle: string,
-    novelAuthorId: string,
-    markAsFinished: boolean,
-  ) => Promise<void> // New: For marking novels as finished
+  markNovelAsFinished: (novelId: string, novelTitle: string, novelAuthorId: string) => Promise<void> // New: For marking novels as finished
+  markAllNotificationsAsRead: () => Promise<void> // New: Added bulk notification management functions
+  clearAllNotifications: () => Promise<void> // New: Added bulk notification management functions
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
@@ -432,61 +430,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
-  const markNovelAsFinished = async (
-    novelId: string,
-    novelTitle: string,
-    novelAuthorId: string,
-    markAsFinished: boolean,
-  ) => {
+  const markNovelAsFinished = async (novelId: string, novelTitle: string, novelAuthorId: string) => {
     if (!currentUser) throw new Error("No user logged in")
     const userRef = doc(db, "users", currentUser.uid)
     try {
-      if (markAsFinished) {
-        // Add to finishedReads and remove from library
-        await updateDoc(userRef, {
-          finishedReads: arrayUnion(novelId),
-          library: arrayRemove(novelId),
-          updatedAt: new Date().toISOString(),
+      if (novelAuthorId !== currentUser.uid) {
+        await addDoc(collection(db, "notifications"), {
+          toUserId: novelAuthorId,
+          fromUserId: currentUser.uid,
+          fromUserName: currentUser.displayName || "Anonymous User",
+          type: "novel_finished", // New notification type
+          novelId: novelId,
+          novelTitle: novelTitle,
+          createdAt: new Date().toISOString(),
+          read: false,
         })
-        setCurrentUser((prev) =>
-          prev
-            ? {
-                ...prev,
-                finishedReads: [...(prev.finishedReads || []), novelId],
-                library: (prev.library || []).filter((id) => id !== novelId),
-              }
-            : null,
-        )
-        // Optionally, notify author that novel was finished (if not self)
-        if (novelAuthorId !== currentUser.uid) {
-          await addDoc(collection(db, "notifications"), {
-            toUserId: novelAuthorId,
-            fromUserId: currentUser.uid,
-            fromUserName: currentUser.displayName || "Anonymous User",
-            type: "novel_finished", // New notification type
-            novelId: novelId,
-            novelTitle: novelTitle,
-            createdAt: new Date().toISOString(),
-            read: false,
-          })
-        }
-      } else {
-        // Remove from finishedReads and add back to library (optional, or just remove)
-        await updateDoc(userRef, {
-          finishedReads: arrayRemove(novelId),
-          library: arrayUnion(novelId), // Add back to library if un-finishing
-          updatedAt: new Date().toISOString(),
-        })
-        setCurrentUser((prev) =>
-          prev
-            ? {
-                ...prev,
-                finishedReads: (prev.finishedReads || []).filter((id) => id !== novelId),
-                library: [...(prev.library || []), novelId],
-              }
-            : null,
-        )
       }
+      await updateDoc(userRef, {
+        finishedReads: arrayUnion(novelId),
+        library: arrayRemove(novelId),
+        updatedAt: new Date().toISOString(),
+      })
+      setCurrentUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              finishedReads: [...(prev.finishedReads || []), novelId],
+              library: (prev.library || []).filter((id) => id !== novelId),
+            }
+          : null,
+      )
     } catch (error) {
       console.error("Error marking novel as finished:", error)
       throw error
@@ -588,6 +561,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  const markAllNotificationsAsRead = async () => {
+    if (!currentUser) return
+
+    try {
+      const notificationsQuery = query(
+        collection(db, "notifications"),
+        where("toUserId", "==", currentUser.uid),
+        where("read", "==", false),
+      )
+
+      const snapshot = await getDocs(notificationsQuery)
+      const batch = writeBatch(db)
+
+      snapshot.docs.forEach((doc) => {
+        batch.update(doc.ref, { read: true })
+      })
+
+      await batch.commit()
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error)
+      throw error
+    }
+  }
+
+  const clearAllNotifications = async () => {
+    if (!currentUser) return
+
+    try {
+      const notificationsQuery = query(collection(db, "notifications"), where("toUserId", "==", currentUser.uid))
+
+      const snapshot = await getDocs(notificationsQuery)
+      const batch = writeBatch(db)
+
+      snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref)
+      })
+
+      await batch.commit()
+    } catch (error) {
+      console.error("Error clearing all notifications:", error)
+      throw error
+    }
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -616,11 +633,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAdmin,
     refreshUser,
     updateUserPhoto,
-    updateUserProfile, // New
-    toggleFollow, // New
+    updateUserProfile,
+    toggleFollow,
     signInWithGoogle,
-    updateUserLibrary, // New
-    markNovelAsFinished, // New
+    updateUserLibrary,
+    markNovelAsFinished,
+    markAllNotificationsAsRead,
+    clearAllNotifications,
   }
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>

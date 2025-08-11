@@ -4,7 +4,18 @@ import { Link, useNavigate } from "react-router-dom" // Import useNavigate
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
-import { UserPlus, MessageSquare, Heart, CheckCircle, Mail, Megaphone, BookOpen, FileText } from "lucide-react" // Import Lucide icons
+import {
+  UserPlus,
+  MessageSquare,
+  Heart,
+  CheckCircle,
+  Mail,
+  Megaphone,
+  BookOpen,
+  FileText,
+  Check,
+  Trash2,
+} from "lucide-react" // Import Lucide icons
 
 interface Notification {
   id: string
@@ -14,11 +25,10 @@ interface Notification {
     | "novel_comment"
     | "novel_reply"
     | "comment_reply"
-    | "announcement"
     | "novel_added_to_library"
     | "novel_finished"
     | "followed_author_announcement"
-    | "new_chapter" // Add new notification type for new chapters
+    | "new_chapter"
   fromUserId?: string
   fromUserName?: string
   toUserId: string
@@ -35,12 +45,14 @@ interface Notification {
 }
 
 const NotificationsPage = () => {
-  const { currentUser, loading: authLoading } = useAuth()
+  const { currentUser, loading: authLoading, markAllNotificationsAsRead, clearAllNotifications } = useAuth()
   const navigate = useNavigate() // Initialize useNavigate
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [fromUsersData, setFromUsersData] = useState<Record<string, { displayName: string; photoURL?: string }>>({})
+  const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
+  const [clearingAll, setClearingAll] = useState(false)
 
   const getUserInitials = useCallback((name: string | null | undefined) => {
     if (!name) return "U"
@@ -159,7 +171,6 @@ const NotificationsPage = () => {
         case "novel_reply":
         case "comment_reply":
           return <MessageSquare className="h-5 w-5 text-blue-400" />
-        case "announcement":
         case "followed_author_announcement":
           return <Megaphone className="h-5 w-5 text-yellow-400" />
         case "novel_added_to_library":
@@ -250,12 +261,6 @@ const NotificationsPage = () => {
             : "{notification.commentContent}"
           </>
         )
-      case "announcement":
-        return (
-          <>
-            {fromUserLink} posted a new announcement: "{notification.announcementContent}"
-          </>
-        )
       case "followed_author_announcement":
         return (
           <>
@@ -327,7 +332,6 @@ const NotificationsPage = () => {
       case "novel_finished":
       case "new_chapter":
         return `/novel/${notification.novelId}`
-      case "announcement":
       case "followed_author_announcement":
         return `/profile/${notification.fromUserId}`
       default:
@@ -345,6 +349,34 @@ const NotificationsPage = () => {
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
     return date.toLocaleDateString()
+  }
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      setMarkingAllAsRead(true)
+      await markAllNotificationsAsRead()
+    } catch (error) {
+      console.error("Error marking all as read:", error)
+      setError("Failed to mark all notifications as read.")
+    } finally {
+      setMarkingAllAsRead(false)
+    }
+  }
+
+  const handleClearAll = async () => {
+    if (!window.confirm("Are you sure you want to delete all notifications? This action cannot be undone.")) {
+      return
+    }
+
+    try {
+      setClearingAll(true)
+      await clearAllNotifications()
+    } catch (error) {
+      console.error("Error clearing all notifications:", error)
+      setError("Failed to clear all notifications.")
+    } finally {
+      setClearingAll(false)
+    }
   }
 
   if (authLoading || loading) {
@@ -374,10 +406,52 @@ const NotificationsPage = () => {
   return (
     <div className="min-h-screen bg-gray-900 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">
-        <h1 className="text-3xl font-bold text-white mb-8">Your Notifications</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+          <h1 className="text-3xl font-bold text-white mb-4 sm:mb-0">Notifications</h1>
+          {notifications.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={handleMarkAllAsRead}
+                disabled={markingAllAsRead || notifications.every((n) => n.read)}
+                className="inline-flex items-center px-4 py-2 border border-gray-600 text-sm font-medium rounded-md text-gray-300 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {markingAllAsRead ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-300 mr-2"></div>
+                    Marking...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    Mark All Read
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleClearAll}
+                disabled={clearingAll}
+                className="inline-flex items-center px-4 py-2 border border-red-600 text-sm font-medium rounded-md text-red-400 bg-red-900/20 hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {clearingAll ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400 mr-2"></div>
+                    Clearing...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Clear All
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
         {error && (
           <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg mb-6">{error}</div>
         )}
+
         {notifications.length === 0 ? (
           <div className="bg-gray-800 rounded-xl shadow-md p-8 text-center">
             <CheckCircle className="mx-auto h-16 w-16 text-green-400 mb-4" />
