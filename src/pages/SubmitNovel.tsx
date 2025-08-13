@@ -246,7 +246,7 @@ function base64SizeInBytes(base64String: string) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         coverImage: coverImage || null, // base64 string
-        coverImageSmall: coverImageSmall || null,
+        coverSmallImage: coverImageSmall || null,
         likes: 0,
         views: 0,
       })
