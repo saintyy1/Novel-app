@@ -218,7 +218,6 @@ const NovelOverview = () => {
     }
   }
 
-
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newComment.trim() || !currentUser || !novel) return
@@ -476,7 +475,7 @@ const NovelOverview = () => {
     }
     try {
       const newFinishedStatus = !isFinished
-      await markNovelAsFinished(novel.id, novel.title, novel.authorId, newFinishedStatus)
+      await markNovelAsFinished(novel.id, novel.title, novel.authorId)
       setIsFinished(newFinishedStatus) // Optimistic update
       showSuccessToast(newFinishedStatus ? "Novel marked as finished!" : "Novel marked as unfinished.")
     } catch (error) {
@@ -558,176 +557,230 @@ const NovelOverview = () => {
     handleDeleteComment,
     deletingComment,
     handleCommentLike,
-  }) => (
-    <div className={`bg-white/5 rounded-lg p-4 border border-white/10 ${isReply ? "mt-2" : ""}`}>
-      <div className="flex items-start space-x-3">
-       <Link to={`/profile/${comment.userId}`} className="flex-shrink-0">
-        {comment.userPhoto ? (
-          <img
-            src={comment.userPhoto || "/placeholder.svg"}
-            alt={comment.userName}
-            className="h-8 w-8 rounded-full object-cover"
-          />
-        ) : (
-          <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-            {getUserInitials(comment.userName)}
-          </div>
-        )}
-      </Link>
-        <div className="flex-1">
-          <div className="flex items-center space-x-2 mb-1">
-            <h4 className="text-white text-sm font-semibold">
-              <Link to={`/profile/${comment.userId}`} className="hover:underline">
-                {comment.userName}
-              </Link>
-            </h4>
-            <span className="text-gray-400 text-xs">{formatDate(comment.createdAt)}</span>
-            {comment.userId === novel?.authorId && (
-              <span className="px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
-                Author
-              </span>
+  }) => {
+    const getParentCommentData = (parentId: string | undefined): { userName: string; userId: string } | null => {
+      if (!parentId) return null
+
+      const findCommentById = (comments: Comment[], id: string): Comment | null => {
+        for (const c of comments) {
+          if (c.id === id) return c
+          if (c.replies) {
+            const found = findCommentById(c.replies, id)
+            if (found) return found
+          }
+        }
+        return null
+      }
+
+      const parentComment = findCommentById(comments, parentId)
+      if (!parentComment) return null
+
+      return {
+        userName: parentComment.userName,
+        userId: parentComment.userId,
+      }
+    }
+
+    return (
+      <div className={`mt-2 ${
+    !isReply ? "bg-white/5 rounded-lg p-2 border border-white/10" : ""
+  }`}>
+        <div className="flex items-start space-x-3">
+          <Link to={`/profile/${comment.userId}`} className="flex-shrink-0">
+            {comment.userPhoto ? (
+              <img
+                src={comment.userPhoto || "/placeholder.svg"}
+                alt={comment.userName}
+                className="h-8 w-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                {getUserInitials(comment.userName)}
+              </div>
             )}
-          </div>
-          <p className="text-gray-300 text-sm leading-relaxed mb-2">{comment.content}</p>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => handleCommentLike(comment.id, comment.likedBy?.includes(currentUser?.uid || ""))}
-              disabled={!currentUser}
-              className={`inline-flex items-center text-xs ${
-                comment.likedBy?.includes(currentUser?.uid || "") ? "text-red-400" : "text-gray-400 hover:text-red-400"
-              } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
-            >
-              <svg
-                className={`h-4 w-4 mr-1 ${comment.likedBy?.includes(currentUser?.uid || "") ? "fill-current" : ""}`}
-                fill={comment.likedBy?.includes(currentUser?.uid || "") ? "currentColor" : "none"}
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
-              </svg>
-              {comment.likes || 0}
-            </button>
-            {/* Reply Button - Now for any comment */}
-            {currentUser && (
+          </Link>
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-1">
+              <h4 className="text-white text-sm font-semibold">
+                {isReply && comment.parentId ? (
+                <span>
+                  <Link
+                    to={`/profile/${comment.userId}`}
+                    className="hover:underline"
+                  >
+                    {comment.userName}
+                  </Link>
+                  <span className="text-gray-400 font-normal"> &gt; </span>
+                  {(() => {
+                  const parent = getParentCommentData(comment.parentId)
+                  return parent ? (
+                    <Link
+                      to={`/profile/${parent.userId}`}
+                      className="hover:underline"
+                    >
+                      {parent.userName}
+                    </Link>
+                  ) : null
+                })()}
+                </span>
+              ) : (
+                <Link
+                  to={`/profile/${comment.userId}`}
+                  className="hover:underline"
+                >
+                  {comment.userName}
+                </Link>
+              )}
+              </h4>
+              <span className="text-gray-400 text-xs">{formatDate(comment.createdAt)}</span>
+              {comment.userId === novel?.authorId && (
+                <span className="px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
+                  Author
+                </span>
+              )}
+            </div>
+            <p className="text-gray-300 text-sm leading-relaxed mb-2">{comment.content}</p>
+            <div className="flex items-center space-x-4">
               <button
-                onClick={() => handleReplyToggle(comment.id)}
-                className="inline-flex items-center text-xs text-gray-400 hover:text-purple-400 transition-colors"
+                onClick={() => handleCommentLike(comment.id, comment.likedBy?.includes(currentUser?.uid || ""))}
+                disabled={!currentUser}
+                className={`inline-flex items-center text-xs ${
+                  comment.likedBy?.includes(currentUser?.uid || "")
+                    ? "text-red-400"
+                    : "text-gray-400 hover:text-red-400"
+                } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
               >
-                <FaReply className="h-3 w-3 mr-1" />
-                Reply
-              </button>
-            )}
-            {/* Delete Button */}
-            {canDeleteComment(comment) && (
-              <button
-                onClick={() => handleDeleteComment(comment.id)}
-                disabled={deletingComment === comment.id}
-                className="inline-flex items-center text-xs text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
-              >
-                {deletingComment === comment.id ? (
-                  <svg className="animate-spin h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                ) : (
-                  <FaTrash className="h-3 w-3 mr-1" />
-                )}
-                Delete
-              </button>
-            )}
-          </div>
-          {/* Reply Form */}
-          {replyingTo === comment.id && (
-            <div className="mt-3 p-3 bg-white/5 rounded-lg border border-white/10">
-              <div className="flex items-start space-x-2">
-                <div className="flex-shrink-0">
-                  {currentUser?.photoURL ? (
-                    <img
-                      src={currentUser.photoURL || "/placeholder.svg"}
-                      alt="Your avatar"
-                      className="h-6 w-6 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-6 w-6 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      {getUserInitials(currentUser?.displayName || "User")}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <textarea
-                    ref={replyTextareaRef}
-                    value={replyContent}
-                    onChange={handleReplyContentChange}
-                    placeholder={`Reply to ${comment.userName}...`}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm"
-                    rows={2}
-                    autoFocus
+                <svg
+                  className={`h-4 w-4 mr-1 ${comment.likedBy?.includes(currentUser?.uid || "") ? "fill-current" : ""}`}
+                  fill={comment.likedBy?.includes(currentUser?.uid || "") ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                   />
-                  <div className="flex justify-end space-x-2 mt-2">
-                    <button
-                      onClick={handleCancelReply}
-                      className="px-3 py-1 text-xs text-gray-400 hover:text-white transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleReplySubmit(comment.id)}
-                      disabled={!replyContent.trim() || submittingReply}
-                      className="px-3 py-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
-                    >
-                      {submittingReply ? "Posting..." : "Reply"}
-                    </button>
+                </svg>
+                {comment.likes || 0}
+              </button>
+              {/* Reply Button - Now for any comment */}
+              {currentUser && (
+                <button
+                  onClick={() => handleReplyToggle(comment.id)}
+                  className="inline-flex items-center text-xs text-gray-400 hover:text-purple-400 transition-colors"
+                >
+                  <FaReply className="h-3 w-3 mr-1" />
+                  Reply
+                </button>
+              )}
+              {/* Delete Button */}
+              {canDeleteComment(comment) && (
+                <button
+                  onClick={() => handleDeleteComment(comment.id)}
+                  disabled={deletingComment === comment.id}
+                  className="inline-flex items-center text-xs text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
+                >
+                  {deletingComment === comment.id ? (
+                    <svg className="animate-spin h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  ) : (
+                    <FaTrash className="h-3 w-3 mr-1" />
+                  )}
+                  Delete
+                </button>
+              )}
+            </div>
+            {/* Reply Form */}
+            {replyingTo === comment.id && (
+              <div className="mt-3 p-2">
+                <div className="flex items-start space-x-2">
+                  <div className="flex-shrink-0">
+                    {currentUser?.photoURL ? (
+                      <img
+                        src={currentUser.photoURL || "/placeholder.svg"}
+                        alt="Your avatar"
+                        className="h-6 w-6 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-6 w-6 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {getUserInitials(currentUser?.displayName || "User")}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <textarea
+                      ref={replyTextareaRef}
+                      value={replyContent}
+                      onChange={handleReplyContentChange}
+                      placeholder={`Reply to ${comment.userName}...`}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm"
+                      rows={2}
+                      autoFocus
+                    />
+                    <div className="flex justify-end space-x-2 mt-2">
+                      <button
+                        onClick={handleCancelReply}
+                        className="px-3 py-1 text-xs text-gray-400 hover:text-white transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleReplySubmit(comment.id)}
+                        disabled={!replyContent.trim() || submittingReply}
+                        className="px-3 py-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
+                      >
+                        {submittingReply ? "Posting..." : "Reply"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+        {comment.replies && comment.replies.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {comment.replies.map((reply) => (
+              <CommentItem
+                key={reply.id}
+                comment={reply}
+                isReply={true}
+                replyingTo={replyingTo}
+                setReplyingTo={setReplyingTo}
+                replyContent={replyContent}
+                setReplyContent={setReplyContent}
+                submittingReply={submittingReply}
+                handleReplySubmit={handleReplySubmit}
+                handleCancelReply={handleCancelReply}
+                currentUser={currentUser}
+                novel={novel}
+                replyTextareaRef={replyTextareaRef}
+                handleReplyContentChange={handleReplyContentChange}
+                handleDeleteComment={handleDeleteComment}
+                deletingComment={deletingComment}
+                handleCommentLike={handleCommentLike}
+              />
+            ))}
+          </div>
+        )}
       </div>
-      {/* Replies */}
-      {comment.replies && comment.replies.length > 0 && (
-        <div className="mt-3">
-          {comment.replies.map((reply) => (
-            <CommentItem
-              key={reply.id}
-              comment={reply}
-              isReply={true}
-              replyingTo={replyingTo}
-              setReplyingTo={setReplyingTo}
-              replyContent={replyContent}
-              setReplyContent={setReplyContent}
-              submittingReply={submittingReply}
-              handleReplySubmit={handleReplySubmit}
-              handleCancelReply={handleCancelReply}
-              currentUser={currentUser}
-              novel={novel}
-              replyTextareaRef={replyTextareaRef}
-              handleReplyContentChange={handleReplyContentChange}
-              handleDeleteComment={handleDeleteComment}
-              deletingComment={deletingComment}
-              handleCommentLike={handleCommentLike}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
+    )
+  }
 
   if (loading) {
     return (
