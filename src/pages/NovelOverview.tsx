@@ -1296,7 +1296,7 @@ const NovelOverview = () => {
               {/* Copy Link */}
               <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
                 <div className="flex items-center justify-between">
-                  <div className="flex-1 mr-3">
+                  <div className="inline-grid mr-3">
                     <p className="text-sm text-gray-300 mb-1">Share Link</p>
                     <p className="text-xs text-gray-400 truncate">{`${window.location.origin}/novel/${novel.id}`}</p>
                   </div>
