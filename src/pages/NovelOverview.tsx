@@ -87,8 +87,7 @@ const NovelOverview = () => {
             ...novelData,
             id: novelDoc.id,
           } as Novel)
-          // Update liked status based on fetched data and user's library
-          if (currentUser && currentUser.library?.includes(novelDoc.id)) {
+          if (currentUser && novelData.likedBy?.includes(currentUser.uid)) {
             setLiked(true)
           } else {
             setLiked(false)
@@ -474,14 +473,15 @@ const NovelOverview = () => {
       return
     }
     try {
-      const newFinishedStatus = !isFinished
+      const currentlyFinished = currentUser.finishedReads?.includes(novel.id) || false
       await markNovelAsFinished(novel.id, novel.title, novel.authorId)
-      setIsFinished(newFinishedStatus) // Optimistic update
-      showSuccessToast(newFinishedStatus ? "Novel marked as finished!" : "Novel marked as unfinished.")
+      setIsFinished(!currentlyFinished)
+      showSuccessToast(!currentlyFinished ? "Novel marked as finished!" : "Novel unmarked as finished.")
     } catch (error) {
       console.error("Error marking novel as finished:", error)
       showErrorToast("Failed to update finished status.")
-      setIsFinished(!isFinished) // Revert optimistic update on error
+      const currentlyFinished = currentUser.finishedReads?.includes(novel.id) || false
+      setIsFinished(currentlyFinished)
     }
   }
 
@@ -582,9 +582,7 @@ const NovelOverview = () => {
     }
 
     return (
-      <div className={`mt-2 ${
-    !isReply ? "bg-white/5 rounded-lg p-2 border border-white/10" : ""
-  }`}>
+      <div className={`mt-2 ${!isReply ? "bg-white/5 rounded-lg p-2 border border-white/10" : ""}`}>
         <div className="flex items-start space-x-3">
           <Link to={`/profile/${comment.userId}`} className="flex-shrink-0">
             {comment.userPhoto ? (
@@ -603,34 +601,25 @@ const NovelOverview = () => {
             <div className="flex items-center space-x-2 mb-1">
               <h4 className="text-white text-sm font-semibold">
                 {isReply && comment.parentId ? (
-                <span>
-                  <Link
-                    to={`/profile/${comment.userId}`}
-                    className="hover:underline"
-                  >
+                  <span>
+                    <Link to={`/profile/${comment.userId}`} className="hover:underline">
+                      {comment.userName}
+                    </Link>
+                    <span className="text-gray-400 font-normal"> &gt; </span>
+                    {(() => {
+                      const parent = getParentCommentData(comment.parentId)
+                      return parent ? (
+                        <Link to={`/profile/${parent.userId}`} className="hover:underline">
+                          {parent.userName}
+                        </Link>
+                      ) : null
+                    })()}
+                  </span>
+                ) : (
+                  <Link to={`/profile/${comment.userId}`} className="hover:underline">
                     {comment.userName}
                   </Link>
-                  <span className="text-gray-400 font-normal"> &gt; </span>
-                  {(() => {
-                  const parent = getParentCommentData(comment.parentId)
-                  return parent ? (
-                    <Link
-                      to={`/profile/${parent.userId}`}
-                      className="hover:underline"
-                    >
-                      {parent.userName}
-                    </Link>
-                  ) : null
-                })()}
-                </span>
-              ) : (
-                <Link
-                  to={`/profile/${comment.userId}`}
-                  className="hover:underline"
-                >
-                  {comment.userName}
-                </Link>
-              )}
+                )}
               </h4>
               <span className="text-gray-400 text-xs">{formatDate(comment.createdAt)}</span>
               {comment.userId === novel?.authorId && (
@@ -972,7 +961,7 @@ const NovelOverview = () => {
                     {currentUser && ( // Only show if logged in
                       <button
                         onClick={handleMarkAsFinished}
-                        disabled={!currentUser || (isFinished && !currentUser.finishedReads?.includes(novel.id))} // Disable if not logged in or if already finished and not in finishedReads
+                        disabled={!currentUser}
                         className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold rounded-xl transition-all duration-200 border transform hover:scale-105 ${
                           isFinished
                             ? "bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30"
@@ -982,7 +971,7 @@ const NovelOverview = () => {
                         {isFinished ? (
                           <>
                             <CheckCircle className="h-5 w-5 mr-2" />
-                            Finished!
+                            Finished
                           </>
                         ) : (
                           <>

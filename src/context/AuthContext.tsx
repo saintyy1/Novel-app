@@ -24,7 +24,7 @@ import {
   getDocs,
   addDoc,
   orderBy,
-  writeBatch, 
+  writeBatch,
 } from "firebase/firestore" // Import arrayUnion, arrayRemove, and new Firestore functions
 import { auth, db, googleProvider } from "../firebase/config"
 
@@ -34,11 +34,11 @@ export interface ExtendedUser extends User {
   createdAt?: string
   updatedAt?: string
   disabled?: boolean
-  bio?: string 
-  followers?: string[] 
-  following?: string[] 
-  instagramUrl?: string 
-  twitterUrl?: string 
+  bio?: string
+  followers?: string[]
+  following?: string[]
+  instagramUrl?: string
+  twitterUrl?: string
   library?: string[]
   finishedReads?: string[]
 }
@@ -434,34 +434,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser) throw new Error("No user logged in")
     const userRef = doc(db, "users", currentUser.uid)
     try {
-      if (novelAuthorId !== currentUser.uid) {
-        await addDoc(collection(db, "notifications"), {
-          toUserId: novelAuthorId,
-          fromUserId: currentUser.uid,
-          fromUserName: currentUser.displayName || "Anonymous User",
-          type: "novel_finished", // New notification type
-          novelId: novelId,
-          novelTitle: novelTitle,
-          createdAt: new Date().toISOString(),
-          read: false,
+      const isCurrentlyFinished = currentUser.finishedReads?.includes(novelId) || false
+
+      if (!isCurrentlyFinished) {
+        if (novelAuthorId !== currentUser.uid) {
+          await addDoc(collection(db, "notifications"), {
+            toUserId: novelAuthorId,
+            fromUserId: currentUser.uid,
+            fromUserName: currentUser.displayName || "Anonymous User",
+            type: "novel_finished",
+            novelId: novelId,
+            novelTitle: novelTitle,
+            createdAt: new Date().toISOString(),
+            read: false,
+          })
+        }
+        await updateDoc(userRef, {
+          finishedReads: arrayUnion(novelId),
+          library: arrayRemove(novelId), // Remove from currently reading
+          updatedAt: new Date().toISOString(),
         })
+        setCurrentUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                finishedReads: [...(prev.finishedReads || []), novelId],
+                library: (prev.library || []).filter((id) => id !== novelId), // Remove from library
+              }
+            : null,
+        )
+      } else {
+        await updateDoc(userRef, {
+          finishedReads: arrayRemove(novelId),
+          library: arrayUnion(novelId), // Add back to currently reading
+          updatedAt: new Date().toISOString(),
+        })
+        setCurrentUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                finishedReads: (prev.finishedReads || []).filter((id) => id !== novelId),
+                library: [...(prev.library || []), novelId], // Add back to library
+              }
+            : null,
+        )
       }
-      await updateDoc(userRef, {
-        finishedReads: arrayUnion(novelId),
-        library: arrayRemove(novelId),
-        updatedAt: new Date().toISOString(),
-      })
-      setCurrentUser((prev) =>
-        prev
-          ? {
-              ...prev,
-              finishedReads: [...(prev.finishedReads || []), novelId],
-              library: (prev.library || []).filter((id) => id !== novelId),
-            }
-          : null,
-      )
     } catch (error) {
-      console.error("Error marking novel as finished:", error)
+      console.error("Error toggling novel finished status:", error)
       throw error
     }
   }
