@@ -955,6 +955,8 @@ const NovelRead = () => {
           >
             {renderCurrentPageContent()}
           </div>
+
+          <div className="absolute bottom-4 right-4 text-xs text-gray-400 italic">Written by {novel.authorName}</div>
           {/* Page navigation */}
           <div className="flex justify-between items-center w-full mt-4 sm:mt-6 text-sm">
             <button
