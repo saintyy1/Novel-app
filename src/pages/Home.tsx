@@ -83,6 +83,8 @@ const Home = () => {
     if (genres.includes("Historical")) return "from-amber-500 to-yellow-600"
     if (genres.includes("Comedy")) return "from-teal-500 to-green-600"
     if (genres.includes("Drama")) return "from-violet-500 to-purple-600"
+    if (genres.includes("Dystopian")) return "from-red-400 to-purple-500"
+    if (genres.includes("Fiction")) return "from-gray-600 to-gray-800"
     return "from-gray-600 to-gray-800" // Default
   }
 

@@ -390,7 +390,7 @@ const NovelOverview = () => {
   const handleSocialShare = (platform: string) => {
     if (!novel) return
     const novelUrl = `${window.location.origin}/novel/${novel.id}`
-    const shareText = `Check out "${novel.title}" by ${novel.authorName} on NovelNest!`
+    const shareText = `Check out "${novel.title}" by ${novel.authorName} on NovlNest!`
     let shareUrl = ""
     switch (platform) {
       case "facebook":

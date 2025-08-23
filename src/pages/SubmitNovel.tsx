@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useRef } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { collection, addDoc } from "firebase/firestore"
@@ -17,6 +19,7 @@ const SubmitNovel = () => {
   const [description, setDescription] = useState("")
   const [summary, setSummary] = useState("")
   const [genres, setGenres] = useState<string[]>([])
+  const [hasGraphicContent, setHasGraphicContent] = useState<boolean>(false)
   const [chapters, setChapters] = useState([{ title: "", content: "" }])
   const [coverImage, setCoverImage] = useState<string | null>(null)
   const [coverImageSmall, setCoverImageSmall] = useState<string | null>(null)
@@ -26,8 +29,18 @@ const SubmitNovel = () => {
   const [showPreview, setShowPreview] = useState(true)
 
   const availableGenres = [
-    "Fantasy", "Sci-Fi", "Romance", "Mystery", "Horror",
-    "Adventure", "Thriller", "Historical", "Comedy", "Drama"
+    "Fantasy",
+    "Sci-Fi",
+    "Romance",
+    "Mystery",
+    "Horror",
+    "Adventure",
+    "Thriller",
+    "Historical",
+    "Comedy",
+    "Drama",
+    "Fiction",
+    "Dystopian",
   ]
 
   const handleGenreChange = (genre: string) => {
@@ -57,7 +70,6 @@ const SubmitNovel = () => {
     setDescription(newDescription)
   }
 
-
   const handleChapterTitleChange = (index: number, title: string) => {
     const newChapters = [...chapters]
     newChapters[index].title = title
@@ -84,124 +96,122 @@ const SubmitNovel = () => {
 
   // Resize to <1MB (your existing function, unchanged)
   async function resizeAndConvertToBase64Under1MB(file: File): Promise<string> {
-  const maxBytes = 1 * 1024 * 1024; // 1MB
-  const img = await loadImage(file);
+    const maxBytes = 1 * 1024 * 1024 // 1MB
+    const img = await loadImage(file)
 
-  let quality = 0.9;
-  let width = img.width;
-  let height = img.height;
-  let base64 = "";
+    let quality = 0.9
+    let width = img.width
+    let height = img.height
+    let base64 = ""
 
-  do {
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+    do {
+      const canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas not supported");
-    ctx.drawImage(img, 0, 0, width, height);
+      const ctx = canvas.getContext("2d")
+      if (!ctx) throw new Error("Canvas not supported")
+      ctx.drawImage(img, 0, 0, width, height)
 
-    base64 = canvas.toDataURL(file.type, quality);
+      base64 = canvas.toDataURL(file.type, quality)
 
-    if (base64SizeInBytes(base64) > maxBytes) {
-      if (quality > 0.5) {
-        quality -= 0.05;
+      if (base64SizeInBytes(base64) > maxBytes) {
+        if (quality > 0.5) {
+          quality -= 0.05
+        } else {
+          width *= 0.9
+          height *= 0.9
+        }
       } else {
-        width *= 0.9;
-        height *= 0.9;
+        break
+      }
+    } while (base64SizeInBytes(base64) > maxBytes)
+
+    return base64
+  }
+
+  // Generate a very small thumbnail (100–200px wide, ~5–10 KB)
+  async function generateSmallBase64(file: File, maxWidth = 200, maxHeight = 300): Promise<string> {
+    const img = await loadImage(file)
+
+    let width = img.width
+    let height = img.height
+
+    if (width > height) {
+      if (width > maxWidth) {
+        height *= maxWidth / width
+        width = maxWidth
       }
     } else {
-      break;
+      if (height > maxHeight) {
+        width *= maxHeight / height
+        height = maxHeight
+      }
     }
-  } while (base64SizeInBytes(base64) > maxBytes);
 
-  return base64;
-}
+    const canvas = document.createElement("canvas")
+    canvas.width = width
+    canvas.height = height
 
-// Generate a very small thumbnail (100–200px wide, ~5–10 KB)
-async function generateSmallBase64(file: File, maxWidth = 200, maxHeight = 300): Promise<string> {
-  const img = await loadImage(file);
+    const ctx = canvas.getContext("2d")
+    if (!ctx) throw new Error("Canvas not supported")
+    ctx.drawImage(img, 0, 0, width, height)
 
-  let width = img.width;
-  let height = img.height;
-
-  if (width > height) {
-    if (width > maxWidth) {
-      height *= maxWidth / width;
-      width = maxWidth;
-    }
-  } else {
-    if (height > maxHeight) {
-      width *= maxHeight / height;
-      height = maxHeight;
-    }
+    // 0.7 quality to keep it tiny
+    return canvas.toDataURL("image/jpeg", 0.7)
   }
 
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  // Load an image from file
+  function loadImage(file: File): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const img = new Image()
+        img.onload = () => resolve(img)
+        img.onerror = reject
+        img.src = reader.result as string
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
 
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas not supported");
-  ctx.drawImage(img, 0, 0, width, height);
-
-  // 0.7 quality to keep it tiny
-  return canvas.toDataURL("image/jpeg", 0.7);
-}
-
-// Load an image from file
-function loadImage(file: File): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = reader.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-// Calculate base64 size in bytes
-function base64SizeInBytes(base64String: string) {
-  const padding = (base64String.endsWith("==") ? 2 : base64String.endsWith("=") ? 1 : 0);
-  const base64Body = base64String.split(",")[1] || base64String;
-  return (base64Body.length * 3) / 4 - padding;
-}
-
+  // Calculate base64 size in bytes
+  function base64SizeInBytes(base64String: string) {
+    const padding = base64String.endsWith("==") ? 2 : base64String.endsWith("=") ? 1 : 0
+    const base64Body = base64String.split(",")[1] || base64String
+    return (base64Body.length * 3) / 4 - padding
+  }
 
   const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  if (e.target.files && e.target.files[0]) {
-    const file = e.target.files[0];
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
 
-    // Validate type first
-    if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
-      setError("Cover image must be JPEG, PNG or WebP format");
-      return;
-    }
+      // Validate type first
+      if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
+        setError("Cover image must be JPEG, PNG or WebP format")
+        return
+      }
 
-    try {
-      // Automatically resize & compress to <1MB
-      const base64 = await resizeAndConvertToBase64Under1MB(file);
-      const smallBase64 = await generateSmallBase64(file);
-    
-      setCoverImage(base64);
-      setCoverImageSmall(smallBase64);
-      setCoverPreview(base64);
-      setError("");
-    } catch (err) {
-      console.error("Image processing failed:", err);
-      setError("Failed to process image");
+      try {
+        // Automatically resize & compress to <1MB
+        const base64 = await resizeAndConvertToBase64Under1MB(file)
+        const smallBase64 = await generateSmallBase64(file)
+
+        setCoverImage(base64)
+        setCoverImageSmall(smallBase64)
+        setCoverPreview(base64)
+        setError("")
+      } catch (err) {
+        console.error("Image processing failed:", err)
+        setError("Failed to process image")
+      }
     }
   }
-};
-
 
   const removeCoverImage = () => {
     setCoverImage(null)
-    setCoverImageSmall(null);
+    setCoverImageSmall(null)
     setCoverPreview(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
@@ -224,9 +234,10 @@ function base64SizeInBytes(base64String: string) {
       return
     }
 
-    if (coverImage && coverImage.length > 1 * 1024 * 1024) { // 1MB in base64
-      setError("Processed cover image is too large. Please try a smaller image.");
-      return;
+    if (coverImage && coverImage.length > 1 * 1024 * 1024) {
+      // 1MB in base64
+      setError("Processed cover image is too large. Please try a smaller image.")
+      return
     }
 
     try {
@@ -238,6 +249,7 @@ function base64SizeInBytes(base64String: string) {
         description,
         summary,
         genres,
+        hasGraphicContent,
         chapters,
         authorId: currentUser?.uid,
         authorName: currentUser?.displayName,
@@ -282,16 +294,12 @@ function base64SizeInBytes(base64String: string) {
       <h1 className="text-3xl font-bold mt-2 mb-8 text-[#E0E0E0]">Submit Your Novel</h1>
 
       {error && (
-        <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
+        <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg mb-6">{error}</div>
       )}
 
       <form onSubmit={handleSubmit}>
         <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-8">
-          <h2 className="text-xl font-bold mb-6 text-gray-300 border-b border-gray-700 pb-2">
-            Novel Details
-          </h2>
+          <h2 className="text-xl font-bold mb-6 text-gray-300 border-b border-gray-700 pb-2">Novel Details</h2>
 
           <div className="mb-6">
             <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">
@@ -321,9 +329,7 @@ function base64SizeInBytes(base64String: string) {
               required
               placeholder="Write a brief description of your novel"
             />
-            <p className="mt-1 text-xs text-gray-400">
-              {`${countSentences(description)} of 1 sentences used`}
-            </p>
+            <p className="mt-1 text-xs text-gray-400">{`${countSentences(description)} of 1 sentences used`}</p>
           </div>
 
           <div className="mb-6">
@@ -341,9 +347,7 @@ function base64SizeInBytes(base64String: string) {
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Cover Image (Optional)
-            </label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Cover Image (Optional)</label>
             <div className="mt-1 flex items-start space-x-4">
               <div className="flex-1">
                 <input
@@ -359,9 +363,7 @@ function base64SizeInBytes(base64String: string) {
                            hover:file:bg-purple-800
                            cursor-pointer"
                 />
-                <p className="mt-1 text-xs text-gray-400">
-                  JPEG, PNG or WebP. Max 1MB. Recommended size: 800x600px.
-                </p>
+                <p className="mt-1 text-xs text-gray-400">JPEG, PNG or WebP. Max 1MB. Recommended size: 800x600px.</p>
               </div>
               {coverPreview && (
                 <div className="relative">
@@ -385,18 +387,17 @@ function base64SizeInBytes(base64String: string) {
             </div>
           </div>
 
-          <div className="mb-2">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Genres (select at least one)
-            </label>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-300 mb-2">Genres (select at least one)</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mt-2">
               {availableGenres.map((genre) => (
                 <label
                   key={genre}
-                  className={`flex items-center justify-center px-3 py-2 rounded-lg border ${genres.includes(genre)
-                    ? "bg-purple-900/40 border-purple-700 text-purple-300"
-                    : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                    } cursor-pointer transition-colors text-sm`}
+                  className={`flex items-center justify-center px-3 py-2 rounded-lg border ${
+                    genres.includes(genre)
+                      ? "bg-purple-900/40 border-purple-700 text-purple-300"
+                      : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+                  } cursor-pointer transition-colors text-sm`}
                 >
                   <input
                     type="checkbox"
@@ -407,6 +408,36 @@ function base64SizeInBytes(base64String: string) {
                   <span>{genre}</span>
                 </label>
               ))}
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Does your novel contain graphic or gory content?
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="graphicContent"
+                  value="yes"
+                  checked={hasGraphicContent === true}
+                  onChange={() => setHasGraphicContent(true)}
+                  className="mr-2 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-gray-300">Yes</span>
+              </label>
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="graphicContent"
+                  value="no"
+                  checked={hasGraphicContent === false}
+                  onChange={() => setHasGraphicContent(false)}
+                  className="mr-2 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-gray-300">No</span>
+              </label>
             </div>
           </div>
         </div>
@@ -433,10 +464,7 @@ function base64SizeInBytes(base64String: string) {
           </div>
 
           {chapters.map((chapter, index) => (
-            <div
-              key={index}
-              className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500"
-            >
+            <div key={index} className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white">Chapter {index + 1}</h3>
                 {chapters.length > 1 && (
@@ -465,10 +493,7 @@ function base64SizeInBytes(base64String: string) {
               </div>
 
               <div className="mb-4">
-                <label
-                  htmlFor={`chapter-title-${index}`}
-                  className="block text-sm font-medium text-gray-300 mb-1"
-                >
+                <label htmlFor={`chapter-title-${index}`} className="block text-sm font-medium text-gray-300 mb-1">
                   Chapter Title
                 </label>
                 <input
@@ -483,10 +508,7 @@ function base64SizeInBytes(base64String: string) {
               </div>
 
               <div>
-                <label
-                  htmlFor={`chapter-content-${index}`}
-                  className="block text-sm font-medium text-gray-300 mb-1"
-                >
+                <label htmlFor={`chapter-content-${index}`} className="block text-sm font-medium text-gray-300 mb-1">
                   Chapter Content
                 </label>
                 <button
@@ -494,7 +516,7 @@ function base64SizeInBytes(base64String: string) {
                   className="mb-2 px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   onClick={() => setShowPreview((prev) => !prev)}
                 >
-                  {showPreview ? 'Show Preview' : 'Hide Preview'}
+                  {showPreview ? "Show Preview" : "Hide Preview"}
                 </button>
                 <MDEditor
                   value={chapter.content}
@@ -503,12 +525,12 @@ function base64SizeInBytes(base64String: string) {
                   textareaProps={{
                     id: `chapter-content-${index}`,
                     required: true,
-                    placeholder: "Write your chapter content here..."
+                    placeholder: "Write your chapter content here...",
                   }}
                   previewOptions={{
-                    rehypePlugins: [[rehypeSanitize]]
+                    rehypePlugins: [[rehypeSanitize]],
                   }}
-                  preview={showPreview ? 'edit' : 'preview'}
+                  preview={showPreview ? "edit" : "preview"}
                 />
               </div>
             </div>
