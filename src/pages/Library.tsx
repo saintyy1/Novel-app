@@ -9,6 +9,24 @@ import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import { BookOpen, BookOpenCheck, BookOpenText } from "lucide-react"
 
+const getFirebaseDownloadUrl = (url: string) => {
+    if (!url || !url.includes("firebasestorage.app")) {
+      return url
+    }
+
+    try {
+      // Convert Firebase Storage URL to download URL format that bypasses CORS
+      const urlParts = url.split("/")
+      const bucketName = urlParts[3] // Extract bucket name
+      const filePath = urlParts.slice(4).join("/") // Extract file path
+
+      // Create download URL format that doesn't require CORS
+      return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media`
+    } catch (error) {
+      return url
+    }
+  }
+
 const LibraryPage = () => {
   const { currentUser, loading: authLoading } = useAuth()
   const [likedNovels, setLikedNovels] = useState<Novel[]>([])
@@ -119,6 +137,16 @@ const LibraryPage = () => {
       setCurrentImageError(true)
     }
 
+    const getImageSrc = () => {
+      if (novel.coverSmallImage) {
+        return getFirebaseDownloadUrl(novel.coverSmallImage)
+      }
+      if (novel.coverImage) {
+        return getFirebaseDownloadUrl(novel.coverImage)
+      }
+      return "/placeholder.svg"
+    }
+
     return (
       <Link
         to={`/novel/${novel.id}`}
@@ -126,9 +154,9 @@ const LibraryPage = () => {
         className="group relative w-44 h-64 rounded-lg shadow-xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl flex-shrink-0"
       >
         {/* Book Cover */}
-        {novel.coverSmallImage && !currentImageError ? (
+        {(novel.coverSmallImage || novel.coverImage) && !currentImageError ? (
           <img
-            src={novel.coverSmallImage || "/placeholder.svg"}
+            src={getImageSrc() || "/placeholder.svg"}
             alt={`Cover for ${novel.title}`}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             onError={handleCardImageError}
@@ -140,18 +168,16 @@ const LibraryPage = () => {
               novel.genres,
             )} relative overflow-hidden flex items-center justify-center`}
           >
-            {/* Subtle patterns for fallback */}
+            {/* Decorative background + title/author */}
             <div className="absolute inset-0 opacity-10">
               <div className="absolute top-2 left-2 w-4 h-4 border border-white rounded-full"></div>
               <div className="absolute top-6 right-3 w-2 h-2 bg-white rounded-full"></div>
               <div className="absolute bottom-3 left-3 w-3 h-3 border border-white"></div>
             </div>
-            {/* Book spine effect */}
             <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
             <div className="absolute right-0 top-0 w-px h-full bg-white opacity-20"></div>
             <div className="absolute right-1 top-0 w-px h-full bg-white opacity-15"></div>
 
-            {/* Title and Author */}
             <div className="absolute inset-0 flex flex-col justify-center items-center p-3 text-center">
               <h3 className="text-white text-sm font-bold leading-tight line-clamp-2 mb-1">{novel.title}</h3>
               <div className="w-8 h-px bg-white opacity-50 mb-1"></div>

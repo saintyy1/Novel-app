@@ -158,6 +158,25 @@ const AddChapters = () => {
     }
   }
 
+  const getFirebaseDownloadUrl = (url: string) => {
+    if (!url || !url.includes("firebasestorage.app")) {
+      return url
+    }
+
+    try {
+      // Convert Firebase Storage URL to download URL format that bypasses CORS
+      const urlParts = url.split("/")
+      const bucketName = urlParts[3] // Extract bucket name
+      const filePath = urlParts.slice(4).join("/") // Extract file path
+
+      // Create download URL format that doesn't require CORS
+      return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media`
+    } catch (error) {
+      console.log(`[v0] Error converting Firebase URL: ${error}`)
+      return url
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -197,9 +216,10 @@ const AddChapters = () => {
         <div className="flex items-start space-x-4">
           {novel?.coverImage && (
             <img
-              src={novel.coverImage || "/placeholder.svg"}
+              src={getFirebaseDownloadUrl(novel.coverImage || "/placeholder.svg")}
               alt={novel.title}
               className="w-20 h-28 object-cover rounded-lg shadow-md"
+              loading="lazy"
             />
           )}
           <div className="flex-1">

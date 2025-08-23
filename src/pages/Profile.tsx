@@ -610,6 +610,25 @@ const Profile = () => {
     [profileUser],
   )
 
+  const getFirebaseDownloadUrl = (url: string) => {
+    if (!url || !url.includes("firebasestorage.app")) {
+      return url
+    }
+
+    try {
+      // Convert Firebase Storage URL to download URL format that bypasses CORS
+      const urlParts = url.split("/")
+      const bucketName = urlParts[3] // Extract bucket name
+      const filePath = urlParts.slice(4).join("/") // Extract file path
+
+      // Create download URL format that doesn't require CORS
+      return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media`
+    } catch (error) {
+      console.log(`[v0] Error converting Firebase URL: ${error}`)
+      return url
+    }
+  }
+
   if (!currentUser && !userId) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -1112,9 +1131,9 @@ const Profile = () => {
                   >
                     {/* Novel Cover/Header */}
                     <div className="relative h-48 bg-gradient-to-br from-purple-600/80 to-indigo-600/80 overflow-hidden">
-                      {novel.coverSmallImage ? (
+                      {novel.coverImage ? (
                         <img
-                          src={novel.coverSmallImage || "/placeholder.svg"}
+                           src={getFirebaseDownloadUrl(novel.coverImage || "/placeholder.svg")}
                           alt={novel.title}
                           loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
@@ -1291,7 +1310,7 @@ const Profile = () => {
               <div className="relative w-48 h-72 bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center overflow-hidden rounded-lg">
                 {selectedNovelForCover.coverImage ? (
                   <img
-                    src={selectedNovelForCover.coverImage || "/placeholder.svg"}
+                    src={getFirebaseDownloadUrl(selectedNovelForCover.coverImage || "/placeholder.svg")}
                     alt={selectedNovelForCover.title}
                     className="w-full h-full object-cover"
                   />

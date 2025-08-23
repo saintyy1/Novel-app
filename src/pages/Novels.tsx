@@ -27,7 +27,7 @@ const Novels: React.FC = () => {
     "Comedy",
     "Drama",
     "Dystopian",
-    "Fiction"
+    "Fiction",
   ]
 
   // Determine the effective sort order based on URL parameter
@@ -69,10 +69,31 @@ const Novels: React.FC = () => {
   }
 
   const handleImageError = (novelId: string) => {
+    console.log(`[v0] Image failed to load for novel ${novelId}`) // Debug log
     setImageErrors((prev) => ({
       ...prev,
       [novelId]: true,
     }))
+  }
+
+  // Function to convert Firebase Storage URLs to download URLs that bypass CORS
+  const getFirebaseDownloadUrl = (url: string) => {
+    if (!url || !url.includes("firebasestorage.app")) {
+      return url
+    }
+
+    try {
+      // Convert Firebase Storage URL to download URL format that bypasses CORS
+      const urlParts = url.split("/")
+      const bucketName = urlParts[3] // Extract bucket name
+      const filePath = urlParts.slice(4).join("/") // Extract file path
+
+      // Create download URL format that doesn't require CORS
+      return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media`
+    } catch (error) {
+      console.log(`[v0] Error converting Firebase URL: ${error}`)
+      return url
+    }
   }
 
   // Function to get genre-based color class for fallback covers
@@ -218,34 +239,36 @@ const Novels: React.FC = () => {
             >
               {/* Image Section (fixed size) */}
               <div className="w-40 h-64 flex-shrink-0 relative">
-                {novel.coverSmallImage && !imageErrors[novel.id] ? (
+                {(novel.coverSmallImage || novel.coverImage) && !imageErrors[novel.id] ? (
                   <img
-                    src={novel.coverSmallImage || "/placeholder.svg"}
+                    src={getFirebaseDownloadUrl(novel.coverSmallImage || novel.coverImage || "/placeholder.svg")}
                     alt={`Cover for ${novel.title}`}
                     className="w-full h-full object-cover"
-                    onError={() => handleImageError(novel.id)}
+                    onError={() => {
+                      handleImageError(novel.id)
+                    }}
                     loading="lazy"
                   />
                 ) : (
-                <div
-                  className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(
-                    novel.genres,
-                  )} relative overflow-hidden`}
-                >
-                  <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
-                  <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-2 left-2 w-4 h-4 border border-white rounded-full"></div>
-                    <div className="absolute top-6 right-3 w-2 h-2 bg-white rounded-full"></div>
-                    <div className="absolute bottom-3 left-3 w-3 h-3 border border-white"></div>
+                  <div
+                    className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(
+                      novel.genres,
+                    )} relative overflow-hidden`}
+                  >
+                    <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
+                    <div className="absolute inset-0 opacity-10">
+                      <div className="absolute top-2 left-2 w-4 h-4 border border-white rounded-full"></div>
+                      <div className="absolute top-6 right-3 w-2 h-2 bg-white rounded-full"></div>
+                      <div className="absolute bottom-3 left-3 w-3 h-3 border border-white"></div>
+                    </div>
+                    <div className="absolute inset-0 flex flex-col justify-center items-center p-3 text-center">
+                      <h3 className="text-white text-sm font-bold leading-tight line-clamp-2 mb-1">{novel.title}</h3>
+                      <div className="w-8 h-px bg-white opacity-50 mb-1"></div>
+                      <p className="text-white text-xs opacity-75 truncate w-full">{novel.authorName}</p>
+                    </div>
+                    <div className="absolute right-0 top-1 w-px h-full bg-white opacity-20"></div>
+                    <div className="absolute right-1 top-1 w-px h-full bg-white opacity-15"></div>
                   </div>
-                  <div className="absolute inset-0 flex flex-col justify-center items-center p-3 text-center">
-                    <h3 className="text-white text-sm font-bold leading-tight line-clamp-2 mb-1">{novel.title}</h3>
-                    <div className="w-8 h-px bg-white opacity-50 mb-1"></div>
-                    <p className="text-white text-xs opacity-75 truncate w-full">{novel.authorName}</p>
-                  </div>
-                  <div className="absolute right-0 top-1 w-px h-full bg-white opacity-20"></div>
-                  <div className="absolute right-1 top-1 w-px h-full bg-white opacity-15"></div>
-                </div>
                 )}
                 {/* Likes and Views - positioned at the very bottom right within the image section */}
                 <span className="absolute bottom-2 right-2 z-10 flex flex-col items-end space-y-0.5 text-white text-xs drop-shadow-sm">
