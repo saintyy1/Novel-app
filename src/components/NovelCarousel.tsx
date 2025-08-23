@@ -100,7 +100,6 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
                   alt={`Cover for ${novel.title}`}
                   className="w-full h-full object-cover"
                   onError={() => handleImageError(novel.id)}
-                  loading="lazy"
                 /> 
               ) : (
                 <div

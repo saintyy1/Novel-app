@@ -833,7 +833,7 @@ const NovelOverview = () => {
       // Create download URL format that doesn't require CORS
       return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media`
     } catch (error) {
-      console.log(`[v0] Error converting Firebase URL: ${error}`)
+      console.log(`Error converting Firebase URL: ${error}`)
       return url
     }
   }

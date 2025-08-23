@@ -4,8 +4,9 @@ import type React from "react"
 
 import { useState, useRef } from "react"
 import { useNavigate, Link } from "react-router-dom"
-import { collection, addDoc } from "firebase/firestore"
-import { db } from "../firebase/config"
+import { collection, doc, setDoc } from "firebase/firestore"
+import { ref, uploadBytes } from "firebase/storage"
+import { db, storage } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import MDEditor from "@uiw/react-md-editor"
 import rehypeSanitize from "rehype-sanitize"
@@ -21,12 +22,11 @@ const SubmitNovel = () => {
   const [genres, setGenres] = useState<string[]>([])
   const [hasGraphicContent, setHasGraphicContent] = useState<boolean>(false)
   const [chapters, setChapters] = useState([{ title: "", content: "" }])
-  const [coverImage, setCoverImage] = useState<string | null>(null)
-  const [coverImageSmall, setCoverImageSmall] = useState<string | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [showPreview, setShowPreview] = useState(true)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const availableGenres = [
     "Fantasy",
@@ -94,15 +94,15 @@ const SubmitNovel = () => {
     }
   }
 
-  // Resize to <1MB (your existing function, unchanged)
-  async function resizeAndConvertToBase64Under1MB(file: File): Promise<string> {
-    const maxBytes = 1 * 1024 * 1024 // 1MB
+  // Resize image under 1MB
+  async function resizeUnder1MB(file: File): Promise<Blob> {
+    const maxBytes = 1 * 1024 * 1024
     const img = await loadImage(file)
 
     let quality = 0.9
     let width = img.width
     let height = img.height
-    let base64 = ""
+    let blob: Blob | null = null
 
     do {
       const canvas = document.createElement("canvas")
@@ -113,9 +113,9 @@ const SubmitNovel = () => {
       if (!ctx) throw new Error("Canvas not supported")
       ctx.drawImage(img, 0, 0, width, height)
 
-      base64 = canvas.toDataURL(file.type, quality)
+      const newBlob: Blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b as Blob), file.type, quality))
 
-      if (base64SizeInBytes(base64) > maxBytes) {
+      if (newBlob.size > maxBytes) {
         if (quality > 0.5) {
           quality -= 0.05
         } else {
@@ -123,15 +123,16 @@ const SubmitNovel = () => {
           height *= 0.9
         }
       } else {
+        blob = newBlob
         break
       }
-    } while (base64SizeInBytes(base64) > maxBytes)
+    } while (true)
 
-    return base64
+    return blob!
   }
 
-  // Generate a very small thumbnail (100–200px wide, ~5–10 KB)
-  async function generateSmallBase64(file: File, maxWidth = 200, maxHeight = 300): Promise<string> {
+  // Generate small thumbnail
+  async function generateSmallBlob(file: File, maxWidth = 200, maxHeight = 300): Promise<Blob> {
     const img = await loadImage(file)
 
     let width = img.width
@@ -157,8 +158,7 @@ const SubmitNovel = () => {
     if (!ctx) throw new Error("Canvas not supported")
     ctx.drawImage(img, 0, 0, width, height)
 
-    // 0.7 quality to keep it tiny
-    return canvas.toDataURL("image/jpeg", 0.7)
+    return new Promise((resolve) => canvas.toBlob((b) => resolve(b as Blob), "image/jpeg", 0.7))
   }
 
   // Load an image from file
@@ -176,47 +176,39 @@ const SubmitNovel = () => {
     })
   }
 
-  // Calculate base64 size in bytes
-  function base64SizeInBytes(base64String: string) {
-    const padding = base64String.endsWith("==") ? 2 : base64String.endsWith("=") ? 1 : 0
-    const base64Body = base64String.split(",")[1] || base64String
-    return (base64Body.length * 3) / 4 - padding
-  }
-
   const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
 
-      // Validate type first
+      // Validate type
       if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
         setError("Cover image must be JPEG, PNG or WebP format")
         return
       }
 
       try {
-        // Automatically resize & compress to <1MB
-        const base64 = await resizeAndConvertToBase64Under1MB(file)
-        const smallBase64 = await generateSmallBase64(file)
-
-        setCoverImage(base64)
-        setCoverImageSmall(smallBase64)
-        setCoverPreview(base64)
-        setError("")
-      } catch (err) {
-        console.error("Image processing failed:", err)
-        setError("Failed to process image")
+      // Just create a preview and store the file
+      const reader = new FileReader()
+      reader.onload = () => {
+        setCoverPreview(reader.result as string)
       }
+      reader.readAsDataURL(file)
+      setSelectedFile(file)
+      setError("")
+    } catch (err) {
+      console.error("Image preview failed:", err)
+      setError("Failed to preview image")
+    }
     }
   }
-
+  
   const removeCoverImage = () => {
-    setCoverImage(null)
-    setCoverImageSmall(null)
-    setCoverPreview(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
+  setCoverPreview(null)
+  setSelectedFile(null)
+  if (fileInputRef.current) {
+    fileInputRef.current.value = ""
   }
+}
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -234,17 +226,38 @@ const SubmitNovel = () => {
       return
     }
 
-    if (coverImage && coverImage.length > 1 * 1024 * 1024) {
-      // 1MB in base64
-      setError("Processed cover image is too large. Please try a smaller image.")
-      return
+    try {
+    setLoading(true)
+    setError("")
+
+    let coverUrl = null
+    let coverSmallUrl = null
+    const docRef = doc(collection(db, "novels"))
+
+    // Only process image if one was selected
+    if (selectedFile) {
+      try {
+        const resizedBlob = await resizeUnder1MB(selectedFile)
+        const smallBlob = await generateSmallBlob(selectedFile)
+
+        // Upload to Firebase Storage with the document ID
+        const coverRef = ref(storage, `covers-large/${docRef.id}.jpg`)
+        const coverSmallRef = ref(storage, `covers-small/${docRef.id}.jpg`)
+
+        await uploadBytes(coverRef, resizedBlob)
+        await uploadBytes(coverSmallRef, smallBlob)
+
+        coverUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-large/${docRef.id}.jpg`
+        coverSmallUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-small/${docRef.id}.jpg`
+      } catch (err) {
+        console.error("Image processing failed:", err)
+        setError("Failed to process image")
+        setLoading(false)
+        return
+      }
     }
 
-    try {
-      setLoading(true)
-      setError("")
-
-      await addDoc(collection(db, "novels"), {
+      await setDoc(docRef, {
         title,
         description,
         summary,
@@ -257,13 +270,13 @@ const SubmitNovel = () => {
         published: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        coverImage: coverImage || null, // base64 string
-        coverSmallImage: coverImageSmall || null,
+        coverImage: coverUrl || null, // Firebase Storage URL string
+        coverSmallImage: coverSmallUrl || null, // Firebase Storage URL string
         likes: 0,
         views: 0,
       })
 
-      navigate("/profile")
+      navigate(`/profile/${currentUser?.uid}`)
       alert("Your novel has been submitted for review!")
     } catch (error) {
       console.error("Error submitting novel:", error)
@@ -546,7 +559,7 @@ const SubmitNovel = () => {
             {loading ? (
               <>
                 <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  className="animate-spin ml-1 mr-3 h-5 w-5 text-white"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -555,7 +568,7 @@ const SubmitNovel = () => {
                   <path
                     className="opacity-75"
                     fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   ></path>
                 </svg>
                 Submitting...
