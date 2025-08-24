@@ -69,7 +69,7 @@ const Novels: React.FC = () => {
   }
 
   const handleImageError = (novelId: string) => {
-    console.log(`[v0] Image failed to load for novel ${novelId}`) // Debug log
+    console.log(`Image failed to load for novel ${novelId}`) // Debug log
     setImageErrors((prev) => ({
       ...prev,
       [novelId]: true,
@@ -124,7 +124,7 @@ const Novels: React.FC = () => {
               : "Browse Novels"}
         </h1>
         <p className="text-xl text-[#B0B0B0] max-w-3xl mx-auto">
-          Discover a world of imagination with our collection of user-created and AI-generated novels
+          From new voices to hidden gems, explore novels created and shared by real storytellers.
         </p>
       </div>
       {/* Search and Filters */}
@@ -171,23 +171,11 @@ const Novels: React.FC = () => {
             >
               All Novels
             </button>
-            <button
-              className={`text-sm cursor-pointer text-[#E0E0E0] ${activeFilter === "user" ? "font-bold" : ""}`}
-              onClick={() => handleFilterChange("user")}
-            >
-              User Submitted
-            </button>
-            <button
-              className={`text-sm cursor-pointer text-[#E0E0E0] ${activeFilter === "ai" ? "font-bold" : ""}`}
-              onClick={() => handleFilterChange("ai")}
-            >
-              AI Generated
-            </button>
           </div>
           <div className="flex items-center">
             <span className="text-sm font-medium text-[#B0B0B0] mr-2">Genre:</span>
             <select
-              className="rounded-md cursor-pointer border-gray-300 dark:border-gray-600 py-1 pl-3 pr-10 text-base focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              className="rounded-md cursor-pointer border-gray-600 py-1 pl-3 pr-10 text-base focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm bg-white text-gray-900"
               value={activeGenre}
               onChange={handleGenreChange}
             >

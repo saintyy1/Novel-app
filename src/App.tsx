@@ -4,7 +4,6 @@ import Navbar from "./components/Navbar"
 import Footer from "./components/Footer"
 import AdminRoute from "./components/AdminRoute"
 import AdminDashboard from "./pages/AdminDashboard"
-import GenerateNovel from "./pages/GenerateNovel"
 import LoginPage from "./pages/LoginPage"
 import Home from "./pages/Home"
 import Profile from "./pages/Profile"
@@ -59,7 +58,6 @@ function AppContent() {
             />
             <Route path="/novel/:id/add-chapters" element={<AddChapters />} />
             <Route path="/submit" element={<SubmitNovel />} />
-            <Route path="/generate" element={<GenerateNovel />} />
             <Route path="/novel/:id/edit-chapter/:chapterIndex" element={<EditChapter />} />
           </Routes>
         </main>

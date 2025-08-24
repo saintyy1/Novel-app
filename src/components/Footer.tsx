@@ -30,7 +30,7 @@ const Footer: React.FC = () => {
               <span className="ml-2 text-xl font-bold text-white">NovlNest</span>
             </Link>
             <p className="mt-4 text-base text-gray-400">
-              Discover and create amazing stories with our community of writers and AI-generated content.
+              From new voices to hidden gems, explore novels created and shared by real storytellers.
             </p>
           </div>
 

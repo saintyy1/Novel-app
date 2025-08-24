@@ -98,7 +98,7 @@ const Home = () => {
               Discover Extraordinary Stories
             </h1>
             <p className="text-xl md:text-2xl max-w-3xl mx-auto mb-8 text-purple-100">
-              Explore a world of imagination with user-created novels and AI-generated content
+              From new voices to hidden gems, explore novels created and shared by real storytellers.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
               <Link

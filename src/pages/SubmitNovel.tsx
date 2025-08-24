@@ -270,8 +270,8 @@ const SubmitNovel = () => {
         published: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        coverImage: coverUrl || null, // Firebase Storage URL string
-        coverSmallImage: coverSmallUrl || null, // Firebase Storage URL string
+        coverImage: coverUrl || null,
+        coverSmallImage: coverSmallUrl || null,
         likes: 0,
         views: 0,
       })
