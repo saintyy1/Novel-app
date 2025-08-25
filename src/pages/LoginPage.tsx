@@ -61,7 +61,7 @@ const LoginPage = () => {
             </svg>
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
-            Welcome back to NovelNest
+            Welcome back to NovlNest
           </h2>
           <p className="mt-2 text-center text-sm text-gray-400">
             Sign in to continue your literary journey

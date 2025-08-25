@@ -17,8 +17,7 @@ import {
   FaUserPlus,
   FaUserMinus,
   FaExclamationTriangle,
-  FaSync,
-  FaLightbulb,
+  FaSync
 } from "react-icons/fa"
 import { useAuth } from "../context/AuthContext"
 
@@ -54,7 +53,6 @@ const AdminDashboard = () => {
     totalNovels: 0,
     pendingNovels: 0,
     publishedNovels: 0,
-    aiGeneratedNovels: 0,
   })
 
   // Add admin check at the beginning of the component
@@ -129,7 +127,6 @@ const AdminDashboard = () => {
         totalNovels: novels.length,
         pendingNovels: novels.filter((novel) => !novel.published).length,
         publishedNovels: novels.filter((novel) => novel.published).length,
-        aiGeneratedNovels: novels.filter((novel) => novel.isAIGenerated).length,
       })
     }
   }, [novels, users])
@@ -323,7 +320,7 @@ const AdminDashboard = () => {
         {/* Overview Section */}
         {activeSection === "overview" && (
           <div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+            <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2 mb-6">
               {/* Total Users Card */}
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <div className="flex items-center justify-between mb-2">
@@ -344,18 +341,6 @@ const AdminDashboard = () => {
                 <p className="text-xs text-gray-400">
                   {stats.publishedNovels} published (
                   {Math.round((stats.publishedNovels / stats.totalNovels) * 100) || 0}%)
-                </p>
-              </div>
-
-              {/* AI Generated Card */}
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-gray-300">AI Generated</h3>
-                  <FaLightbulb className="h-4 w-4 text-gray-400" />
-                </div>
-                <div className="text-2xl font-bold">{stats.aiGeneratedNovels}</div>
-                <p className="text-xs text-gray-400">
-                  {Math.round((stats.aiGeneratedNovels / stats.totalNovels) * 100) || 0}% of all novels
                 </p>
               </div>
             </div>
