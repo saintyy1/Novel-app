@@ -3,29 +3,29 @@ const TermsOfService = () => {
     <div className="min-h-screen bg-gray-900 py-16">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-10">
           <h1 className="text-4xl font-bold text-white mb-4">Terms of Service</h1>
           <p className="text-xl text-gray-300">
-            Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+            Last updated: August 25, 2025
           </p>
         </div>
 
         {/* Content */}
         <div className="bg-gray-800 rounded-xl shadow-md p-8">
           <div className="prose-invert max-w-none">
-            <h2 className="text-2xl font-bold text-white mb-6">Agreement to Terms</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">Agreement to Terms</h2>
             <p className="text-gray-300 mb-6">
               By accessing and using Novlnest, you accept and agree to be bound by the terms and
               provision of this agreement. If you do not agree to abide by the above, please do not use this service.
             </p>
 
-            <h2 className="text-2xl font-bold text-white mb-6 mt-8">Description of Service</h2>
+            <h2 className="text-2xl font-bold text-white mb-4 mt-8">Description of Service</h2>
             <p className="text-gray-300 mb-6">
               Novlnest is a platform that allows users to publish, share, and read original novels and stories. Our
               service includes features for content creation, community interaction, and content discovery.
             </p>
 
-            <h2 className="text-2xl font-bold text-white mb-6 mt-8">User Accounts</h2>
+            <h2 className="text-2xl font-bold text-white mb-4 mt-8">User Accounts</h2>
             <p className="text-gray-300 mb-4">
               To access certain features of our service, you must create an account. You agree to:
             </p>
@@ -37,13 +37,23 @@ const TermsOfService = () => {
               <li>Notify us immediately of any unauthorized use of your account</li>
             </ul>
 
-            <h2 className="text-2xl font-bold text-white mb-6 mt-8">Content Guidelines</h2>
+            <h2 className="text-2xl font-bold text-white mb-4 mt-8">User Content & Rights</h2>
 
-            <h3 className="text-xl font-semibold text-white mb-4">Your Content</h3>
-            <p className="text-gray-300 mb-4">
-              You retain ownership of the content you create and publish on Novlnest. By publishing content, you grant
-              us a non-exclusive, worldwide, royalty-free license to use, display, and distribute your content on our
-              platform.
+            <p className="text-gray-300 mb-6">
+              <span className="font-bold">Ownership: </span>
+              You retain full ownership of any content (stories, novels, comments, or other creative work) you publish on NovlNest.
+            </p>
+            <div className="text-gray-300 mb-6">
+              <p className="font-bold mb-4">License to NovlNest: </p>
+                <ul className="list-disc list-inside text-gray-300 mb-6 space-y-2">
+                  <li>By posting your work, you grant NovlNest a non-exclusive, revocable, worldwide license to host, display, and share your content only on the NovlNest platform and its related services.</li>
+                  <li>This license does not give NovlNest permission to sell, republish, or license your work outside the platform.</li>
+                  <li>You may remove your content at any time, and the license will end once it is deleted.</li>
+                </ul>
+            </div>
+            <p className="text-gray-300 mb-6">
+              <span className="font-bold">Publishing Rights Disclaimer: </span>
+                Posting your work on NovlNest may count as a form of publication. This can affect your ability to sell “first publication rights” to traditional publishers. If you plan to submit your work to publishers, you should carefully consider whether to share the full text on NovlNest.
             </p>
 
             <h3 className="text-xl font-semibold text-white mb-4">Content Standards</h3>
@@ -62,9 +72,7 @@ const TermsOfService = () => {
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">Intellectual Property</h2>
             <p className="text-gray-300 mb-6">
-              The Novlnest platform, including its design, functionality, and original content, is protected by
-              copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or
-              create derivative works of our platform without explicit permission.
+              All elements of the NovlNest platform (design, features, branding, and original site content) are owned by NovlNest and protected under copyright and trademark laws. This does not apply to user-submitted stories.
             </p>
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">Prohibited Uses</h2>
@@ -129,17 +137,16 @@ const TermsOfService = () => {
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">Changes to Terms</h2>
             <p className="text-gray-300 mb-6">
-              We reserve the right, at our sole discretion, to modify or replace these Terms at any time. If a revision
-              is material, we will provide at least 30 days notice prior to any new terms taking effect.
+              We reserve the right, at our sole discretion, to modify or replace these Terms from time to time. Material changes will be communicated to users in advance.
             </p>
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">Contact Information</h2>
             <p className="text-gray-300 mb-4">
-              If you have any questions about these Terms of Service, please contact us at:
+              If you have any questions or concerns about these Terms of Service, please contact us at:
             </p>
             <div className="bg-gray-700 p-4 rounded-lg">
               <p className="text-gray-300">
-                Email: n0velnest999@gmail.com
+                Email: <span className="font-bold">n0velnest999@gmail.com</span>
               </p>
             </div>
           </div>

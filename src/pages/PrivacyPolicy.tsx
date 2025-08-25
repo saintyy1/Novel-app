@@ -6,7 +6,7 @@ const PrivacyPolicy = () => {
         <div className="text-center mb-16">
           <h1 className="text-4xl font-bold text-white mb-4">Privacy Policy</h1>
           <p className="text-xl text-gray-300">
-            Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+            Last updated: August 25, 2025
           </p>
         </div>
 
@@ -30,7 +30,6 @@ const PrivacyPolicy = () => {
               <li>Register for an account</li>
               <li>Submit novels or other content</li>
               <li>Contact us through our contact form</li>
-              <li>Subscribe to our newsletter</li>
               <li>Participate in surveys or promotions</li>
             </ul>
 
@@ -40,7 +39,7 @@ const PrivacyPolicy = () => {
               <li>Email address</li>
               <li>Profile picture</li>
               <li>Biographical information</li>
-              <li>Content you create and publish</li>
+              <li>Content you create and publish (novels, stories, comments, reviews)</li>
             </ul>
 
             <h3 className="text-xl font-semibold text-white mb-4">
@@ -56,30 +55,25 @@ const PrivacyPolicy = () => {
               <li>Operating system</li>
               <li>Pages visited and time spent on our site</li>
               <li>Referring website</li>
-              <li>Device identifiers</li>
             </ul>
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">How We Use Your Information</h2>
             <p className="text-gray-300 mb-4">We use the information we collect to:</p>
             <ul className="list-disc list-inside text-gray-300 mb-6 space-y-2">
-              <li>Provide, operate, and maintain our services</li>
+              <li>Operate and maintain the NovlNest platform</li>
               <li>Process your account registration and manage your profile</li>
               <li>Enable you to publish and share your content</li>
               <li>Communicate with you about your account and our services</li>
               <li>Respond to your inquiries and provide customer support</li>
-              <li>Send you updates, newsletters, and promotional materials (with your consent)</li>
-              <li>Analyze usage patterns to improve our services</li>
+              <li>Send you updates and promotional materials (with your consent)</li>
+              <li>Improve NovlNest by analyzing usage patterns</li>
               <li>Detect, prevent, and address technical issues and security threats</li>
-              <li>Comply with legal obligations</li>
+              <li>Comply with legal requirements</li>
             </ul>
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">
               Information Sharing and Disclosure
             </h2>
-            <p className="text-gray-300 mb-6">
-              We do not sell, trade, or otherwise transfer your personal information to third parties without your
-              consent, except in the following circumstances:
-            </p>
 
             <h3 className="text-xl font-semibold text-white mb-4">Public Information</h3>
             <p className="text-gray-300 mb-6">
@@ -89,9 +83,7 @@ const PrivacyPolicy = () => {
 
             <h3 className="text-xl font-semibold text-white mb-4">Service Providers</h3>
             <p className="text-gray-300 mb-6">
-              We may share your information with trusted third-party service providers who assist us in operating our
-              website and providing our services, such as hosting providers, analytics services, and email delivery
-              services.
+              We may share necessary data with trusted third parties (e.g., hosting, analytics, email delivery) to keep NovlNest running. They are bound by confidentiality agreements.
             </p>
 
             <h3 className="text-xl font-semibold text-white mb-4">Legal Requirements</h3>
@@ -116,6 +108,9 @@ const PrivacyPolicy = () => {
               <li>Request a copy of your data</li>
               <li>Request correction of inaccurate information</li>
             </ul>
+            <p className="text-gray-300 mb-6">
+              To exercise these rights, please contact us at <span className="font-bold">n0velnest999@gmail.com</span>. We will respond to your request within a reasonable timeframe.
+            </p>
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">
               Cookies and Tracking Technologies
@@ -128,12 +123,10 @@ const PrivacyPolicy = () => {
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">Children's Privacy</h2>
             <p className="text-gray-300 mb-6">
-              Our services are not intended for children under the age of 13. We do not knowingly collect personal
-              information from children under 13. If you are a parent or guardian and believe your child has provided us
-              with personal information, please contact us.
+              NovlNest is not intended for children under 13. We do not knowingly collect personal data from children under 13. If you believe a child has shared personal information with us, please contact us immediately.
             </p>
 
-            <h2 className="text-2xl font-bold text-white mb-6 mt-8">International Data Transfers</h2>
+            <h2 className="text-2xl font-bold text-white mb-6 mt-8">International Users</h2>
             <p className="text-gray-300 mb-6">
               Your information may be transferred to and processed in countries other than your own. We ensure that such
               transfers comply with applicable data protection laws and implement appropriate safeguards.
@@ -150,11 +143,11 @@ const PrivacyPolicy = () => {
 
             <h2 className="text-2xl font-bold text-white mb-6 mt-8">Contact Us</h2>
             <p className="text-gray-300 mb-4">
-              If you have any questions about this Privacy Policy or our privacy practices, please contact us at:
+              If you have any questions or concerns about this Privacy Policy or our privacy practices, please contact us at:
             </p>
             <div className="bg-gray-700 p-4 rounded-lg">
               <p className="text-gray-300">
-                Email: n0velnest999@gmail.com
+                Email: <span className="font-bold">n0velnest999@gmail.com</span>
               </p>
             </div>
           </div>
