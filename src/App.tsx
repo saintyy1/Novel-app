@@ -22,6 +22,7 @@ import About from "./pages/About"
 import Contact from "./pages/Contact"
 import ForgotPassword from "./pages/ForgotPassword"
 import { AuthProvider } from "./context/AuthContext"
+import { NotificationProvider } from "./context/NotificationContext"
 import ToastContainer from "./components/ToastContainer"
 
 function AppContent() {
@@ -29,40 +30,42 @@ function AppContent() {
   const isNovelReadPage = /^\/novel\/[^/]+\/read$/.test(location.pathname)
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-[#121212] flex flex-col">
-        {!isNovelReadPage && <Navbar />}
-        <main className={`flex-grow ${!isNovelReadPage ? "px-3 py-8" : "px-0 py-0"}`}>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/library" element={<LibraryPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/profile/:userId" element={<Profile />} />
-            <Route path="/novels" element={<Novels />} />
-            <Route path="/novels/:type" element={<Novels />} />
-            <Route path="/novel/:id" element={<NovelOverview />} />
-            <Route path="/novel/:id/read" element={<NovelRead />} />
-            <Route path="/terms-of-service" element={<TermsOfService />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <AdminDashboard />
-                </AdminRoute>
-              }
-            />
-            <Route path="/novel/:id/add-chapters" element={<AddChapters />} />
-            <Route path="/submit" element={<SubmitNovel />} />
-            <Route path="/novel/:id/edit-chapter/:chapterIndex" element={<EditChapter />} />
-          </Routes>
-        </main>
-        {!isNovelReadPage && <Footer />}
-      </div>
+      <NotificationProvider>
+        <div className="min-h-screen bg-[#121212] flex flex-col">
+          {!isNovelReadPage && <Navbar />}
+          <main className={`flex-grow ${!isNovelReadPage ? "px-3 py-8" : "px-0 py-0"}`}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/library" element={<LibraryPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/profile/:userId" element={<Profile />} />
+              <Route path="/novels" element={<Novels />} />
+              <Route path="/novels/:type" element={<Novels />} />
+              <Route path="/novel/:id" element={<NovelOverview />} />
+              <Route path="/novel/:id/read" element={<NovelRead />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route
+                path="/admin"
+                element={
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
+                }
+              />
+              <Route path="/novel/:id/add-chapters" element={<AddChapters />} />
+              <Route path="/submit" element={<SubmitNovel />} />
+              <Route path="/novel/:id/edit-chapter/:chapterIndex" element={<EditChapter />} />
+            </Routes>
+          </main>
+          {!isNovelReadPage && <Footer />}
+        </div>
+      </NotificationProvider>
     </AuthProvider>
   )
 }

@@ -1,9 +1,10 @@
 "use client"
 import { useState, useEffect, useCallback } from "react"
 import { Link, useNavigate } from "react-router-dom" // Import useNavigate
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDoc } from "firebase/firestore"
+import { collection, query, where, orderBy, onSnapshot, doc, getDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
+import { useNotifications } from "../context/NotificationContext"
 import {
   UserPlus,
   MessageSquare,
@@ -46,6 +47,7 @@ interface Notification {
 
 const NotificationsPage = () => {
   const { currentUser, loading: authLoading, markAllNotificationsAsRead, clearAllNotifications } = useAuth()
+  const { markAsRead: contextMarkAsRead } = useNotifications()
   const navigate = useNavigate() // Initialize useNavigate
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
@@ -126,15 +128,16 @@ const NotificationsPage = () => {
     return () => unsubscribe()
   }, [currentUser, authLoading, fromUsersData])
 
-  const markAsRead = useCallback(async (notificationId: string) => {
-    try {
-      await updateDoc(doc(db, "notifications", notificationId), {
-        read: true,
-      })
-    } catch (err) {
-      console.error("Error marking notification as read:", err)
-    }
-  }, [])
+  const markAsRead = useCallback(
+    async (notificationId: string) => {
+      try {
+        await contextMarkAsRead(notificationId)
+      } catch (err) {
+        console.error("Error marking notification as read:", err)
+      }
+    },
+    [contextMarkAsRead],
+  )
 
   const handleNotificationClick = useCallback(
     (notification: Notification) => {

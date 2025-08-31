@@ -2,10 +2,12 @@
 import { useState, useRef, useEffect } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import { useNotifications } from "../context/NotificationContext"
 import { Bell } from "lucide-react" // Import the Bell icon
 
 const Navbar = () => {
   const { currentUser, isAdmin, logout } = useAuth()
+  const { unreadCount } = useNotifications()
   const navigate = useNavigate()
   const location = useLocation()
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
@@ -109,7 +111,7 @@ const Navbar = () => {
             </Link>
           </div>
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1">
+          <div className="hidden lg:flex items-center space-x-1">
             <Link
               to="/"
               className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
@@ -118,7 +120,17 @@ const Navbar = () => {
                   : "text-[#E0E0E0]"
               }`}
             >
-              Home
+              <div className="flex items-center">
+                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                  />
+                </svg>
+                Home
+              </div>
             </Link>
             <Link
               to="/novels"
@@ -128,7 +140,17 @@ const Navbar = () => {
                   : "text-[#E0E0E0]"
               }`}
             >
-              Browse
+              <div className="flex items-center">
+                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
+                </svg>
+                Browse
+              </div>
             </Link>
             {currentUser ? (
               <>
@@ -140,7 +162,27 @@ const Navbar = () => {
                       : "text-[#E0E0E0]"
                   }`}
                 >
-                  Library
+                  <div className="flex items-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="lucide lucide-library mr-1"
+                    >
+                      <path d="m16 6 4 14" />
+                      <path d="M12 6v14" />
+                      <path d="M8 8v12" />
+                      <path d="M4 4v16" />
+                      <path d="M20 2h-8a2 2 0 0 0-2 2v16h12V4a2 2 0 0 0-2-2Z" />
+                    </svg>
+                    Library
+                  </div>
                 </Link>
                 <Link
                   to="/submit"
@@ -150,7 +192,17 @@ const Navbar = () => {
                       : "text-[#E0E0E0]"
                   }`}
                 >
-                  Submit Novel
+                  <div className="flex items-center">
+                    <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                      />
+                    </svg>
+                    Submit Novel
+                  </div>
                 </Link>
                 <Link
                   to="/notifications"
@@ -160,7 +212,15 @@ const Navbar = () => {
                       : "text-[#E0E0E0]"
                   }`}
                 >
-                  Notifications
+                  <div className="flex items-center">
+                    <Bell className="h-4 w-4 mr-1" />
+                    Notifications
+                    {unreadCount > 0 && (
+                      <span className="ml-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </div>
                 </Link>
                 {isAdmin && (
                   <>
@@ -172,7 +232,23 @@ const Navbar = () => {
                           : "text-[#E0E0E0]"
                       }`}
                     >
-                      Admin
+                      <div className="flex items-center">
+                        <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                        </svg>
+                        Admin
+                      </div>
                     </Link>
                   </>
                 )}
@@ -262,7 +338,7 @@ const Navbar = () => {
             )}
           </div>
           {/* Mobile User Avatar/Menu */}
-          <div className="md:hidden flex items-center">
+          <div className="lg:hidden flex items-center">
             <button
               onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
               className="flex items-center justify-center p-1 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -395,9 +471,16 @@ const Navbar = () => {
                           isActive("/notifications") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
                         }`}
                       >
-                        <div className="flex items-center">
-                          <Bell className="h-4 w-4 mr-3" />
-                          Notifications
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <Bell className="h-4 w-4 mr-3" />
+                            Notifications
+                          </div>
+                          {unreadCount > 0 && (
+                            <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                              {unreadCount > 99 ? "99+" : unreadCount}
+                            </span>
+                          )}
                         </div>
                       </Link>
                       {isAdmin && (
