@@ -15,7 +15,8 @@ import {
   deleteDoc,
   onSnapshot,
 } from "firebase/firestore"
-import { db } from "../firebase/config"
+import { db, storage } from "../firebase/config"
+import { ref, uploadBytes, deleteObject } from "firebase/storage"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import type { ExtendedUser } from "../context/AuthContext"
@@ -186,6 +187,7 @@ const Profile = () => {
     }
   }, [currentUser, userId])
 
+  // FOR PROFILE PICTURE UPLOAD AND RESIZE
   const resizeImage = useCallback((file: File, maxWidth = 200, maxHeight = 200, quality = 0.7): Promise<string> => {
     return new Promise((resolve) => {
       const canvas = document.createElement("canvas")
@@ -288,16 +290,94 @@ const Profile = () => {
     }
   }, [currentUser, updateUserPhoto])
 
+  // Resize image under 1MB
+  async function resizeUnder1MB(file: File): Promise<Blob> {
+    const maxBytes = 1 * 1024 * 1024
+    const img = await loadImage(file)
+
+    let quality = 0.9
+    let width = img.width
+    let height = img.height
+    let blob: Blob | null = null
+
+    do {
+      const canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+
+      const ctx = canvas.getContext("2d")
+      if (!ctx) throw new Error("Canvas not supported")
+      ctx.drawImage(img, 0, 0, width, height)
+
+      const newBlob: Blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b as Blob), file.type, quality))
+
+      if (newBlob.size > maxBytes) {
+        if (quality > 0.5) {
+          quality -= 0.05
+        } else {
+          width *= 0.9
+          height *= 0.9
+        }
+      } else {
+        blob = newBlob
+        break
+      }
+    } while (true)
+
+    return blob!
+  }
+
+  // Generate small thumbnail
+  async function generateSmallBlob(file: File, maxWidth = 200, maxHeight = 300): Promise<Blob> {
+    const img = await loadImage(file)
+
+    let width = img.width
+    let height = img.height
+
+    if (width > height) {
+      if (width > maxWidth) {
+        height *= maxWidth / width
+        width = maxWidth
+      }
+    } else {
+      if (height > maxHeight) {
+        width *= maxHeight / height
+        height = maxHeight
+      }
+    }
+
+    const canvas = document.createElement("canvas")
+    canvas.width = width
+    canvas.height = height
+
+    const ctx = canvas.getContext("2d")
+    if (!ctx) throw new Error("Canvas not supported")
+    ctx.drawImage(img, 0, 0, width, height)
+
+    return new Promise((resolve) => canvas.toBlob((b) => resolve(b as Blob), "image/jpeg", 0.7))
+  }
+
+  // Load an image from file
+  function loadImage(file: File): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const img = new Image()
+        img.onload = () => resolve(img)
+        img.onerror = reject
+        img.src = reader.result as string
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
   // New functions for novel cover management
   const handleNovelCoverUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       if (!file || !selectedNovelForCover) return
 
-      if (file.size > 1 * 1024 * 1024) {
-        setNovelCoverError("Cover image must be less than 1MB")
-        return
-      }
       if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
         setNovelCoverError("Cover image must be JPEG, PNG, or WebP format")
         return
@@ -306,26 +386,43 @@ const Profile = () => {
       try {
         setUploadingNovelCover(true)
         setNovelCoverError("")
-        const resizedBase64 = await resizeImage(file, 400, 600, 0.8)
 
-        if (resizedBase64.length > 500000) {
-          // ~400KB limit for novel covers
-          setNovelCoverError("Image is too large even after compression. Please use a smaller image.")
-          return
-        }
+        // Process images
+        const resizedBlob = await resizeUnder1MB(file)
+        const smallBlob = await generateSmallBlob(file)
 
-        // Update novel document in Firestore
+        // Create Firebase Storage references
+        const coverRef = ref(storage, `covers-large/${selectedNovelForCover.id}.jpg`)
+        const coverSmallRef = ref(storage, `covers-small/${selectedNovelForCover.id}.jpg`)
+
+        // Upload both versions
+        await uploadBytes(coverRef, resizedBlob)
+        await uploadBytes(coverSmallRef, smallBlob)
+
+        // Generate the URLs
+        const coverUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-large/${selectedNovelForCover.id}.jpg`
+        const coverSmallUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-small/${selectedNovelForCover.id}.jpg`
+
+        // Update Firestore document
         const novelRef = doc(db, "novels", selectedNovelForCover.id)
-        // Assuming updateDoc is imported from firebase/firestore
-        await updateDoc(novelRef, { coverImage: resizedBase64 })
+        await updateDoc(novelRef, {
+          coverImage: coverUrl,
+          coverSmallImage: coverSmallUrl
+        })
 
         // Update local state
-        setUserNovels((prevNovels) =>
-          prevNovels.map((novel) =>
-            novel.id === selectedNovelForCover.id ? { ...novel, coverImage: resizedBase64 } : novel,
-          ),
+        setUserNovels(prevNovels =>
+          prevNovels.map(novel =>
+            novel.id === selectedNovelForCover.id
+              ? { ...novel, coverImage: coverUrl, coverSmallImage: coverSmallUrl }
+              : novel
+          )
         )
-        setSelectedNovelForCover((prev) => (prev ? { ...prev, coverImage: resizedBase64 } : null))
+
+        setSelectedNovelForCover(prev =>
+          prev ? { ...prev, coverImage: coverUrl, coverSmallImage: coverSmallUrl } : null
+        )
+
         setNovelCoverError("Novel cover updated successfully!")
         setTimeout(() => setNovelCoverError(""), 3000)
       } catch (err) {
@@ -338,23 +435,49 @@ const Profile = () => {
         }
       }
     },
-    [resizeImage, selectedNovelForCover],
+    [selectedNovelForCover]
   )
 
   const removeNovelCover = useCallback(async () => {
     if (!selectedNovelForCover) return
+
     try {
       setUploadingNovelCover(true)
       setNovelCoverError("")
+
+      // Delete from Firebase Storage
+      const coverRef = ref(storage, `covers-large/${selectedNovelForCover.id}.jpg`)
+      const coverSmallRef = ref(storage, `covers-small/${selectedNovelForCover.id}.jpg`)
+
+      try {
+        await Promise.all([
+          deleteObject(coverRef),
+          deleteObject(coverSmallRef)
+        ])
+      } catch (error) {
+        console.log("Files may not exist in storage:", error)
+      }
+
+      // Update Firestore document
       const novelRef = doc(db, "novels", selectedNovelForCover.id)
-      // Assuming updateDoc is imported from firebase/firestore
-      await updateDoc(novelRef, { coverImage: null })
+      await updateDoc(novelRef, {
+        coverImage: null,
+        coverSmallImage: null
+      })
 
       // Update local state
-      setUserNovels((prevNovels) =>
-        prevNovels.map((novel) => (novel.id === selectedNovelForCover.id ? { ...novel, coverImage: null } : novel)),
+      setUserNovels(prevNovels =>
+        prevNovels.map(novel =>
+          novel.id === selectedNovelForCover.id
+            ? { ...novel, coverImage: null, coverSmallImage: null }
+            : novel
+        )
       )
-      setSelectedNovelForCover((prev) => (prev ? { ...prev, coverImage: null } : null))
+
+      setSelectedNovelForCover(prev =>
+        prev ? { ...prev, coverImage: null, coverSmallImage: null } : null
+      )
+
       setNovelCoverError("Novel cover removed successfully!")
       setTimeout(() => setNovelCoverError(""), 3000)
     } catch (err) {
@@ -783,9 +906,8 @@ const Profile = () => {
               {/* Photo Error/Success Message */}
               {isOwnProfile && photoError && (
                 <div
-                  className={`mt-2 text-xs sm:text-sm ${
-                    photoError.includes("successfully") ? "text-green-400" : "text-red-400"
-                  }`}
+                  className={`mt-2 text-xs sm:text-sm ${photoError.includes("successfully") ? "text-green-400" : "text-red-400"
+                    }`}
                 >
                   {photoError}
                 </div>
@@ -869,9 +991,8 @@ const Profile = () => {
                     <button
                       onClick={handleFollowToggle}
                       disabled={!currentUser || !profileUser || isTogglingFollow}
-                      className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors ${
-                        isFollowing ? "bg-gray-600 hover:bg-gray-700" : "bg-purple-600 hover:bg-purple-700"
-                      } ${isTogglingFollow ? "opacity-50 cursor-not-allowed" : ""}`}
+                      className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors ${isFollowing ? "bg-gray-600 hover:bg-gray-700" : "bg-purple-600 hover:bg-purple-700"
+                        } ${isTogglingFollow ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                       {isTogglingFollow ? (
                         <>
@@ -1044,31 +1165,28 @@ const Profile = () => {
             <nav className="flex space-x-4 px-6" aria-label="Tabs">
               <button
                 onClick={() => setActiveTab("all")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === "all"
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === "all"
                     ? "border-purple-500 text-purple-400"
                     : "border-transparent text-gray-400 hover:text-gray-300"
-                }`}
+                  }`}
               >
                 All Novels ({userNovels.length})
               </button>
               <button
                 onClick={() => setActiveTab("published")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === "published"
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === "published"
                     ? "border-purple-500 text-purple-400"
                     : "border-transparent text-gray-400 hover:text-gray-300"
-                }`}
+                  }`}
               >
                 Published ({userNovels.filter((novel) => novel.published).length})
               </button>
               <button
                 onClick={() => setActiveTab("pending")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === "pending"
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === "pending"
                     ? "border-purple-500 text-purple-400"
                     : "border-transparent text-gray-400 hover:text-gray-300"
-                }`}
+                  }`}
               >
                 Pending Review ({userNovels.filter((novel) => !novel.published).length})
               </button>
@@ -1133,7 +1251,7 @@ const Profile = () => {
                     <div className="relative h-48 bg-gradient-to-br from-purple-600/80 to-indigo-600/80 overflow-hidden">
                       {novel.coverImage ? (
                         <img
-                           src={getFirebaseDownloadUrl(novel.coverImage || "/placeholder.svg")}
+                          src={getFirebaseDownloadUrl(novel.coverImage || "/placeholder.svg")}
                           alt={novel.title}
                           loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
@@ -1255,9 +1373,8 @@ const Profile = () => {
                   </div>
                   <button
                     onClick={handleCopyLink}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
-                    }`}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
+                      }`}
                   >
                     <FaCopy className="h-4 w-4 mr-2" />
                     {copySuccess ? "Copied!" : "Copy"}
@@ -1367,9 +1484,8 @@ const Profile = () => {
               )}
               {novelCoverError && (
                 <div
-                  className={`mt-2 text-xs sm:text-sm ${
-                    novelCoverError.includes("successfully") ? "text-green-400" : "text-red-400"
-                  }`}
+                  className={`mt-2 text-xs sm:text-sm ${novelCoverError.includes("successfully") ? "text-green-400" : "text-red-400"
+                    }`}
                 >
                   {novelCoverError}
                 </div>
