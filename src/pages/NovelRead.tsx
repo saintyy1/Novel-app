@@ -2,7 +2,7 @@
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
-import { trackPageView, trackChapterRead, trackEngagementTime } from '../utils/Analytics-utils';
+import { trackPageView, trackChapterRead, trackEngagementTime, trackAnonymousPageView } from '../utils/Analytics-utils';
 import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
@@ -387,10 +387,22 @@ const NovelRead = () => {
 
   useEffect(() => {
     if (novel) {
-      trackPageView('novel_read', { novel_id: novel.id });
+      // Track page view with more details
+      trackPageView('novel_read', { 
+        novel_id: novel.id,
+        novel_title: novel.title,
+        chapter_number: currentChapter + 1,
+        is_anonymous: !currentUser,
+        session_id: localStorage.getItem('anonymous_session_id') || 'unknown'
+      });
+
+      // Track chapter read with more context
       trackChapterRead(novel.id, {
         title: novel.chapters[currentChapter].title,
-        number: currentChapter + 1
+        number: currentChapter + 1,
+        total_chapters: novel.chapters.length,
+        reader_id: currentUser?.uid || 'anonymous',
+        genre: novel.genres?.[0] || 'unknown'
       });
     }
 
@@ -398,7 +410,17 @@ const NovelRead = () => {
       const timeSpent = (Date.now() - startTime) / 1000;
       trackEngagementTime('novel_read', timeSpent);
     };
-  }, [novel, currentChapter]);
+  }, [novel, currentChapter, currentUser]);
+
+  useEffect(() => {
+    if (novel && !currentUser) {
+      trackAnonymousPageView({
+        pageName: 'novel_read',
+        novelId: novel.id,
+        chapterIndex: currentChapter
+      });
+    }
+  }, [novel, currentChapter, currentUser]);
 
   // Helper: Split content into readable paragraphs
   const formatContent = (content: string) => {

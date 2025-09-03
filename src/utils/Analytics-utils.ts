@@ -1,5 +1,6 @@
 import { analytics } from '../firebase/config';
 import { logEvent } from "firebase/analytics";
+import { getOrCreateSessionId } from './sessionUtils';
 
 // Page Views
 export const trackPageView = (pageName: string, additionalData = {}) => {
@@ -63,5 +64,41 @@ export const trackEngagementTime = (pageType: string, timeInSeconds: number) => 
     page_type: pageType,
     time_spent: timeInSeconds,
     timestamp: new Date().toISOString()
+  });
+};
+
+export const trackNovelRead = (novelData: {
+  novelId: string;
+  chapterIndex: number;
+  title: string;
+  isAnonymous?: boolean;
+}) => {
+  if (!analytics) return;
+
+  const sessionId = getOrCreateSessionId();
+  
+  logEvent(analytics, 'novel_read', {
+    ...novelData,
+    reader_type: novelData.isAnonymous ? 'anonymous' : 'registered',
+    session_id: sessionId,
+    timestamp: new Date().toISOString()
+  });
+};
+
+export const trackAnonymousPageView = (pageData: {
+  pageName: string;
+  novelId?: string;
+  chapterIndex?: number;
+}) => {
+  if (!analytics) return;
+
+  const sessionId = getOrCreateSessionId();
+
+  logEvent(analytics, 'anonymous_page_view', {
+    ...pageData,
+    session_id: sessionId,
+    timestamp: new Date().toISOString(),
+    referrer: document.referrer,
+    user_agent: navigator.userAgent
   });
 };

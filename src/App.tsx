@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom"
 import { useEffect } from "react"
 import { logEvent } from "firebase/analytics"
+import { useAuth } from "./context/AuthContext"
+import { getOrCreateSessionId } from "./utils/sessionUtils"
 import { analytics } from "./firebase/config"
 import ScrollToTop from "./components/ScrollToTop"
 import Navbar from "./components/Navbar"
@@ -30,16 +32,27 @@ import ToastContainer from "./components/ToastContainer"
 
 function AppContent() {
   const location = useLocation()
+  const { currentUser } = useAuth()
   const isNovelReadPage = /^\/novel\/[^/]+\/read$/.test(location.pathname)
 
     useEffect(() => {
-    // Track page view on route change
+    // Get session ID for anonymous users
+    const sessionId = !currentUser ? getOrCreateSessionId() : null
+
+    // Track page view on route change with enhanced data
     logEvent(analytics, 'page_view', {
       page_path: location.pathname,
       page_location: window.location.href,
-      page_title: document.title
+      page_title: document.title,
+      user_type: currentUser ? 'registered' : 'anonymous',
+      user_id: currentUser?.uid || sessionId,
+      timestamp: new Date().toISOString(),
+      referrer: document.referrer,
+      screen_resolution: `${window.screen.width}x${window.screen.height}`,
+      viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+      device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
     })
-  }, [location])
+  }, [location, currentUser])
   
   return (
     <AuthProvider>
