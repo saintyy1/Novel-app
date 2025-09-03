@@ -2,6 +2,7 @@
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
+import { trackPageView, trackChapterRead, trackEngagementTime } from '../utils/Analytics-utils';
 import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
@@ -381,6 +382,23 @@ const NovelRead = () => {
   const bookContentRef = useReactRef<HTMLDivElement>(null)
   const [showGraphicWarning, setShowGraphicWarning] = useState(false)
   const [hasAcknowledgedWarning, setHasAcknowledgedWarning] = useState(false)
+
+  const [startTime] = useState(Date.now());
+
+  useEffect(() => {
+    if (novel) {
+      trackPageView('novel_read', { novel_id: novel.id });
+      trackChapterRead(novel.id, {
+        title: novel.chapters[currentChapter].title,
+        number: currentChapter + 1
+      });
+    }
+
+    return () => {
+      const timeSpent = (Date.now() - startTime) / 1000;
+      trackEngagementTime('novel_read', timeSpent);
+    };
+  }, [novel, currentChapter]);
 
   // Helper: Split content into readable paragraphs
   const formatContent = (content: string) => {

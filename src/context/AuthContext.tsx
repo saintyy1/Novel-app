@@ -27,6 +27,7 @@ import {
   writeBatch,
 } from "firebase/firestore" // Import arrayUnion, arrayRemove, and new Firestore functions
 import { auth, db, googleProvider } from "../firebase/config"
+import { trackUserRegistration } from "../utils/Analytics-utils"
 
 // Extend the Firebase User type with our custom properties
 export interface ExtendedUser extends User {
@@ -488,6 +489,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (email: string, password: string, displayName: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
+
+    // Track registration immediately after user creation
+    trackUserRegistration(user.uid, 'email')
+
     // Update the user's display name in Firebase Auth
     await updateProfile(user, {
       displayName: displayName,

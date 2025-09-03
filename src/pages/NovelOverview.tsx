@@ -22,6 +22,7 @@ import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import { FaShare, FaCopy, FaFacebook, FaWhatsapp, FaTimes, FaReply, FaTrash } from "react-icons/fa"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
+import { trackPageView, trackNovelView, trackNovelInteraction } from '../utils/Analytics-utils';
 import { FaXTwitter } from "react-icons/fa6" // Import FaXTwitter
 import { CheckCircle } from "lucide-react" // Import CheckCircle
 import { BookOpen } from "lucide-react"
@@ -72,6 +73,13 @@ const NovelOverview = () => {
     // Sort replies chronologically (oldest first)
     return children.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
   }, [])
+
+  useEffect(() => {
+    if (novel) {
+      trackPageView('novel_overview');
+      trackNovelView(novel.id, novel);
+    }
+  }, [novel]);
 
   useEffect(() => {
     const fetchNovel = async () => {
@@ -192,6 +200,10 @@ const NovelOverview = () => {
     }
     try {
       const novelRef = doc(db, "novels", novel.id)
+      trackNovelInteraction('like', {
+          novelId: novel.id,
+          userId: currentUser?.uid
+        });
       const newLikeStatus = !liked
       setLiked(newLikeStatus) // Optimistic update
       // Update novel's likes and likedBy array
@@ -222,7 +234,7 @@ const NovelOverview = () => {
     if (!newComment.trim() || !currentUser || !novel) return
     try {
       setSubmittingComment(true)
-      await addDoc(collection(db, "comments"), {
+      const commentRef = await addDoc(collection(db, "comments"), {
         novelId: novel.id,
         userId: currentUser.uid,
         userName: currentUser.displayName || "Anonymous",
@@ -248,6 +260,15 @@ const NovelOverview = () => {
         })
       }
 
+      // Track the comment interaction
+      trackNovelInteraction('comment', {
+        novelId: novel.id,
+        userId: currentUser.uid,
+        novelTitle: novel.title,
+        commentId: commentRef.id,
+        commentText: newComment
+      });
+
       setNewComment("")
       showSuccessToast("Comment posted successfully!")
     } catch (error) {
@@ -262,7 +283,7 @@ const NovelOverview = () => {
     if (!replyContent.trim() || !currentUser || !novel) return
     try {
       setSubmittingReply(true)
-      await addDoc(collection(db, "comments"), {
+      const replyRef = await addDoc(collection(db, "comments"), {
         novelId: novel.id,
         userId: currentUser.uid,
         userName: currentUser.displayName || "Anonymous",
@@ -315,6 +336,15 @@ const NovelOverview = () => {
           read: false,
         })
       }
+
+      // Track the reply interaction
+      trackNovelInteraction('comment', {
+        novelId: novel.id,
+        userId: currentUser.uid,
+        novelTitle: novel.title,
+        commentId: replyRef.id,
+        commentText: replyContent
+      });
 
       setReplyContent("")
       setReplyingTo(null)

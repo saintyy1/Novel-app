@@ -1,4 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom"
+import { useEffect } from "react"
+import { logEvent } from "firebase/analytics"
+import { analytics } from "./firebase/config"
 import ScrollToTop from "./components/ScrollToTop"
 import Navbar from "./components/Navbar"
 import Footer from "./components/Footer"
@@ -28,6 +31,16 @@ import ToastContainer from "./components/ToastContainer"
 function AppContent() {
   const location = useLocation()
   const isNovelReadPage = /^\/novel\/[^/]+\/read$/.test(location.pathname)
+
+    useEffect(() => {
+    // Track page view on route change
+    logEvent(analytics, 'page_view', {
+      page_path: location.pathname,
+      page_location: window.location.href,
+      page_title: document.title
+    })
+  }, [location])
+  
   return (
     <AuthProvider>
       <NotificationProvider>

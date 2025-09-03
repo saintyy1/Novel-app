@@ -517,7 +517,7 @@ const Navbar = () => {
                           to={`/profile/${currentUser.uid}`}
                           onClick={closeDropdown}
                           className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                            isActive("/profile") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                            isActive(`/profile/${currentUser.uid}`) ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
                           }`}
                         >
                           <div className="flex items-center">
