@@ -27,7 +27,10 @@ export const fetchNovels = async ({
       q = query(q, orderBy("views", "desc"))
     } else if (sortOrder === "new-releases") {
       q = query(q, orderBy("createdAt", "desc"))
-    } else {
+    } else if (sortOrder === "promotional") {
+      q = query(q, where("isPromoted", "==", true), orderBy("promotionStartDate", "desc"))
+    }
+    else {
       // Default sorting for 'all' or other filters
       q = query(q, orderBy("createdAt", "desc"))
     }

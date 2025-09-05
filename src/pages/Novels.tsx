@@ -6,7 +6,7 @@ import type { Novel } from "../types/novel"
 import { fetchNovels } from "../services/novelService" // Import the service
 
 const Novels: React.FC = () => {
-  const { type } = useParams() // Get the 'type' parameter from the URL (e.g., 'trending', 'new-releases')
+  const { type } = useParams() // Get the 'type' parameter from the URL (e.g., 'trending', 'new-releases', promotional)
   const [novels, setNovels] = useState<Novel[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [activeFilter, setActiveFilter] = useState<string>("all")
@@ -117,11 +117,13 @@ const Novels: React.FC = () => {
     <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-extrabold text-[#E0E0E0] mb-4">
-          {effectiveSortOrder === "trending"
-            ? "Trending Novels"
-            : effectiveSortOrder === "new-releases"
-              ? "New Releases"
-              : "Browse Novels"}
+          {effectiveSortOrder === "promotional"
+            ? "Promotional Novels"
+            : effectiveSortOrder === "trending"
+              ? "Trending Novels"
+              : effectiveSortOrder === "new-releases"
+                ? "New Releases"
+                : "Browse Novels"}
         </h1>
         <p className="text-xl text-[#B0B0B0] max-w-3xl mx-auto">
           From new voices to hidden gems, explore novels created and shared by real storytellers.

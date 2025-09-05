@@ -46,9 +46,9 @@ const Promote = () => {
       price: 1500,
       duration: "30 days",
       features: [
-        "Featured in promoted sections",
+        "Promoted sections feature",
         "Increased visibility in search",
-        "Priority placement in carousels",
+        "Priority in carousels",
         "Email support",
       ],
       popular: false,
@@ -177,7 +177,7 @@ const Promote = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 to-violet-900/20"></div>
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=60 height=60 viewBox=0 0 60 60 xmlns=http://www.w3.org/2000/svg%3E%3Cg fill=none fillRule=evenodd%3E%3Cg fill=%23ffffff fillOpacity=0.05%3E%3Ccircle cx=30 cy=30 r=2/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-30"></div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-15 pb-7">
           <div className="text-center">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-6 py-3 mb-8 border border-white/20">
               <span className="text-2xl">📚</span>
@@ -233,7 +233,7 @@ const Promote = () => {
             </div>
 
             {currentStep === "select-book" && (
-              <div className="py-20">
+              <div className="py-8">
                 <div className="text-center mb-16">
                   <div className="inline-flex items-center gap-2 bg-purple-100 rounded-full px-6 py-3 mb-6">
                     <span className="text-purple-600 font-semibold">📖 Your Published Novels</span>
@@ -253,9 +253,9 @@ const Promote = () => {
                   <div className="text-center">
                     <div className="text-6xl mb-6">📚</div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-4">No Published Novels Found</h3>
-                    <p className="text-lg text-gray-600 mb-8">You need to publish a novel before you can promote it</p>
+                    <p className="text-lg text-gray-300 mb-8">You need to publish a novel before you can promote it</p>
                     <Link
-                      to="/write"
+                      to="/submit"
                       className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
                     >
                       Write Your First Novel
@@ -355,7 +355,7 @@ const Promote = () => {
                   </div>
                 )}
 
-                <div className="py-20">
+                <div className="py-8">
                   <div className="text-center mb-16">
                     <div className="inline-flex items-center gap-2 bg-purple-100 rounded-full px-6 py-3 mb-6">
                       <span className="text-purple-600 font-semibold">💎 Promotion Plans</span>
@@ -425,7 +425,7 @@ const Promote = () => {
               </>
             )}
 
-            <div className="py-20">
+            <div className="py-8">
               <div className="bg-gradient-to-br from-purple-600 via-violet-700 to-purple-800 rounded-3xl p-8 text-center overflow-hidden">
 
                 <div className="relative z-10">
@@ -440,7 +440,7 @@ const Promote = () => {
                     <button
                       disabled={!selectedPlan || processingPayment}
                       onClick={handlePayment}
-                      className={`px-8 py-6 rounded-2xl font-black text-2xl transition-all duration-300 ${
+                      className={`px-6 py-6 rounded-2xl font-black text-2xl transition-all duration-300 ${
                         selectedPlan && !processingPayment
                           ? "bg-white text-purple-700 hover:bg-gray-100 shadow-2xl hover:shadow-3xl transform hover:scale-105 hover:-translate-y-1"
                           : "bg-white/20 text-white/50 cursor-not-allowed"
@@ -463,7 +463,7 @@ const Promote = () => {
               </div>
             </div>
 
-            <div className="py-20">
+            <div className="py-8">
               <div className="text-center mb-16">
                 <h2 className="text-4xl font-black text-gray-900 mb-6">Questions? We've Got Answers</h2>
                 <p className="text-xl text-gray-300">Everything you need to know about promoting your novel</p>
