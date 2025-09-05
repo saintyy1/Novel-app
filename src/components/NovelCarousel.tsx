@@ -22,7 +22,6 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
   handleImageError,
   getGenreColorClass,
 }) => {
-
   const getFirebaseDownloadUrl = (url: string) => {
     if (!url || !url.includes("firebasestorage.app")) {
       return url
@@ -51,10 +50,11 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
         </Link>
       </div>
       {loading ? (
-        <div className="flex overflow-x-auto space-x-4 py-4 px-4 sm:px-0 scrollbar-hide"
+        <div
+          className="flex overflow-x-auto space-x-4 py-4 px-4 sm:px-0 scrollbar-hide"
           style={{
-            scrollbarWidth: 'none',        // Firefox
-            msOverflowStyle: 'none'        // IE/Edge
+            scrollbarWidth: "none", // Firefox
+            msOverflowStyle: "none", // IE/Edge
           }}
         >
           <style>
@@ -75,10 +75,12 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
           ))}
         </div>
       ) : novels.length > 0 ? (
-        <div className="flex overflow-x-auto space-x-4 py-2 px-4 sm:px-0 scrollbar-hide" style={{
-          scrollbarWidth: 'none',        // Firefox
-          msOverflowStyle: 'none'        // IE/Edge
-        }}
+        <div
+          className="flex overflow-x-auto space-x-4 py-2 px-4 sm:px-0 scrollbar-hide"
+          style={{
+            scrollbarWidth: "none", // Firefox
+            msOverflowStyle: "none", // IE/Edge
+          }}
         >
           <style>
             {`
@@ -100,7 +102,7 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
                   alt={`Cover for ${novel.title}`}
                   className="w-full h-full object-cover"
                   onError={() => handleImageError(novel.id)}
-                /> 
+                />
               ) : (
                 <div
                   className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(

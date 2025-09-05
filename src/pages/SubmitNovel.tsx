@@ -266,7 +266,7 @@ const SubmitNovel = () => {
         chapters,
         authorId: currentUser?.uid,
         authorName: currentUser?.displayName,
-        isAIGenerated: false,
+        isPromoted: false,
         published: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

@@ -1,19 +1,60 @@
 "use client"
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore"
+import { collection, query, where, getDocs, orderBy, limit, updateDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
 import NovelCarousel from "../components/NovelCarousel"
+import PromotionSection from "../components/PromotionSection"
 
 const Home = () => {
+  const [promotionalNovels, setPromotionalNovels] = useState<Novel[]>([])
   const [trendingNovels, setTrendingNovels] = useState<Novel[]>([])
   const [newReleaseNovels, setNewReleaseNovels] = useState<Novel[]>([])
+  const [loadingPromotional, setLoadingPromotional] = useState<boolean>(true)
   const [loadingTrending, setLoadingTrending] = useState<boolean>(true)
   const [loadingNewReleases, setLoadingNewReleases] = useState<boolean>(true)
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
 
-  // Fetch Trending Novels
+  useEffect(() => {
+  const fetchPromotionalNovels = async () => {
+    setLoadingPromotional(true)
+    try {
+      const promotionalQuery = query(
+        collection(db, "novels"),
+        where("published", "==", true),
+        where("isPromoted", "==", true),
+        orderBy("views", "desc"),
+        limit(7),
+      )
+      const querySnapshot = await getDocs(promotionalQuery)
+      const promotionalData: Novel[] = []
+
+      const now = new Date()
+
+      for (const docSnap of querySnapshot.docs) {
+        const data = docSnap.data() as any
+        const endDate = data.promotionEndDate?.toDate?.() || data.promotionEndDate
+
+        if (endDate && endDate < now) {
+          // expired — update Firestore to set isPromoted back to false
+          await updateDoc(docSnap.ref, { isPromoted: false, promotionStartDate: null, promotionEndDate: null, reference: null, promotionPlan: null })
+        } else {
+          promotionalData.push({ id: docSnap.id, ...data } as Novel)
+        }
+      }
+
+      setPromotionalNovels(promotionalData)
+    } catch (error) {
+      console.error("Error fetching promotional novels:", error)
+    } finally {
+      setLoadingPromotional(false)
+    }
+  }
+
+  fetchPromotionalNovels()
+}, [])
+
   useEffect(() => {
     const fetchTrendingNovels = async () => {
       setLoadingTrending(true)
@@ -21,7 +62,8 @@ const Home = () => {
         const trendingQuery = query(
           collection(db, "novels"),
           where("published", "==", true),
-          orderBy("views", "desc"), // Order by views for trending
+          where("isPromoted", "!=", true),
+          orderBy("views", "desc"),
           limit(7),
         )
         const querySnapshot = await getDocs(trendingQuery)
@@ -39,7 +81,6 @@ const Home = () => {
     fetchTrendingNovels()
   }, [])
 
-  // Fetch New Release Novels
   useEffect(() => {
     const fetchNewReleaseNovels = async () => {
       setLoadingNewReleases(true)
@@ -47,7 +88,7 @@ const Home = () => {
         const newReleaseQuery = query(
           collection(db, "novels"),
           where("published", "==", true),
-          orderBy("createdAt", "desc"), // Order by createdAt for new releases
+          orderBy("createdAt", "desc"),
           limit(7),
         )
         const querySnapshot = await getDocs(newReleaseQuery)
@@ -85,7 +126,7 @@ const Home = () => {
     if (genres.includes("Drama")) return "from-violet-500 to-purple-600"
     if (genres.includes("Dystopian")) return "from-red-400 to-purple-500"
     if (genres.includes("Fiction")) return "from-gray-600 to-gray-800"
-    return "from-gray-600 to-gray-800" // Default
+    return "from-gray-600 to-gray-800"
   }
 
   return (
@@ -118,7 +159,18 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Trending Novels Section */}
+      <PromotionSection />
+
+      <NovelCarousel
+        title="Promotions"
+        novels={promotionalNovels}
+        loading={loadingPromotional}
+        seeAllLink="/novels/promotional"
+        imageErrors={imageErrors}
+        handleImageError={handleImageError}
+        getGenreColorClass={getGenreColorClass}
+      />
+
       <NovelCarousel
         title="Trending Novels"
         novels={trendingNovels}
@@ -129,7 +181,6 @@ const Home = () => {
         getGenreColorClass={getGenreColorClass}
       />
 
-      {/* New Releases Section */}
       <NovelCarousel
         title="New Releases"
         novels={newReleaseNovels}

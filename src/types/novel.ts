@@ -11,7 +11,9 @@ export interface Novel {
   }[]
   authorId: string
   authorName: string
-  isAIGenerated: boolean
+  isPromoted: boolean
+  promotionStartDate?: string
+  promotionEndDate?: string
   published: boolean
   createdAt: string
   updatedAt: string
@@ -20,5 +22,5 @@ export interface Novel {
   views?: number
   likedBy?: string[] // Array of user IDs who liked the novel
   coverImage?: string | null
-  coverSmallImage?: string | null 
+  coverSmallImage?: string | null
 }

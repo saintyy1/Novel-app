@@ -11,6 +11,8 @@ import AdminRoute from "./components/AdminRoute"
 import AdminDashboard from "./pages/AdminDashboard"
 import LoginPage from "./pages/LoginPage"
 import Home from "./pages/Home"
+import Promote from "./pages/Promote"
+import PaymentCallback from "./pages/PaymentCallback"
 import Profile from "./pages/Profile"
 import NotificationsPage from "./pages/Notifications"
 import LibraryPage from "./pages/Library"
@@ -62,6 +64,8 @@ function AppContent() {
           <main className={`flex-grow ${!isNovelReadPage ? "px-3 py-8" : "px-0 py-0"}`}>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/promote" element={<Promote />} />
+              <Route path="/PaymentCallback" element={<PaymentCallback />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/library" element={<LibraryPage />} />
