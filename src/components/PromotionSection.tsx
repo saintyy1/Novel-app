@@ -48,7 +48,7 @@ const PromotionSection = () => {
           <div className="bg-gray-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-white">How to Promote Your Novel</h3>
+                <h3 className="text-2xl font-bold text-white">Promote Your Novel</h3>
                 <button
                   onClick={() => setShowLearnMore(false)}
                   className="text-gray-400 hover:text-white transition-colors"
@@ -67,10 +67,14 @@ const PromotionSection = () => {
                     </span>
                     Steps to Promote
                   </h4>
-                  <ul className="space-y-2 ml-9">
+                  <ul className="space-y-2">
                     <li className="flex items-start">
                       <span className="text-purple-400 mr-2">•</span>
-                      Choose your promotion duration (1 or 2 months)
+                      Select your novel
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-purple-400 mr-2">•</span>
+                      Choose your promotion duration (N1,500 for 1 month or N2,500 for 2 months)
                     </li>
                     <li className="flex items-start">
                       <span className="text-purple-400 mr-2">•</span>
@@ -94,7 +98,7 @@ const PromotionSection = () => {
                     </span>
                     Tips for Success
                   </h4>
-                  <ul className="space-y-2 ml-9">
+                  <ul className="space-y-2">
                     <li className="flex items-start">
                       <span className="text-green-400 mr-2">✓</span>
                         Use high-quality, eye-catching
