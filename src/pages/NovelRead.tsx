@@ -366,7 +366,7 @@ const NovelRead = () => {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string>("")
   const [currentChapter, setCurrentChapter] = useState<number>(0)
-  const { currentUser } = useAuth()
+  const { currentUser, isAdmin } = useAuth()
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState("")
@@ -382,6 +382,78 @@ const NovelRead = () => {
   const bookContentRef = useReactRef<HTMLDivElement>(null)
   const [showGraphicWarning, setShowGraphicWarning] = useState(false)
   const [hasAcknowledgedWarning, setHasAcknowledgedWarning] = useState(false)
+  // Determine permission to copy/paste: allowed if admin or the novel's author
+  const canCopyContent = !!(
+    isAdmin || (currentUser && novel && currentUser.uid === novel.authorId)
+  )
+
+  // Prevent copy/paste and selection within the reading area for unauthorized users
+  useEffect(() => {
+    const container = bookContentRef.current
+    if (canCopyContent) return
+
+    const prevent = (e: Event) => {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    const keydownHandler = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      if ((e.ctrlKey || e.metaKey) && (key === "c" || key === "x" || key === "v" || key === "a")) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+
+    // Strengthen by listening on document as well
+    document.addEventListener("copy", prevent, true)
+    document.addEventListener("cut", prevent, true)
+    document.addEventListener("paste", prevent, true)
+    document.addEventListener("contextmenu", prevent, true)
+    document.addEventListener("selectstart", prevent, true)
+    document.addEventListener("dragstart", prevent, true)
+    document.addEventListener("keydown", keydownHandler, true)
+
+    // Also try scoping to container if present
+    if (container) {
+      container.addEventListener("copy", prevent)
+      container.addEventListener("cut", prevent)
+      container.addEventListener("paste", prevent)
+      container.addEventListener("contextmenu", prevent)
+      container.addEventListener("selectstart", prevent)
+      container.addEventListener("dragstart", prevent)
+      container.addEventListener("keydown", keydownHandler)
+    }
+
+    // Temporarily disable selection on body
+    const previousUserSelect = document.body.style.userSelect
+    const previousWebkitUserSelect = (document.body.style as any).webkitUserSelect
+    document.body.style.userSelect = "none"
+    ;(document.body.style as any).webkitUserSelect = "none"
+
+    return () => {
+      document.removeEventListener("copy", prevent, true)
+      document.removeEventListener("cut", prevent, true)
+      document.removeEventListener("paste", prevent, true)
+      document.removeEventListener("contextmenu", prevent, true)
+      document.removeEventListener("selectstart", prevent, true)
+      document.removeEventListener("dragstart", prevent, true)
+      document.removeEventListener("keydown", keydownHandler, true)
+
+      if (container) {
+        container.removeEventListener("copy", prevent)
+        container.removeEventListener("cut", prevent)
+        container.removeEventListener("paste", prevent)
+        container.removeEventListener("contextmenu", prevent)
+        container.removeEventListener("selectstart", prevent)
+        container.removeEventListener("dragstart", prevent)
+        container.removeEventListener("keydown", keydownHandler)
+      }
+
+      document.body.style.userSelect = previousUserSelect
+      ;(document.body.style as any).webkitUserSelect = previousWebkitUserSelect
+    }
+  }, [bookContentRef, canCopyContent])
+
 
   const [startTime] = useState(Date.now());
 
@@ -1045,7 +1117,40 @@ const NovelRead = () => {
             {...swipeHandlers}
             className={`flex-grow flex flex-col justify-center items-center transition-opacity duration-300 ${
               pageFade ? "opacity-0" : "opacity-100"
-            }`}
+            } ${canCopyContent ? "" : "select-none"}`}
+            style={canCopyContent ? undefined : { userSelect: "none", WebkitUserSelect: "none" as any }}
+            draggable={false}
+            tabIndex={canCopyContent ? -1 : 0}
+            onCopy={(e) => {
+              if (!canCopyContent) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+            onCut={(e) => {
+              if (!canCopyContent) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+            onPaste={(e) => {
+              if (!canCopyContent) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+            onContextMenu={(e) => {
+              if (!canCopyContent) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+            onMouseDown={(e) => {
+              if (!canCopyContent) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
             ref={bookContentRef}
           >
             {renderCurrentPageContent()}
