@@ -706,12 +706,7 @@ const Profile = () => {
     setEditSummary(novel.summary || "")
     setSaveNovelError("")
   }
-
-  const handlePromoteNovel = () => {
-    window.location.href = `/promote`
-    setOpenKebabMenu(null)
-  }
-
+  
   const handleDeleteNovel = (novel: any) => {
     setSelectedNovel(novel)
     setShowDeleteConfirm(true)
@@ -1268,21 +1263,21 @@ const Profile = () => {
                               className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2 rounded-t-lg"
                             >
                               <Edit className="h-3 w-3" />
-                              Edit novel
+                              Edit
                             </button>
-                            <button
-                              onClick={() => handlePromoteNovel()}
+                            <Link
+                              to="/promote"
                               className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2"
                             >
                               <TrendingUp className="h-3 w-3" />
-                              Promote novel
-                            </button>
+                              Promote
+                            </Link>
                             <button
                               onClick={() => handleDeleteNovel(novel)}
                               className="w-full px-3 py-2 text-left text-sm text-red-400 hover:text-red-300 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
                             >
                               <Trash2 className="h-3 w-3" />
-                              Delete novel
+                              Delete
                             </button>
                           </div>
                         )}
