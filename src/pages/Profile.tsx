@@ -25,7 +25,21 @@ import UserListDrawer from "../components/UserListDrawer" // Import the new User
 import { FaInstagram, FaTimes, FaFacebook, FaWhatsapp, FaCopy, FaShare } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
-import { Users, UserPlus, UserMinus, Megaphone, Plus, Trash2, Camera, X, Pencil } from "lucide-react" // Use Lucide icons
+import {
+  Users,
+  UserPlus,
+  UserMinus,
+  Megaphone,
+  Plus,
+  Trash2,
+  Camera,
+  X,
+  Pencil,
+  BookOpen,
+  MoreHorizontal,
+  Edit,
+  TrendingUp,
+} from "lucide-react" // Use Lucide icons
 
 interface Announcement {
   id: string
@@ -46,14 +60,10 @@ const Profile = () => {
   const [photoError, setPhotoError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
-  // New state for novel cover management
-  const [selectedNovelForCover, setSelectedNovelForCover] = useState<Novel | null>(null)
-  const [showNovelCoverModal, setShowNovelCoverModal] = useState(false)
+  
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false)
   const [copySuccess, setCopySuccess] = useState<boolean>(false)
-  const [uploadingNovelCover, setUploadingNovelCover] = useState(false)
-  const [novelCoverError, setNovelCoverError] = useState("")
-  const novelCoverFileInputRef = useRef<HTMLInputElement>(null)
+  
   // States for follow feature
   const [isFollowing, setIsFollowing] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
@@ -70,6 +80,16 @@ const Profile = () => {
   const [showFollowListDrawer, setShowFollowListDrawer] = useState(false)
   const [followListType, setFollowListType] = useState<"followers" | "following" | null>(null)
   const [displayedUserIds, setDisplayedUserIds] = useState<string[]>([])
+  const [openKebabMenu, setOpenKebabMenu] = useState<string | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [selectedNovel, setSelectedNovel] = useState<any>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  // Edit Novel modal form state
+  const [editTitle, setEditTitle] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editSummary, setEditSummary] = useState("")
+  const [savingNovel, setSavingNovel] = useState(false)
+  const [saveNovelError, setSaveNovelError] = useState("")
 
   const isOwnProfile = !userId || userId === currentUser?.uid
   const displayName = profileUser?.displayName || currentUser?.displayName || "User"
@@ -191,7 +211,7 @@ const Profile = () => {
   const resizeImage = useCallback((file: File, maxWidth = 200, maxHeight = 200, quality = 0.7): Promise<string> => {
     return new Promise((resolve) => {
       const canvas = document.createElement("canvas")
-      const ctx = canvas.getContext("2d")!
+      const ctx = document.createElement("canvas").getContext("2d")!
       const img = new Image()
       img.crossOrigin = "anonymous" // Important for CORS issues [^1]
       img.onload = () => {
@@ -372,132 +392,73 @@ const Profile = () => {
     })
   }
 
-  // New functions for novel cover management
-  const handleNovelCoverUpload = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
-      if (!file || !selectedNovelForCover) return
+  // Edit modal: cover management state
+  const novelEditCoverFileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingEditCover, setUploadingEditCover] = useState(false)
+  const [editCoverError, setEditCoverError] = useState("")
 
-      if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
-        setNovelCoverError("Cover image must be JPEG, PNG, or WebP format")
-        return
-      }
-
-      try {
-        setUploadingNovelCover(true)
-        setNovelCoverError("")
-
-        // Process images
-        const resizedBlob = await resizeUnder1MB(file)
-        const smallBlob = await generateSmallBlob(file)
-
-        // Create Firebase Storage references
-        const coverRef = ref(storage, `covers-large/${selectedNovelForCover.id}.jpg`)
-        const coverSmallRef = ref(storage, `covers-small/${selectedNovelForCover.id}.jpg`)
-
-        // Upload both versions
-        await uploadBytes(coverRef, resizedBlob)
-        await uploadBytes(coverSmallRef, smallBlob)
-
-        // Generate the URLs
-        const coverUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-large/${selectedNovelForCover.id}.jpg`
-        const coverSmallUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-small/${selectedNovelForCover.id}.jpg`
-
-        // Update Firestore document
-        const novelRef = doc(db, "novels", selectedNovelForCover.id)
-        await updateDoc(novelRef, {
-          coverImage: coverUrl,
-          coverSmallImage: coverSmallUrl
-        })
-
-        // Update local state
-        setUserNovels(prevNovels =>
-          prevNovels.map(novel =>
-            novel.id === selectedNovelForCover.id
-              ? { ...novel, coverImage: coverUrl, coverSmallImage: coverSmallUrl }
-              : novel
-          )
-        )
-
-        setSelectedNovelForCover(prev =>
-          prev ? { ...prev, coverImage: coverUrl, coverSmallImage: coverSmallUrl } : null
-        )
-
-        setNovelCoverError("Novel cover updated successfully!")
-        setTimeout(() => setNovelCoverError(""), 3000)
-      } catch (err) {
-        console.error("Error uploading novel cover:", err)
-        setNovelCoverError("Failed to upload novel cover. Please try again.")
-      } finally {
-        setUploadingNovelCover(false)
-        if (novelCoverFileInputRef.current) {
-          novelCoverFileInputRef.current.value = ""
-        }
-      }
-    },
-    [selectedNovelForCover]
-  )
-
-  const removeNovelCover = useCallback(async () => {
-    if (!selectedNovelForCover) return
-
+  const handleEditCoverUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !selectedNovel) return
+    if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
+      setEditCoverError("Cover image must be JPEG, PNG, or WebP format")
+      return
+    }
     try {
-      setUploadingNovelCover(true)
-      setNovelCoverError("")
+      setUploadingEditCover(true)
+      setEditCoverError("")
+      const resizedBlob = await resizeUnder1MB(file)
+      const smallBlob = await generateSmallBlob(file)
+      const coverRef = ref(storage, `covers-large/${selectedNovel.id}.jpg`)
+      const coverSmallRef = ref(storage, `covers-small/${selectedNovel.id}.jpg`)
+      await uploadBytes(coverRef, resizedBlob, { contentType: file.type || "image/jpeg" })
+      await uploadBytes(coverSmallRef, smallBlob, { contentType: "image/jpeg" })
+      const coverUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-large/${selectedNovel.id}.jpg`
+      const coverSmallUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-small/${selectedNovel.id}.jpg`
+      const novelRef = doc(db, "novels", selectedNovel.id)
+      await updateDoc(novelRef, { coverImage: coverUrl, coverSmallImage: coverSmallUrl })
+      setUserNovels((prevNovels) =>
+        prevNovels.map((novel) => (novel.id === selectedNovel.id ? { ...novel, coverImage: coverUrl, coverSmallImage: coverSmallUrl } : novel)),
+      )
+      setSelectedNovel((prev: any) => (prev ? { ...prev, coverImage: coverUrl, coverSmallImage: coverSmallUrl } : prev))
+      setEditCoverError("Novel cover updated successfully!")
+      setTimeout(() => setEditCoverError(""), 3000)
+    } catch (err) {
+      console.error("Error uploading novel cover:", err)
+      setEditCoverError("Failed to upload novel cover. Please try again.")
+    } finally {
+      setUploadingEditCover(false)
+      if (novelEditCoverFileInputRef.current) novelEditCoverFileInputRef.current.value = ""
+    }
+  }, [selectedNovel])
 
-      // Delete from Firebase Storage
-      const coverRef = ref(storage, `covers-large/${selectedNovelForCover.id}.jpg`)
-      const coverSmallRef = ref(storage, `covers-small/${selectedNovelForCover.id}.jpg`)
-
+  const removeEditCover = useCallback(async () => {
+    if (!selectedNovel) return
+    try {
+      setUploadingEditCover(true)
+      setEditCoverError("")
+      const coverRef = ref(storage, `covers-large/${selectedNovel.id}.jpg`)
+      const coverSmallRef = ref(storage, `covers-small/${selectedNovel.id}.jpg`)
       try {
-        await Promise.all([
-          deleteObject(coverRef),
-          deleteObject(coverSmallRef)
-        ])
+        await Promise.all([deleteObject(coverRef), deleteObject(coverSmallRef)])
       } catch (error) {
         console.log("Files may not exist in storage:", error)
       }
-
-      // Update Firestore document
-      const novelRef = doc(db, "novels", selectedNovelForCover.id)
-      await updateDoc(novelRef, {
-        coverImage: null,
-        coverSmallImage: null
-      })
-
-      // Update local state
-      setUserNovels(prevNovels =>
-        prevNovels.map(novel =>
-          novel.id === selectedNovelForCover.id
-            ? { ...novel, coverImage: null, coverSmallImage: null }
-            : novel
-        )
+      const novelRef = doc(db, "novels", selectedNovel.id)
+      await updateDoc(novelRef, { coverImage: null, coverSmallImage: null })
+      setUserNovels((prevNovels) =>
+        prevNovels.map((novel) => (novel.id === selectedNovel.id ? { ...novel, coverImage: null, coverSmallImage: null } : novel)),
       )
-
-      setSelectedNovelForCover(prev =>
-        prev ? { ...prev, coverImage: null, coverSmallImage: null } : null
-      )
-
-      setNovelCoverError("Novel cover removed successfully!")
-      setTimeout(() => setNovelCoverError(""), 3000)
+      setSelectedNovel((prev: any) => (prev ? { ...prev, coverImage: null, coverSmallImage: null } : prev))
+      setEditCoverError("Novel cover removed successfully!")
+      setTimeout(() => setEditCoverError(""), 3000)
     } catch (err) {
       console.error("Error removing novel cover:", err)
-      setNovelCoverError("Failed to remove novel cover. Please try again.")
+      setEditCoverError("Failed to remove novel cover. Please try again.")
     } finally {
-      setUploadingNovelCover(false)
+      setUploadingEditCover(false)
     }
-  }, [selectedNovelForCover])
-
-  const openNovelCoverModal = useCallback((novel: Novel) => {
-    setSelectedNovelForCover(novel)
-    setShowNovelCoverModal(true)
-  }, [])
-
-  const closeNovelCoverModal = useCallback(() => {
-    setShowNovelCoverModal(false)
-    setSelectedNovelForCover(null)
-    setNovelCoverError("") // Clear any previous errors
-  }, [])
+  }, [selectedNovel])
 
   const handleCopyLink = async () => {
     const novelUrl = `${window.location.origin}/profile/${userId}`
@@ -593,22 +554,6 @@ const Profile = () => {
         return true
     }
   })
-
-  const getStatusBadge = useCallback((novel: Novel) => {
-    if (novel.published) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/30 text-green-400">
-          Published
-        </span>
-      )
-    } else {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900/30 text-yellow-400">
-          Pending Review
-        </span>
-      )
-    }
-  }, [])
 
   const formatDateTime = useCallback((dateString: string) => {
     const date = new Date(dateString)
@@ -749,6 +694,41 @@ const Profile = () => {
     } catch (error) {
       console.log(`Error converting Firebase URL: ${error}`)
       return url
+    }
+  }
+
+  const handleEditNovel = (novel: any) => {
+    setSelectedNovel(novel)
+    setShowEditModal(true)
+    setOpenKebabMenu(null)
+    setEditTitle(novel.title || "")
+    setEditDescription(novel.description || "")
+    setEditSummary(novel.summary || "")
+    setSaveNovelError("")
+  }
+
+  const handlePromoteNovel = () => {
+    window.location.href = `/promote`
+    setOpenKebabMenu(null)
+  }
+
+  const handleDeleteNovel = (novel: any) => {
+    setSelectedNovel(novel)
+    setShowDeleteConfirm(true)
+    setOpenKebabMenu(null)
+  }
+
+  const confirmDeleteNovel = async () => {
+    if (!selectedNovel) return
+
+    try {
+      // Add your delete logic here
+      console.log("Deleting novel:", selectedNovel.id)
+      // After successful deletion, refresh the novels list
+      setShowDeleteConfirm(false)
+      setSelectedNovel(null)
+    } catch (error) {
+      console.error("Error deleting novel:", error)
     }
   }
 
@@ -906,8 +886,9 @@ const Profile = () => {
               {/* Photo Error/Success Message */}
               {isOwnProfile && photoError && (
                 <div
-                  className={`mt-2 text-xs sm:text-sm ${photoError.includes("successfully") ? "text-green-400" : "text-red-400"
-                    }`}
+                  className={`mt-2 text-xs sm:text-sm ${
+                    photoError.includes("successfully") ? "text-green-400" : "text-red-400"
+                  }`}
                 >
                   {photoError}
                 </div>
@@ -991,8 +972,9 @@ const Profile = () => {
                     <button
                       onClick={handleFollowToggle}
                       disabled={!currentUser || !profileUser || isTogglingFollow}
-                      className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors ${isFollowing ? "bg-gray-600 hover:bg-gray-700" : "bg-purple-600 hover:bg-purple-700"
-                        } ${isTogglingFollow ? "opacity-50 cursor-not-allowed" : ""}`}
+                      className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors ${
+                        isFollowing ? "bg-gray-600 hover:bg-gray-700" : "bg-purple-600 hover:bg-purple-700"
+                      } ${isTogglingFollow ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                       {isTogglingFollow ? (
                         <>
@@ -1165,28 +1147,31 @@ const Profile = () => {
             <nav className="flex space-x-4 px-6" aria-label="Tabs">
               <button
                 onClick={() => setActiveTab("all")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === "all"
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === "all"
                     ? "border-purple-500 text-purple-400"
                     : "border-transparent text-gray-400 hover:text-gray-300"
-                  }`}
+                }`}
               >
                 All Novels ({userNovels.length})
               </button>
               <button
                 onClick={() => setActiveTab("published")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === "published"
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === "published"
                     ? "border-purple-500 text-purple-400"
                     : "border-transparent text-gray-400 hover:text-gray-300"
-                  }`}
+                }`}
               >
                 Published ({userNovels.filter((novel) => novel.published).length})
               </button>
               <button
                 onClick={() => setActiveTab("pending")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === "pending"
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === "pending"
                     ? "border-purple-500 text-purple-400"
                     : "border-transparent text-gray-400 hover:text-gray-300"
-                  }`}
+                }`}
               >
                 Pending Review ({userNovels.filter((novel) => !novel.published).length})
               </button>
@@ -1241,105 +1226,68 @@ const Profile = () => {
                 )}
               </div>
             ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                 {filteredNovels.map((novel) => (
-                  <div
-                    key={novel.id}
-                    className="group bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-lg border border-white/20 rounded-2xl overflow-hidden hover:shadow-2xl hover:scale-[1.02] transition-all duration-300"
-                  >
-                    {/* Novel Cover/Header */}
-                    <div className="relative h-48 bg-gradient-to-br from-purple-600/80 to-indigo-600/80 overflow-hidden">
-                      {novel.coverImage ? (
-                        <img
-                          src={getFirebaseDownloadUrl(novel.coverImage || "/placeholder.svg")}
-                          alt={novel.title}
-                          loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <svg
-                            className="h-16 w-16 text-white/60"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  <div key={novel.id} className="group flex flex-col">
+                    {/* Book Cover */}
+                    <div className="relative aspect-[3/4] mb-3">
+                      <Link to={novel.published ? `/novel/${novel.id}` : "#"}>
+                        <div className="w-full h-full rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                          {novel.coverImage ? (
+                            <img
+                              src={getFirebaseDownloadUrl(novel.coverImage) || "/placeholder.svg"}
+                              alt={novel.title}
+                              loading="lazy"
+                              className="w-full h-full object-cover"
                             />
-                          </svg>
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-purple-600/80 to-indigo-600/80 flex items-center justify-center">
+                              <BookOpen className="h-12 w-12 text-white/60" />
+                            </div>
+                          )}
                         </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-                      <div className="absolute top-4 right-4">{getStatusBadge(novel)}</div>
-                      <div className="absolute bottom-4 left-4 right-4">
-                        <h3 className="text-xl font-bold text-white mb-1 line-clamp-2">{novel.title}</h3>
-                      </div>
-                      {isOwnProfile && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation() // Prevent opening novel detail page
-                            openNovelCoverModal(novel)
-                          }}
-                          className="absolute top-2 left-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full shadow-lg transition-colors z-10"
-                          title="Edit novel cover"
-                        >
-                          <Camera className="h-4 w-4" />
-                        </button>
-                      )}
+                      </Link>
+                      
                     </div>
-                    {/* Novel Content */}
-                    <div className="p-6">
-                      <div className="text-xs text-gray-500 mb-4">Created: {formatDateTime(novel.createdAt)}</div>
-                      {/* Action Buttons */}
-                      <div className="flex space-x-3">
-                        {novel.published ? (
-                          <>
-                            <Link
-                              to={`/novel/${novel.id}`}
-                              className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-105 shadow-md"
+
+                    {/* Kebab Menu */}
+                    {isOwnProfile && (
+                      <div className="relative flex justify-end">
+                        <button
+                          onClick={() => setOpenKebabMenu(openKebabMenu === novel.id ? null : novel.id)}
+                          className="p-1 text-gray-400 hover:text-white transition-colors"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {openKebabMenu === novel.id && (
+                          <div className="absolute top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-10 min-w-[140px]">
+                            <button
+                              onClick={() => handleEditNovel(novel)}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2 rounded-t-lg"
                             >
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                />
-                              </svg>
-                            </Link>
-                            {isOwnProfile && (
-                              <Link
-                                to={`/novel/${novel.id}/add-chapters`}
-                                className="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Link>
-                            )}
-                          </>
-                        ) : (
-                          <div className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-amber-500/20 text-amber-300 font-medium rounded-lg border border-amber-500/30 cursor-not-allowed">
-                            <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            Under Review
+                              <Edit className="h-3 w-3" />
+                              Edit novel
+                            </button>
+                            <button
+                              onClick={() => handlePromoteNovel()}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2"
+                            >
+                              <TrendingUp className="h-3 w-3" />
+                              Promote novel
+                            </button>
+                            <button
+                              onClick={() => handleDeleteNovel(novel)}
+                              className="w-full px-3 py-2 text-left text-sm text-red-400 hover:text-red-300 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              Delete novel
+                            </button>
                           </div>
                         )}
                       </div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1347,6 +1295,203 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {showEditModal && selectedNovel && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-2xl p-6 max-w-2xl w-full mx-4 border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">Edit Novel</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Novel Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                <textarea
+                  rows={4}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                />
+              </div>
+
+              {/* Cover Image */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Cover Image</label>
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-16 h-20 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center cursor-pointer group"
+                    onClick={() => novelEditCoverFileInputRef.current?.click()}
+                    title="Click to change cover"
+                  >
+                    {selectedNovel.coverImage ? (
+                      <img
+                        src={getFirebaseDownloadUrl(selectedNovel.coverImage) || "/placeholder.svg"}
+                        alt="Cover"
+                        className="w-full h-full object-cover group-hover:opacity-90"
+                      />
+                    ) : (
+                      <BookOpen className="h-6 w-6 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => novelEditCoverFileInputRef.current?.click()}
+                      disabled={uploadingEditCover}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingEditCover ? "Uploading..." : "Change"}
+                    </button>
+                    {selectedNovel.coverImage && (
+                      <button
+                        type="button"
+                        onClick={removeEditCover}
+                        disabled={uploadingEditCover}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {editCoverError && (
+                  <div className={`mt-2 text-xs ${editCoverError.includes("successfully") ? "text-green-400" : "text-red-400"}`}>
+                    {editCoverError}
+                  </div>
+                )}
+                <input
+                  ref={novelEditCoverFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleEditCoverUpload}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Summary */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Summary</label>
+                <textarea
+                  rows={6}
+                  value={editSummary}
+                  onChange={(e) => setEditSummary(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                />
+              </div>
+
+              {saveNovelError && (
+                <div className="text-red-400 text-sm">{saveNovelError}</div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!selectedNovel) return
+                    try {
+                      setSavingNovel(true)
+                      setSaveNovelError("")
+                      await updateDoc(doc(db, "novels", selectedNovel.id), {
+                        title: editTitle,
+                        description: editDescription,
+                        summary: editSummary,
+                        updatedAt: new Date().toISOString(),
+                      })
+                      setUserNovels((prev) =>
+                        prev.map((n) =>
+                          n.id === selectedNovel.id
+                            ? { ...n, title: editTitle, description: editDescription, summary: editSummary, updatedAt: new Date().toISOString() }
+                            : n,
+                        ),
+                      )
+                      setSelectedNovel((prev: any) =>
+                        prev
+                          ? { ...prev, title: editTitle, description: editDescription, summary: editSummary, updatedAt: new Date().toISOString() }
+                          : prev,
+                      )
+                      setShowEditModal(false)
+                    } catch (e) {
+                      console.error("Error saving novel:", e)
+                      setSaveNovelError("Failed to save changes. Please try again.")
+                    } finally {
+                      setSavingNovel(false)
+                    }
+                  }}
+                  disabled={savingNovel || !editTitle.trim()}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors text-white ${
+                    savingNovel ? "bg-purple-700 opacity-70 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"
+                  }`}
+                >
+                  {savingNovel ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && selectedNovel && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-gray-700 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Delete Novel</h3>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-300 mb-2">Are you sure you want to delete "{selectedNovel.title}"?</p>
+              <p className="text-sm text-gray-400">
+                This action cannot be undone. All chapters and data associated with this novel will be permanently
+                deleted.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteNovel}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                Delete Novel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Share Modal */}
       {showProfileModal && (
@@ -1373,8 +1518,9 @@ const Profile = () => {
                   </div>
                   <button
                     onClick={handleCopyLink}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
-                      }`}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
+                    }`}
                   >
                     <FaCopy className="h-4 w-4 mr-2" />
                     {copySuccess ? "Copied!" : "Copy"}
@@ -1410,99 +1556,7 @@ const Profile = () => {
         </div>
       )}
 
-      {/* Novel Cover Modal */}
-      {showNovelCoverModal && selectedNovelForCover && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl shadow-lg p-6 max-w-lg w-full relative">
-            <button
-              onClick={closeNovelCoverModal}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
-              title="Close"
-            >
-              <X className="h-6 w-6" />
-              <span className="sr-only">Close</span>
-            </button>
-            <h2 className="text-xl font-bold text-white mb-4">Edit Cover for "{selectedNovelForCover.title}"</h2>
-            <div className="flex flex-col items-center space-y-4">
-              <div className="relative w-48 h-72 bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center overflow-hidden rounded-lg">
-                {selectedNovelForCover.coverImage ? (
-                  <img
-                    src={getFirebaseDownloadUrl(selectedNovelForCover.coverImage || "/placeholder.svg")}
-                    alt={selectedNovelForCover.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <svg className="h-24 w-24 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                    />
-                  </svg>
-                )}
-              </div>
-              {isOwnProfile && (
-                <div className="flex space-x-2 mt-4">
-                  <button
-                    onClick={() => novelCoverFileInputRef.current?.click()}
-                    disabled={uploadingNovelCover}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {uploadingNovelCover ? (
-                      <svg className="animate-spin h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24">
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                    ) : (
-                      <Camera className="h-5 w-5 mr-2" />
-                    )}
-                    Upload New Cover
-                  </button>
-                  {selectedNovelForCover.coverImage && (
-                    <button
-                      onClick={removeNovelCover}
-                      disabled={uploadingNovelCover}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Trash2 className="h-5 w-5 mr-2" />
-                      Remove Cover
-                    </button>
-                  )}
-                </div>
-              )}
-              {novelCoverError && (
-                <div
-                  className={`mt-2 text-xs sm:text-sm ${novelCoverError.includes("successfully") ? "text-green-400" : "text-red-400"
-                    }`}
-                >
-                  {novelCoverError}
-                </div>
-              )}
-              {isOwnProfile && (
-                <input
-                  ref={novelCoverFileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/webp"
-                  onChange={handleNovelCoverUpload}
-                  className="hidden"
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       {/* Edit Profile Modal */}
       {isOwnProfile && profileUser && (
