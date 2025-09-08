@@ -123,7 +123,8 @@ const Settings: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 py-8">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-white mb-8">Settings</h1>
+        <h1 className="text-2xl font-bold text-white text-center my-2">Settings</h1>
+        <p className="text-sm text-gray-400 text-center mb-2">@{currentUser.displayName}</p>
 
         <div className="space-y-8">
           <section className="bg-gray-800 rounded-xl p-6 shadow-md">
