@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { EmailAuthProvider, reauthenticateWithCredential, reauthenticateWithPopup, updatePassword, deleteUser } from "firebase/auth"
 import { auth, db, googleProvider } from "../firebase/config"
-import { doc, deleteDoc } from "firebase/firestore"
+import { doc, deleteDoc, collection, query, where, getDocs, writeBatch } from "firebase/firestore"
 import { useAuth } from "../context/AuthContext"
 import { showErrorToast, showSuccessToast } from "../utils/toast-utils"
 
@@ -85,7 +85,27 @@ const Settings: React.FC = () => {
     try {
       setLoadingAction("delete")
       await reauthenticate(isGoogleUser ? undefined : deletionPassword)
-      // Remove Firestore user doc first
+      // Delete all novels authored by this user (in batches)
+      const novelsRef = collection(db, "novels")
+      const novelsQuery = query(novelsRef, where("authorId", "==", auth.currentUser.uid))
+      const novelsSnapshot = await getDocs(novelsQuery)
+      if (!novelsSnapshot.empty) {
+        let batch = writeBatch(db)
+        let ops = 0
+        for (const novelDoc of novelsSnapshot.docs) {
+          batch.delete(novelDoc.ref)
+          ops++
+          if (ops === 450) {
+            await batch.commit()
+            batch = writeBatch(db)
+            ops = 0
+          }
+        }
+        if (ops > 0) {
+          await batch.commit()
+        }
+      }
+      // Remove Firestore user doc after novels
       await deleteDoc(doc(db, "users", auth.currentUser.uid))
       // Delete auth user
       await deleteUser(auth.currentUser)
