@@ -1168,7 +1168,7 @@ const Profile = () => {
                     : "border-transparent text-gray-400 hover:text-gray-300"
                 }`}
               >
-                Pending Review ({userNovels.filter((novel) => !novel.published).length})
+                Pending ({userNovels.filter((novel) => !novel.published).length})
               </button>
             </nav>
           </div>
@@ -1265,6 +1265,13 @@ const Profile = () => {
                               <Edit className="h-3 w-3" />
                               Edit
                             </button>
+                            <Link
+                              to={`/novel/${novel.id}/add-chapters`}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Add Chapters
+                            </Link>
                             <Link
                               to="/promote"
                               className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2"

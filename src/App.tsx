@@ -28,6 +28,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy"
 import About from "./pages/About"
 import Contact from "./pages/Contact"
 import ForgotPassword from "./pages/ForgotPassword"
+import Settings from "./pages/Settings"
 import { AuthProvider } from "./context/AuthContext"
 import { NotificationProvider } from "./context/NotificationContext"
 import ToastContainer from "./components/ToastContainer"
@@ -78,6 +79,7 @@ function AppContent() {
               <Route path="/novel/:id/read" element={<NovelRead />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route

@@ -94,7 +94,7 @@ const Promote = () => {
       // Create download URL format that doesn't require CORS
       return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media`
     } catch (error) {
-      console.log(`[v0] Error converting Firebase URL: ${error}`)
+      console.log(`Error converting Firebase URL: ${error}`)
       return url
     }
   }
@@ -278,20 +278,6 @@ const Promote = () => {
                         </div>
 
                         <div className="space-y-4">
-                          <h3 className="text-2xl font-bold text-gray-900 text-center">{book.title}</h3>
-                          <p className="text-gray-600 text-sm leading-relaxed">{book.description}</p>
-
-                          <div className="flex flex-wrap gap-2 justify-center">
-                            {book.genres?.map((genre: string, index: number) => (
-                              <span
-                                key={index}
-                                className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
-                              >
-                                {genre}
-                              </span>
-                            ))}
-                          </div>
-
                           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
                             <div className="text-center">
                                 <div className="text-2xl font-bold text-purple-600">
