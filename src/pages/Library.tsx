@@ -151,22 +151,22 @@ const LibraryPage = () => {
       <Link
         to={`/novel/${novel.id}`}
         key={novel.id}
-        className="group relative w-44 h-64 rounded-lg shadow-xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl flex-shrink-0"
+        className="group relative w-full aspect-[3/4] rounded-lg shadow-xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
       >
         {/* Book Cover */}
         {(novel.coverSmallImage || novel.coverImage) && !currentImageError ? (
           <img
             src={getImageSrc() || "/placeholder.svg"}
             alt={`Cover for ${novel.title}`}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             onError={handleCardImageError}
             loading="lazy"
           />
         ) : (
           <div
-            className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(
+            className={`absolute inset-0 w-full h-full bg-gradient-to-br ${getGenreColorClass(
               novel.genres,
-            )} relative overflow-hidden flex items-center justify-center`}
+            )} overflow-hidden flex items-center justify-center`}
           >
             {/* Decorative background + title/author */}
             <div className="absolute inset-0 opacity-10">
@@ -262,7 +262,7 @@ const LibraryPage = () => {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-6 justify-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 justify-center items-stretch">
               {likedNovels.map((novel) => (
                 <BookCard key={novel.id} novel={novel} isFinished={false} />
               ))}
@@ -283,7 +283,7 @@ const LibraryPage = () => {
               <p className="mt-1 text-gray-400">Mark novels as finished to see them here!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-6 justify-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 justify-center items-stretch">
               {finishedNovels.map((novel) => (
                 <BookCard key={novel.id} novel={novel} isFinished={true} />
               ))}
