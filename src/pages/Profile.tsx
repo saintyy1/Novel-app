@@ -211,7 +211,7 @@ const Profile = () => {
   const resizeImage = useCallback((file: File, maxWidth = 200, maxHeight = 200, quality = 0.7): Promise<string> => {
     return new Promise((resolve) => {
       const canvas = document.createElement("canvas")
-      const ctx = document.createElement("canvas").getContext("2d")!
+      const ctx = canvas.getContext("2d")
       const img = new Image()
       img.crossOrigin = "anonymous" // Important for CORS issues [^1]
       img.onload = () => {
@@ -231,7 +231,7 @@ const Profile = () => {
         canvas.width = width
         canvas.height = height
         // Draw and compress
-        ctx.drawImage(img, 0, 0, width, height)
+        ctx?.drawImage(img, 0, 0, width, height)
         const base64 = canvas.toDataURL("image/jpeg", quality)
         resolve(base64)
       }
@@ -246,7 +246,7 @@ const Profile = () => {
 
       // Validate file
       if (file.size > 2 * 1024 * 1024) {
-        // 10MB limit for original file
+        // 2MB limit for original file
         setPhotoError("Profile picture must be less than 2MB")
         return
       }
