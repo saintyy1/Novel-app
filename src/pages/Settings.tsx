@@ -2,19 +2,28 @@
 import type React from "react"
 import { useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { EmailAuthProvider, reauthenticateWithCredential, reauthenticateWithPopup, updatePassword, deleteUser } from "firebase/auth"
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  reauthenticateWithPopup,
+  updatePassword,
+  deleteUser,
+} from "firebase/auth"
 import { auth, db, googleProvider } from "../firebase/config"
 import { doc, deleteDoc, collection, query, where, getDocs, writeBatch } from "firebase/firestore"
 import { useAuth } from "../context/AuthContext"
 import { showErrorToast, showSuccessToast } from "../utils/toast-utils"
 
 const Settings: React.FC = () => {
-  const { currentUser, logout } = useAuth()
+  const { currentUser, logout, updateUserEmail } = useAuth()
   const navigate = useNavigate()
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmNewPassword, setConfirmNewPassword] = useState("")
   const [deletionPassword, setDeletionPassword] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [confirmNewEmail, setConfirmNewEmail] = useState("")
+  const [emailChangePassword, setEmailChangePassword] = useState("")
   const [loadingAction, setLoadingAction] = useState<string | null>(null)
 
   const isGoogleUser = useMemo(() => {
@@ -49,6 +58,33 @@ const Settings: React.FC = () => {
     await reauthenticateWithCredential(auth.currentUser, credential)
   }
 
+  const handleChangeEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!auth.currentUser) return
+    if (!newEmail || !newEmail.includes("@")) {
+      showErrorToast("Please enter a valid email address")
+      return
+    }
+    if (newEmail !== confirmNewEmail) {
+      showErrorToast("New email and confirmation do not match")
+      return
+    }
+    try {
+      setLoadingAction("email")
+      await updateUserEmail(newEmail, confirmNewEmail, isGoogleUser ? undefined : emailChangePassword)
+      showSuccessToast(
+        "Verification email sent! Check your new email and click the verification link to complete the change.",
+      )
+      setNewEmail("")
+      setConfirmNewEmail("")
+      setEmailChangePassword("")
+    } catch (error: any) {
+      console.error(error)
+      showErrorToast(error?.message || "Failed to send verification email")
+    } finally {
+      setLoadingAction(null)
+    }
+  }
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -128,6 +164,71 @@ const Settings: React.FC = () => {
 
         <div className="space-y-8">
           <section className="bg-gray-800 rounded-xl p-6 shadow-md">
+            <h2 className="text-xl font-semibold text-white mb-4">Change Email</h2>
+            <form onSubmit={handleChangeEmail} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Current Email</label>
+                <input
+                  type="email"
+                  className="w-full bg-gray-700 text-gray-400 border border-gray-600 rounded-md px-3 py-2 cursor-not-allowed"
+                  value={currentUser.email || ""}
+                  disabled
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">New Email</label>
+                <input
+                  type="email"
+                  className="w-full bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="Enter new email address"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Confirm New Email</label>
+                <input
+                  type="email"
+                  className="w-full bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  value={confirmNewEmail}
+                  onChange={(e) => setConfirmNewEmail(e.target.value)}
+                  placeholder="Confirm new email address"
+                  required
+                />
+              </div>
+              {!isGoogleUser && (
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Current Password</label>
+                  <input
+                    type="password"
+                    className="w-full bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                    value={emailChangePassword}
+                    onChange={(e) => setEmailChangePassword(e.target.value)}
+                    placeholder="Enter your current password"
+                    required
+                  />
+                </div>
+              )}
+              <p className="text-xs text-gray-400">
+                {isGoogleUser
+                  ? "You may be asked to reauthenticate via Google popup. Choose your current email to verify your identity."
+                  : "Enter your current password to verify your identity. A verification email will be sent to your new email address."}{" "}
+                Click the verification link to complete the email change.
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="submit"
+                  className="inline-flex items-center px-4 py-2 rounded-md bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
+                  disabled={loadingAction === "email"}
+                >
+                  {loadingAction === "email" ? "Sending..." : "Send Verification Email"}
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section className="bg-gray-800 rounded-xl p-6 shadow-md">
             <h2 className="text-xl font-semibold text-white mb-4">Change Password</h2>
             <form onSubmit={handleChangePassword} className="space-y-4">
               {!isGoogleUser && (
@@ -164,7 +265,9 @@ const Settings: React.FC = () => {
                 />
               </div>
               {isGoogleUser && (
-                <p className="text-xs text-gray-400">Using Google sign-in. You may be asked to reauthenticate via Google popup.</p>
+                <p className="text-xs text-gray-400">
+                  Using Google sign-in. You may be asked to reauthenticate via Google popup. Choose your current email to verify your identity.
+                </p>
               )}
               <button
                 type="submit"
@@ -192,7 +295,9 @@ const Settings: React.FC = () => {
                 </div>
               )}
               {isGoogleUser && (
-                <p className="text-xs text-gray-400">Using Google sign-in. You will be asked to reauthenticate via Google popup.</p>
+                <p className="text-xs text-gray-400">
+                  Using Google sign-in. You will be asked to reauthenticate via Google popup. Choose your current email to verify your identity.
+                </p>
               )}
               <button
                 type="submit"
@@ -210,5 +315,3 @@ const Settings: React.FC = () => {
 }
 
 export default Settings
-
-

@@ -10,6 +10,10 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   signInWithPopup,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  reauthenticateWithPopup,
+  verifyBeforeUpdateEmail,
 } from "firebase/auth"
 import {
   doc,
@@ -25,7 +29,7 @@ import {
   addDoc,
   orderBy,
   writeBatch,
-} from "firebase/firestore" // Import arrayUnion, arrayRemove, and new Firestore functions
+} from "firebase/firestore"
 import { auth, db, googleProvider } from "../firebase/config"
 import { trackUserRegistration } from "../utils/Analytics-utils"
 
@@ -42,6 +46,7 @@ export interface ExtendedUser extends User {
   twitterUrl?: string
   library?: string[]
   finishedReads?: string[]
+  pendingEmail?: string | null // New property for pending email change
 }
 
 interface AuthContextType {
@@ -54,13 +59,14 @@ interface AuthContextType {
   isAdmin: boolean
   refreshUser: () => Promise<void>
   updateUserPhoto: (photoBase64: string | null) => Promise<void>
-  updateUserProfile: (displayName: string, bio: string, instagramUrl: string, twitterUrl: string) => Promise<void> // Updated signature
-  toggleFollow: (targetUserId: string, isFollowing: boolean) => Promise<void> // New
+  updateUserProfile: (displayName: string, bio: string, instagramUrl: string, twitterUrl: string) => Promise<void>
+  toggleFollow: (targetUserId: string, isFollowing: boolean) => Promise<void>
   signInWithGoogle: () => Promise<void>
-  updateUserLibrary: (novelId: string, add: boolean, novelTitle: string, novelAuthorId: string) => Promise<void> // New: For adding/removing novels from library
-  markNovelAsFinished: (novelId: string, novelTitle: string, novelAuthorId: string) => Promise<void> // New: For marking novels as finished
-  markAllNotificationsAsRead: () => Promise<void> // New: Added bulk notification management functions
-  clearAllNotifications: () => Promise<void> // New: Added bulk notification management functions
+  updateUserLibrary: (novelId: string, add: boolean, novelTitle: string, novelAuthorId: string) => Promise<void>
+  markNovelAsFinished: (novelId: string, novelTitle: string, novelAuthorId: string) => Promise<void>
+  markAllNotificationsAsRead: () => Promise<void>
+  clearAllNotifications: () => Promise<void>
+  updateUserEmail: (newEmail: string, confirmEmail: string, password?: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
@@ -155,6 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           twitterUrl: data.twitterUrl || "", // New
           library: data.library || [], // New: Initialize library
           finishedReads: data.finishedReads || [], // Add this line
+          pendingEmail: data.pendingEmail, // New property for pending email change
         }
         setCurrentUser(extendedUser)
         setFirebaseUser(user)
@@ -176,14 +183,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           twitterUrl: "", // New: Initialize social links
           library: [], // New: Initialize library
           finishedReads: [], // Add this line
+          pendingEmail: null, // New property for pending email change
         }
         await setDoc(doc(db, "users", user.uid), newUserData)
         const extendedUser: ExtendedUser = {
           ...user,
+          displayName: user.displayName || user.email?.split("@")[0] || "User",
+          photoURL: user.photoURL,
           isAdmin: false,
           createdAt: newUserData.createdAt,
-          displayName: newUserData.displayName,
-          photoURL: newUserData.photoURL,
           bio: newUserData.bio, // New
           followers: newUserData.followers, // New
           following: newUserData.following, // New
@@ -191,6 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           twitterUrl: newUserData.twitterUrl, // New
           library: newUserData.library, // New
           finishedReads: newUserData.finishedReads, // Add this line
+          pendingEmail: newUserData.pendingEmail, // New property for pending email change
         }
         setCurrentUser(extendedUser)
         setFirebaseUser(user)
@@ -259,6 +268,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser((prev) => (prev ? { ...prev, displayName, bio, instagramUrl, twitterUrl } : null))
     } catch (error) {
       console.error("Error updating user profile:", error)
+      throw error
+    }
+  }
+
+  const updateUserEmail = async (newEmail: string, confirmEmail: string, password?: string) => {
+    if (!currentUser) throw new Error("No user logged in")
+
+    const authUser = auth.currentUser
+    if (!authUser) throw new Error("No authenticated user")
+
+    // Validate emails match
+    if (newEmail !== confirmEmail) {
+      throw new Error("Email addresses do not match")
+    }
+
+    // Validate email format
+    if (!newEmail.includes("@")) {
+      throw new Error("Please enter a valid email address")
+    }
+
+    // Check if new email is different from current
+    if (newEmail === currentUser.email) {
+      throw new Error("New email must be different from current email")
+    }
+
+    try {
+      // Check if user is Google user
+      const isGoogleUser = authUser.providerData.some((p) => p.providerId.includes("google"))
+
+      if (isGoogleUser) {
+        await reauthenticateWithPopup(authUser, googleProvider)
+      } else {
+        if (!password) {
+          throw new Error("Password is required to change email")
+        }
+        if (!authUser.email) {
+          throw new Error("Current user email not found")
+        }
+        // Use CURRENT email for reauthentication, not new email
+        const credential = EmailAuthProvider.credential(authUser.email, password)
+        await reauthenticateWithCredential(authUser, credential)
+      }
+
+      // Try to send the email change verification
+      try {
+        await verifyBeforeUpdateEmail(authUser, newEmail)
+        console.log("Email change verification sent to new address")
+      } catch (e) {
+        console.error("Failed to send email change verification:", e)
+        throw new Error("Could not send verification email to new address. Please check if the email address is valid and try again.")
+      }
+
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        pendingEmail: newEmail, // Store pending email change
+        updatedAt: new Date().toISOString(),
+      })
+
+      // Don't update local state email yet - wait for verification
+      setCurrentUser((prev) => (prev ? { ...prev, pendingEmail: newEmail } : null))
+    } catch (error) {
+      console.error("Error updating email:", error)
+      if (error instanceof Error) {
+        if (error.message.includes("operation-not-allowed")) {
+          throw new Error("Email verification is required. Please check your email and click the verification link.")
+        }
+        if (error.message.includes("user-mismatch")) {
+          throw new Error("Please use your current email and password for verification.")
+        }
+      }
       throw error
     }
   }
@@ -491,7 +569,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const user = userCredential.user
 
     // Track registration immediately after user creation
-    trackUserRegistration(user.uid, 'email')
+    trackUserRegistration(user.uid, "email")
 
     // Update the user's display name in Firebase Auth
     await updateProfile(user, {
@@ -512,6 +590,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       twitterUrl: "", // New: Initialize social links
       library: [], // New: Initialize library
       finishedReads: [], // Add this line
+      pendingEmail: null, // New property for pending email change
     }
     await setDoc(doc(db, "users", user.uid), newUserData)
     // Set extended user
@@ -528,6 +607,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       twitterUrl: newUserData.twitterUrl, // New
       library: newUserData.library, // New
       finishedReads: newUserData.finishedReads, // Add this line
+      pendingEmail: newUserData.pendingEmail, // New property for pending email change
     }
     setCurrentUser(extendedUser)
     setFirebaseUser(user)
@@ -574,6 +654,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           twitterUrl: "", // New: Initialize social links
           library: [], // New: Initialize library
           finishedReads: [], // Add this line
+          pendingEmail: null, // New property for pending email change
         }
         await setDoc(doc(db, "users", user.uid), newUserData)
       }
@@ -664,6 +745,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     markNovelAsFinished,
     markAllNotificationsAsRead,
     clearAllNotifications,
+    updateUserEmail,
   }
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>
