@@ -1,16 +1,18 @@
 "use client"
 import type React from "react"
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
 import { trackPageView, trackChapterRead, trackEngagementTime, trackAnonymousPageView } from '../utils/Analytics-utils';
 import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
+import { useTranslation } from "../context/TranslationContext"
 import type { Novel } from "../types/novel"
 import ReactMarkdown from "react-markdown"
 import { useSwipeable } from "react-swipeable"
 import { useRef as useReactRef } from "react"
 import { BookOpen, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Trash2, Reply } from "lucide-react"
+import LanguageSelector from "../components/LanguageSelector"
 
 interface Comment {
   id: string
@@ -367,6 +369,7 @@ const NovelRead = () => {
   const [error, setError] = useState<string>("")
   const [currentChapter, setCurrentChapter] = useState<number>(0)
   const { currentUser, isAdmin } = useAuth()
+  const { t, translateParagraphs, language } = useTranslation()
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState("")
@@ -382,6 +385,8 @@ const NovelRead = () => {
   const bookContentRef = useReactRef<HTMLDivElement>(null)
   const [showGraphicWarning, setShowGraphicWarning] = useState(false)
   const [hasAcknowledgedWarning, setHasAcknowledgedWarning] = useState(false)
+  const [translatedContent, setTranslatedContent] = useState<string[]>([])
+  const [isTranslating, setIsTranslating] = useState(false)
   // Determine permission to copy/paste: allowed if admin or the novel's author
   const canCopyContent = !!(
     isAdmin || (currentUser && novel && currentUser.uid === novel.authorId)
@@ -577,8 +582,32 @@ const NovelRead = () => {
 
   // Prepare pages for the current chapter, including the title page
   const chapterContent = novel?.chapters[currentChapter]?.content || ""
-  const formattedParagraphs = formatContent(chapterContent)
-  const contentPages = paginateContentIntoPages(formattedParagraphs, 6) // 6 paragraphs per page
+  const formattedParagraphs = useMemo(() => formatContent(chapterContent), [chapterContent])
+  
+  // Translate content when language changes or chapter changes
+  useEffect(() => {
+    const translateChapterContent = async () => {
+      if (!formattedParagraphs.length || language === "en") {
+        setTranslatedContent(formattedParagraphs)
+        return
+      }
+
+      setIsTranslating(true)
+      try {
+        const translated = await translateParagraphs(formattedParagraphs)
+        setTranslatedContent(translated)
+      } catch (error) {
+        console.error("Translation failed:", error)
+        setTranslatedContent(formattedParagraphs)
+      } finally {
+        setIsTranslating(false)
+      }
+    }
+
+    translateChapterContent()
+  }, [formattedParagraphs, language, translateParagraphs])
+
+  const contentPages = paginateContentIntoPages(translatedContent, 6) // 6 paragraphs per page
   const chapterPages: ("title" | string[])[] = []
   if (novel) {
     chapterPages.push("title") // First page is always the chapter title page
@@ -667,7 +696,7 @@ const NovelRead = () => {
             {novel.chapters[currentChapter].title}
           </h2>
           <div className="w-16 sm:w-24 h-1 bg-purple-500 my-4 sm:my-6 rounded-full"></div>
-          <p className="text-lg sm:text-xl md:text-2xl font-serif text-gray-300">By {novel.authorName}</p>
+          <p className="text-lg sm:text-xl md:text-2xl font-serif text-gray-300">{t("written_by")} {novel.authorName}</p>
         </div>
       )
     } else if (Array.isArray(pageContent)) {
@@ -694,7 +723,7 @@ const NovelRead = () => {
     return (
       <div className="flex flex-col items-center justify-center h-60 text-gray-400">
         <BookOpen className="h-12 w-12 mb-4" />
-        <span className="text-lg">No content on this page</span>
+        <span className="text-lg">{t("no_content")}</span>
       </div>
     )
   }
@@ -1061,7 +1090,7 @@ const NovelRead = () => {
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading novel...</p>
+          <p className="text-gray-400">{t("loading_novel")}</p>
         </div>
       </div>
     )
@@ -1073,7 +1102,7 @@ const NovelRead = () => {
         <div className="text-center">
           <p className="text-red-400 mb-4">{error}</p>
           <Link to="/" className="text-purple-400 hover:text-purple-300">
-            ← Back to Home
+            {t("back_to_home")}
           </Link>
         </div>
       </div>
@@ -1083,7 +1112,7 @@ const NovelRead = () => {
   if (!novel) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <p className="text-gray-400">Novel not found</p>
+        <p className="text-gray-400">{t("novel_not_found")}</p>
       </div>
     )
   }
@@ -1094,12 +1123,13 @@ const NovelRead = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-900">
-      {/* Back button - Make it more accessible on mobile */}
-      <div className="fixed top-0 right-0 z-50 p-4 bg-gradient-to-b from-gray-900/80 to-transparent w-full flex justify-end">
+      {/* Top navigation */}
+      <div className="fixed top-0 right-0 z-50 p-4 bg-gradient-to-b from-gray-900/80 to-transparent w-full flex justify-between items-center">
+        <LanguageSelector />
         <Link
           to={`/novel/${novel.id}`}
           className="p-2 rounded-full bg-gray-800/90 text-gray-300 hover:bg-gray-700/90 hover:text-white transition-colors shadow-lg backdrop-blur-sm"
-          title="Back to Novel Overview"
+          title={t("back_to_novel")}
         >
           <X className="h-5 w-5 sm:h-6 sm:w-6" />
         </Link>
@@ -1110,7 +1140,13 @@ const NovelRead = () => {
         <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl min-h-[500px] sm:min-h-[600px] mx-2 sm:mx-4 flex flex-col justify-between">
           {/* Chapter indicator */}
           <div className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 text-xs sm:text-sm">
-            Chapter {currentChapter + 1}
+            {t("chapter")} {currentChapter + 1}
+            {isTranslating && (
+              <div className="flex items-center mt-1 text-purple-400">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-400 mr-1"></div>
+                <span className="text-xs">Translating...</span>
+              </div>
+            )}
           </div>
           {/* Content */}
           <div
@@ -1156,7 +1192,7 @@ const NovelRead = () => {
             {renderCurrentPageContent()}
           </div>
 
-          <div className="absolute top-4 left-4 text-xs text-gray-400 italic">Written by {novel.authorName}</div>
+          <div className="absolute top-4 left-4 text-xs text-gray-400 italic">{t("written_by")} {novel.authorName}</div>
           {/* Page navigation */}
           <div className="flex justify-between items-center w-full mt-4 sm:mt-6 text-sm">
             <button
@@ -1171,7 +1207,7 @@ const NovelRead = () => {
               <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
             <span className="px-2 sm:px-4 py-1 sm:py-2 bg-gray-700 text-gray-300 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap">
-              Page {calculateAbsolutePageNumber()}
+              {t("page")} {calculateAbsolutePageNumber()}
             </span>
             <button
               className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
@@ -1196,7 +1232,7 @@ const NovelRead = () => {
             className={`cursor-pointer transition-all transform hover:scale-110 ${
               !currentUser ? "opacity-50 cursor-not-allowed" : ""
             }`}
-            title={currentUser ? "Like this chapter" : "Login to like"}
+            title={currentUser ? t("like_chapter") : t("login_to_like")}
           >
             <Heart
               className={`h-6 sm:h-7 w-6 sm:w-7 ${chapterLiked ? "text-red-500 fill-current" : "text-gray-300"}`}
@@ -1211,7 +1247,7 @@ const NovelRead = () => {
             className={`cursor-pointer transition-all transform hover:scale-110 ${
               !currentUser ? "opacity-50 cursor-not-allowed" : ""
             }`}
-            title={currentUser ? "View comments" : "Login to comment"}
+            title={currentUser ? t("view_comments") : t("login_to_comment")}
           >
             <MessageCircle
               className={`h-6 sm:h-7 w-6 sm:w-7 ${comments.length > 0 ? "text-purple-500" : "text-gray-300"}`}

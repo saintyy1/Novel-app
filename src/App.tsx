@@ -31,6 +31,7 @@ import ForgotPassword from "./pages/ForgotPassword"
 import Settings from "./pages/Settings"
 import { AuthProvider } from "./context/AuthContext"
 import { NotificationProvider } from "./context/NotificationContext"
+import { TranslationProvider } from "./context/TranslationContext"
 import ToastContainer from "./components/ToastContainer"
 
 function AppContent() {
@@ -60,7 +61,8 @@ function AppContent() {
   return (
     <AuthProvider>
       <NotificationProvider>
-        <div className="min-h-screen bg-[#121212] flex flex-col">
+        <TranslationProvider>
+          <div className="min-h-screen bg-[#121212] flex flex-col">
           {!isNovelReadPage && <Navbar />}
           <main className={`flex-grow ${!isNovelReadPage ? "px-3 py-8" : "px-0 py-0"}`}>
             <Routes>
@@ -96,7 +98,8 @@ function AppContent() {
             </Routes>
           </main>
           {!isNovelReadPage && <Footer />}
-        </div>
+          </div>
+        </TranslationProvider>
       </NotificationProvider>
     </AuthProvider>
   )
