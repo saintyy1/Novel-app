@@ -31,6 +31,8 @@ class TranslationService {
   }
 
   async translateText(text: string, targetLanguage: Language): Promise<string> {
+    console.log("translateText called:", { text: text.substring(0, 50) + "...", targetLanguage, hasApiKey: !!this.apiKey })
+    
     if (!this.apiKey) {
       console.warn("Google Translate API key not found. Using original text.")
       return text
@@ -70,9 +72,12 @@ class TranslationService {
       }
 
       const data: TranslationResponse = await response.json()
+      console.log("Translation response:", data)
       
       if (data.data?.translations?.[0]?.translatedText) {
-        return data.data.translations[0].translatedText
+        const translated = data.data.translations[0].translatedText
+        console.log("Translation successful:", text.substring(0, 30) + "... → " + translated.substring(0, 30) + "...")
+        return translated
       }
 
       return text
@@ -83,11 +88,15 @@ class TranslationService {
   }
 
   async translateParagraphs(paragraphs: string[], targetLanguage: Language): Promise<string[]> {
+    console.log("translateParagraphs called:", { paragraphsCount: paragraphs.length, targetLanguage, hasApiKey: !!this.apiKey })
+    
     if (targetLanguage === "en") {
+      console.log("Target language is English, returning original paragraphs")
       return paragraphs
     }
 
     try {
+      console.log("Starting batch translation...")
       // Translate all paragraphs in a single batch request for efficiency
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
         method: "POST",
@@ -102,18 +111,25 @@ class TranslationService {
       })
 
       if (!response.ok) {
-        throw new Error(`Translation API error: ${response.status}`)
+        const errorText = await response.text()
+        console.error(`Batch translation API error ${response.status}:`, errorText)
+        throw new Error(`Translation API error: ${response.status} - ${errorText}`)
       }
 
       const data: TranslationResponse = await response.json()
+      console.log("Batch translation response:", data)
       
       if (data.data?.translations) {
-        return data.data.translations.map(t => t.translatedText)
+        const translated = data.data.translations.map(t => t.translatedText)
+        console.log("Batch translation successful:", translated.length, "paragraphs translated")
+        return translated
       }
 
+      console.log("No translations in response, returning original paragraphs")
       return paragraphs
     } catch (error) {
       console.error("Batch translation error:", error)
+      console.log("Falling back to individual translations...")
       // Fallback to individual translations
       return Promise.all(paragraphs.map(p => this.translateText(p, targetLanguage)))
     }

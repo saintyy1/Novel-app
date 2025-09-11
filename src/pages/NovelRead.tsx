@@ -563,6 +563,7 @@ const NovelRead = () => {
     if (!novel || chapterIndex >= novel.chapters.length) return 0
     const chapterContent = novel.chapters[chapterIndex]?.content || ""
     const formattedParagraphs = formatContent(chapterContent)
+    // For previous chapters, we can't translate them, so use original content
     const contentPages = paginateContentIntoPages(formattedParagraphs, 6)
     return 1 + contentPages.length // 1 for title page + content pages
   }
@@ -587,14 +588,19 @@ const NovelRead = () => {
   // Translate content when language changes or chapter changes
   useEffect(() => {
     const translateChapterContent = async () => {
+      console.log("Translation effect triggered:", { language, paragraphsCount: formattedParagraphs.length })
+      
       if (!formattedParagraphs.length || language === "en") {
+        console.log("Using original content (English or no content)")
         setTranslatedContent(formattedParagraphs)
         return
       }
 
+      console.log("Starting translation...")
       setIsTranslating(true)
       try {
         const translated = await translateParagraphs(formattedParagraphs)
+        console.log("Translation completed:", translated.length, "paragraphs")
         setTranslatedContent(translated)
       } catch (error) {
         console.error("Translation failed:", error)
@@ -633,6 +639,7 @@ const NovelRead = () => {
         const prevChapter = currentChapter - 1
         const prevChapterContent = novel?.chapters[prevChapter]?.content || ""
         const prevFormattedParagraphs = formatContent(prevChapterContent)
+        // For previous chapters, we can't translate them, so use original content
         const prevContentPages = paginateContentIntoPages(prevFormattedParagraphs, 6)
         const prevChapterPages = ["title", ...prevContentPages]
         const targetPage = prevChapterPages.length - 1
