@@ -151,25 +151,25 @@ const Support = () => {
           {/* FAQ Section */}
           <div className="lg:col-span-2 space-y-8">
             {/* Search and Filter */}
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-              <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-100 sm:text-gray-200 z-10 pointer-events-none" />
                   <input
                     type="text"
                     placeholder="Search FAQs..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-sm transition-all"
+                    className="w-full pl-10 pr-4 py-3 bg-white/30 sm:bg-white/25 border-2 border-white/50 sm:border-white/40 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-400 text-white placeholder-gray-100 sm:placeholder-gray-200 transition-all text-base"
                   />
                 </div>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white backdrop-blur-sm transition-all"
+                  className="px-4 py-3 bg-white/30 sm:bg-white/25 border-2 border-white/50 sm:border-white/40 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-400 text-white transition-all text-base min-w-0 sm:min-w-[200px]"
                 >
                   {categories.map(category => (
-                    <option key={category.id} value={category.id} className="bg-gray-800">
+                    <option key={category.id} value={category.id} className="bg-gray-800 text-white">
                       {category.name}
                     </option>
                   ))}
