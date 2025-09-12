@@ -1626,19 +1626,19 @@ const Profile = () => {
                     // For Nigerian users with bank details
                     return (
                       <div className="space-y-2 text-left">
-                        <div className="flex justify-between">
+                        <div className="flex flex-col justify-between">
                           <span className="text-gray-300">Bank:</span>
                           <span className="text-white font-medium">
                             {supportLink?.split(':')[0] || 'N/A'}
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex flex-col justify-between">
                           <span className="text-gray-300">Account Number:</span>
                           <span className="text-white font-medium">
                             {supportLink?.split(':')[1]?.split(',')[0]?.trim() || 'N/A'}
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex flex-col justify-between">
                           <span className="text-gray-300">Account Name:</span>
                           <span className="text-white font-medium">
                             {supportLink?.split(',')[1]?.trim() || 'N/A'}

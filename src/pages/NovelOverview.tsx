@@ -16,6 +16,7 @@ import {
   onSnapshot,
   addDoc,
   deleteDoc,
+  getDocs,
 } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
@@ -377,6 +378,13 @@ const NovelOverview = () => {
     if (!currentUser) return
     try {
       const commentRef = doc(db, "comments", commentId)
+      const commentDoc = await getDoc(commentRef)
+      
+      if (!commentDoc.exists()) return
+      
+      const commentData = commentDoc.data()
+      const commentAuthorId = commentData.userId
+      
       if (isLiked) {
         await updateDoc(commentRef, {
           likes: increment(-1),
@@ -387,6 +395,36 @@ const NovelOverview = () => {
           likes: increment(1),
           likedBy: arrayUnion(currentUser.uid),
         })
+        
+        // Send notification only when liking (not unliking) and only to comment author if different from current user
+        if (commentAuthorId !== currentUser.uid) {
+          // Check if notification already exists to prevent spam (check both read and unread)
+          const notificationQuery = query(
+            collection(db, "notifications"),
+            where("toUserId", "==", commentAuthorId),
+            where("fromUserId", "==", currentUser.uid),
+            where("type", "==", "comment_like"),
+            where("commentId", "==", commentId)
+          )
+          
+          const existingNotifications = await getDocs(notificationQuery)
+          
+          // Only send notification if none exists (regardless of read status)
+          if (existingNotifications.empty) {
+            await addDoc(collection(db, "notifications"), {
+              toUserId: commentAuthorId,
+              fromUserId: currentUser.uid,
+              fromUserName: currentUser.displayName || "Anonymous User",
+              type: "comment_like",
+              novelId: novel?.id,
+              novelTitle: novel?.title,
+              commentId: commentId,
+              commentContent: commentData.content,
+              createdAt: new Date().toISOString(),
+              read: false,
+            })
+          }
+        }
       }
     } catch (error) {
       console.error("Error updating comment like:", error)

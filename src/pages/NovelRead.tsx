@@ -3,7 +3,7 @@ import type React from "react"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
 import { trackPageView, trackChapterRead, trackEngagementTime, trackAnonymousPageView } from '../utils/Analytics-utils';
-import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc } from "firebase/firestore"
+import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc, collection, query, where, getDocs, addDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import { useTranslation } from "../context/TranslationContext"
@@ -45,9 +45,10 @@ interface CommentItemProps {
   getUserInitials: (name: string) => string
   formatDate: (dateString: string) => string
   replyInputRef: React.RefObject<HTMLInputElement | null>
+  allComments?: Comment[] // Add all comments to trace reply chain
 }
 
-const CommentItem = ({
+  const CommentItem = ({
   comment,
   isReply = false,
   currentUser,
@@ -65,26 +66,91 @@ const CommentItem = ({
   getUserInitials,
   formatDate,
   replyInputRef,
-}: CommentItemProps) => (
-  <div className={`bg-gray-700 rounded-lg p-3 ${isReply ? "ml-6 mt-2" : ""}`}>
+  allComments = [],
+}: CommentItemProps) => {
+  // Function to get parent comment data (like NovelOverview)
+  const getParentCommentData = (parentId: string | undefined): { userName: string; userId: string } | null => {
+    if (!parentId) return null
+
+    const findCommentById = (comments: Comment[], id: string): Comment | null => {
+      for (const c of comments) {
+        if (c.id === id) return c
+        if (c.replies) {
+          const found = findCommentById(c.replies, id)
+          if (found) return found
+        }
+      }
+      return null
+    }
+
+    const parentComment = findCommentById(allComments, parentId)
+    if (!parentComment) return null
+
+    return {
+      userName: parentComment.userName,
+      userId: parentComment.userId,
+    }
+  }
+
+  return (
+  <div className={`bg-gray-700 rounded-lg ${isReply ? "mt-2" : "p-3"}`}>
     <div className="flex items-start justify-between mb-2">
       <div className="flex items-center space-x-2">
         {/* Avatar - Fixed to show the comment author's photo */}
         <div className="flex-shrink-0">
-          {comment.userPhoto ? (
-            <img
-              src={comment.userPhoto || "/placeholder.svg"}
-              alt={comment.userName}
-              className="h-8 w-8 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-              {getUserInitials(comment.userName)}
-            </div>
-          )}
+          <Link
+            to={`/profile/${comment.userId}`}
+            className="block"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {comment.userPhoto ? (
+              <img
+                src={comment.userPhoto || "/placeholder.svg"}
+                alt={comment.userName}
+                className="h-8 w-8 rounded-full object-cover hover:opacity-80 transition-opacity cursor-pointer"
+              />
+            ) : (
+              <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold hover:opacity-80 transition-opacity cursor-pointer">
+                {getUserInitials(comment.userName)}
+              </div>
+            )}
+          </Link>
         </div>
         <div>
-          <span className="font-medium text-white">{comment.userName}</span>
+          <h4 className="text-white text-sm font-semibold">
+            {isReply && comment.parentId ? (
+              <span>
+                <Link
+                  to={`/profile/${comment.userId}`}
+                  className="hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {comment.userName}
+                </Link>
+                <span className="text-gray-400 font-normal"> &gt; </span>
+                {(() => {
+                  const parent = getParentCommentData(comment.parentId)
+                  return parent ? (
+                    <Link
+                      to={`/profile/${parent.userId}`}
+                      className="hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {parent.userName}
+                    </Link>
+                  ) : null
+                })()}
+              </span>
+            ) : (
+              <Link
+                to={`/profile/${comment.userId}`}
+                className="hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {comment.userName}
+              </Link>
+            )}
+          </h4>
           {comment.userId === novel?.authorId && (
             <span className="ml-2 px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
               Author
@@ -110,8 +176,8 @@ const CommentItem = ({
         />
         {comment.likes || 0}
       </button>
-      {/* Reply Button - Only for top-level comments */}
-      {!isReply && currentUser && (
+      {/* Reply Button - Available for all comments */}
+      {currentUser && (
         <button
           onClick={() => handleReplyToggle(comment.id)}
           className="inline-flex items-center text-xs text-gray-400 hover:text-purple-400 transition-colors"
@@ -202,12 +268,14 @@ const CommentItem = ({
             getUserInitials={getUserInitials}
             formatDate={formatDate}
             replyInputRef={replyInputRef}
+            allComments={allComments}
           />
         ))}
       </div>
     )}
   </div>
-)
+  )
+}
 
 interface CommentModalProps {
   comments: Comment[]
@@ -231,6 +299,7 @@ interface CommentModalProps {
   getUserInitials: (name: string) => string
   formatDate: (dateString: string) => string
   replyInputRef: React.RefObject<HTMLInputElement | null>
+  allComments: Comment[]
 }
 
 const CommentModal = ({
@@ -255,6 +324,7 @@ const CommentModal = ({
   getUserInitials,
   formatDate,
   replyInputRef,
+  allComments,
 }: CommentModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null)
 
@@ -332,6 +402,7 @@ const CommentModal = ({
                 getUserInitials={getUserInitials}
                 formatDate={formatDate}
                 replyInputRef={replyInputRef}
+                allComments={allComments}
               />
             ))
           )}
@@ -818,12 +889,22 @@ const NovelRead = () => {
 
   const organizeCommentsWithReplies = useCallback((allComments: Comment[]): Comment[] => {
     const topLevelComments = allComments.filter((comment) => !comment.parentId)
-    const replies = allComments.filter((comment) => comment.parentId)
+    
+    // Recursive function to build nested replies
+    const buildReplies = (parentId: string): Comment[] => {
+      const directReplies = allComments
+        .filter((comment) => comment.parentId === parentId)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      
+      return directReplies.map((reply) => ({
+        ...reply,
+        replies: buildReplies(reply.id)
+      }))
+    }
+    
     return topLevelComments.map((comment) => ({
       ...comment,
-      replies: replies
-        .filter((reply) => reply.parentId === comment.id)
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+      replies: buildReplies(comment.id)
     }))
   }, [])
 
@@ -896,6 +977,24 @@ const NovelRead = () => {
           comments: updatedComments,
         })
       }
+
+      // Send notification to novel author if different from current user
+      if (novel.authorId !== currentUser.uid) {
+        await addDoc(collection(db, "notifications"), {
+          toUserId: novel.authorId,
+          fromUserId: currentUser.uid,
+          fromUserName: currentUser.displayName || "Anonymous User",
+          type: "novel_comment",
+          novelId: novel.id,
+          novelTitle: novel.title,
+          commentContent: newComment.trim(),
+          chapterNumber: currentChapter + 1,
+          chapterTitle: novel.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`,
+          createdAt: new Date().toISOString(),
+          read: false,
+        })
+      }
+
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
       setNewComment("")
@@ -910,6 +1009,12 @@ const NovelRead = () => {
       const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
       const chapterDoc = await getDoc(chapterRef)
       if (!chapterDoc.exists()) return
+      
+      // Find the parent comment to get its author
+      const existingComments = chapterDoc.data().comments || []
+      const parentComment = existingComments.find((comment: Comment) => comment.id === parentId)
+      const parentCommentAuthorId = parentComment?.userId
+      
       const reply: Comment = {
         id: Date.now().toString(),
         text: replyContent.trim(),
@@ -921,11 +1026,51 @@ const NovelRead = () => {
         likes: 0,
         likedBy: [],
       }
-      const existingComments = chapterDoc.data().comments || []
       const updatedComments = [...existingComments, reply]
       await updateDoc(chapterRef, {
         comments: updatedComments,
       })
+
+      // Send notification to novel author if different from current user
+      if (novel.authorId !== currentUser.uid) {
+        await addDoc(collection(db, "notifications"), {
+          toUserId: novel.authorId,
+          fromUserId: currentUser.uid,
+          fromUserName: currentUser.displayName || "Anonymous User",
+          type: "novel_reply",
+          novelId: novel.id,
+          novelTitle: novel.title,
+          commentContent: replyContent.trim(),
+          parentId: parentId,
+          chapterNumber: currentChapter + 1,
+          chapterTitle: novel.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`,
+          createdAt: new Date().toISOString(),
+          read: false,
+        })
+      }
+
+      // Also notify the parent comment's author if they are not the novel author and not the current user
+      if (
+        parentCommentAuthorId &&
+        parentCommentAuthorId !== novel.authorId &&
+        parentCommentAuthorId !== currentUser.uid
+      ) {
+        await addDoc(collection(db, "notifications"), {
+          toUserId: parentCommentAuthorId,
+          fromUserId: currentUser.uid,
+          fromUserName: currentUser.displayName || "Anonymous User",
+          type: "comment_reply",
+          novelId: novel.id,
+          novelTitle: novel.title,
+          commentContent: replyContent.trim(),
+          parentId: parentId,
+          chapterNumber: currentChapter + 1,
+          chapterTitle: novel.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`,
+          createdAt: new Date().toISOString(),
+          read: false,
+        })
+      }
+
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
       setReplyContent("")
@@ -968,6 +1113,13 @@ const NovelRead = () => {
       const chapterDoc = await getDoc(chapterRef)
       if (!chapterDoc.exists()) return
       const existingComments = chapterDoc.data().comments || []
+      
+      // Find the comment to get author info
+      const targetComment = existingComments.find((comment: Comment) => comment.id === commentId)
+      if (!targetComment) return
+      
+      const commentAuthorId = targetComment.userId
+      
       const updatedComments = existingComments.map((comment: Comment) => {
         if (comment.id === commentId) {
           const likedBy = comment.likedBy || []
@@ -987,9 +1139,43 @@ const NovelRead = () => {
         }
         return comment
       })
+      
       await updateDoc(chapterRef, {
         comments: updatedComments,
       })
+      
+      // Send notification only when liking (not unliking) and only to comment author if different from current user
+      if (!isLiked && commentAuthorId !== currentUser.uid) {
+        // Check if notification already exists to prevent spam (check both read and unread)
+        const notificationQuery = query(
+          collection(db, "notifications"),
+          where("toUserId", "==", commentAuthorId),
+          where("fromUserId", "==", currentUser.uid),
+          where("type", "==", "comment_like"),
+          where("commentId", "==", commentId)
+        )
+        
+        const existingNotifications = await getDocs(notificationQuery)
+        
+        // Only send notification if none exists (regardless of read status)
+        if (existingNotifications.empty) {
+          await addDoc(collection(db, "notifications"), {
+            toUserId: commentAuthorId,
+            fromUserId: currentUser.uid,
+            fromUserName: currentUser.displayName || "Anonymous User",
+            type: "comment_like",
+            novelId: novel.id,
+            novelTitle: novel.title,
+            commentId: commentId,
+            commentContent: targetComment.text,
+            chapterNumber: currentChapter + 1,
+            chapterTitle: novel.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`,
+            createdAt: new Date().toISOString(),
+            read: false,
+          })
+        }
+      }
+      
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
     } catch (error) {
@@ -1044,10 +1230,12 @@ const NovelRead = () => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-    if (diffInHours < 1) return "Just now"
-    if (diffInHours < 24) return `${diffInHours}h ago`
-    if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    
+    if (diffInSeconds < 60) return "Just now"
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
     return date.toLocaleDateString()
   }
 
@@ -1290,6 +1478,7 @@ const NovelRead = () => {
           getUserInitials={getUserInitials}
           formatDate={formatDate}
           replyInputRef={replyInputRef}
+          allComments={comments.flatMap(comment => [comment, ...(comment.replies || [])])}
         />
       )}
     </div>
