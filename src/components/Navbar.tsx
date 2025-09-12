@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { useNotifications } from "../context/NotificationContext"
-import { Bell, Settings } from "lucide-react" // Import the Bell icon
+import { Bell, Settings, HelpCircle } from "lucide-react" // Import the Bell icon
 
 const Navbar = () => {
   const { currentUser, isAdmin, logout } = useAuth()
@@ -300,6 +300,18 @@ const Navbar = () => {
                           </div>
                         </Link>
                         <Link
+                          to="/support"
+                          onClick={closeDropdown}
+                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
+                            isActive("/support") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <HelpCircle className="h-4 w-4 mr-2" />
+                            Support
+                          </div>
+                        </Link>
+                        <Link
                         to="/settings"
                         onClick={closeDropdown}
                         className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
@@ -542,6 +554,18 @@ const Navbar = () => {
                               />
                             </svg>
                             Profile
+                          </div>
+                        </Link>
+                        <Link
+                          to="/support"
+                          onClick={closeDropdown}
+                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
+                            isActive("/support") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <HelpCircle className="h-4 w-4 mr-3" />
+                            Support
                           </div>
                         </Link>
                         <Link

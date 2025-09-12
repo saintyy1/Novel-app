@@ -27,6 +27,7 @@ import TermsOfService from "./pages/TermsOfService"
 import PrivacyPolicy from "./pages/PrivacyPolicy"
 import About from "./pages/About"
 import Contact from "./pages/Contact"
+import Support from "./pages/Support"
 import ForgotPassword from "./pages/ForgotPassword"
 import Settings from "./pages/Settings"
 import { AuthProvider } from "./context/AuthContext"
@@ -84,6 +85,7 @@ function AppContent() {
               <Route path="/settings" element={<Settings />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/support" element={<Support />} />
               <Route
                 path="/admin"
                 element={
