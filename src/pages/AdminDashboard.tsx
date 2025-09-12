@@ -20,6 +20,7 @@ import {
   FaSync
 } from "react-icons/fa"
 import { useAuth } from "../context/AuthContext"
+import { Link } from "react-router-dom"
 
 const AdminDashboard = () => {
   const { currentUser, isAdmin } = useAuth()
@@ -510,12 +511,12 @@ const AdminDashboard = () => {
                           <td className="py-3 px-4">
                             <span
                               className={`px-2 py-1 text-xs rounded-full ${
-                                novel.isAIGenerated
+                                novel.published
                                   ? "bg-blue-900/50 text-blue-300 border border-blue-700"
                                   : "bg-gray-700 text-gray-300 border border-gray-600"
                               }`}
                             >
-                              {novel.isAIGenerated ? "AI" : "User"}
+                              {novel.published ? "Published" : "Pending"}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-gray-300">{novel.chapters.length}</td>
@@ -633,12 +634,12 @@ const AdminDashboard = () => {
                                   </span>
                                 </div>
                               )}
-                              <a 
-                                href={`/profile/${user.uid}`}
+                              <Link
+                                to={`/profile/${user.uid}`}
                                 className="font-medium hover:text-purple-400 transition-colors"
                               >
                                 {user.displayName || "Anonymous User"}
-                              </a>
+                              </Link>
                             </div>
                           </td>
                           <td className="py-3 px-4 text-gray-300">{user.email}</td>
