@@ -59,7 +59,7 @@ const Support = () => {
     {
       id: '2',
       question: 'How do I read novels?',
-      answer: 'Browse our library of novels, click on any novel that interests you, and start reading. You can read on any device with internet access.',
+      answer: 'Browse our library of novels, click on any novel that interests you, and start reading. Some novels may require a subscription or one-time purchase. You can read on any device with internet access.',
       category: 'reading'
     },
     {
@@ -151,25 +151,25 @@ const Support = () => {
           {/* FAQ Section */}
           <div className="lg:col-span-2 space-y-8">
             {/* Search and Filter */}
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+              <div className="flex flex-col md:flex-row gap-4 mb-6">
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-100 sm:text-gray-200 z-10 pointer-events-none" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Search FAQs..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-white/30 sm:bg-white/25 border-2 border-white/50 sm:border-white/40 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-400 text-white placeholder-gray-100 sm:placeholder-gray-200 transition-all text-base"
+                    className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-sm transition-all"
                   />
                 </div>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-4 py-3 bg-white/30 sm:bg-white/25 border-2 border-white/50 sm:border-white/40 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-400 text-white transition-all text-base min-w-0 sm:min-w-[200px]"
+                  className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white backdrop-blur-sm transition-all"
                 >
                   {categories.map(category => (
-                    <option key={category.id} value={category.id} className="bg-gray-800 text-white">
+                    <option key={category.id} value={category.id} className="bg-gray-800">
                       {category.name}
                     </option>
                   ))}
@@ -247,7 +247,7 @@ const Support = () => {
                       required
                       readOnly
                       value={currentUser?.displayName || formData.name}
-                      className="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white placeholder-gray-300 backdrop-blur-sm cursor-not-allowed"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-sm cursor-not-allowed opacity-75"
                       placeholder="Your full name"
                     />
                   </div>
@@ -263,7 +263,7 @@ const Support = () => {
                       required
                       readOnly
                       value={currentUser?.email || formData.email}
-                      className="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white placeholder-gray-300 backdrop-blur-sm cursor-not-allowed"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-sm cursor-not-allowed opacity-75"
                       placeholder="your@email.com"
                     />
                   </div>
@@ -279,17 +279,17 @@ const Support = () => {
                     required
                     value={formData.subject}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-400 text-white backdrop-blur-sm transition-all"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white backdrop-blur-sm transition-all"
                   >
-                    <option value="" className="bg-gray-800 text-white">Select a subject</option>
-                    <option value="general" className="bg-gray-800 text-white">General Inquiry</option>
-                    <option value="technical" className="bg-gray-800 text-white">Technical Support</option>
-                    <option value="content" className="bg-gray-800 text-white">Content Issues</option>
-                    <option value="account" className="bg-gray-800 text-white">Account Help</option>
-                    <option value="payment" className="bg-gray-800 text-white">Payment Issues</option>
-                    <option value="feedback" className="bg-gray-800 text-white">Feedback & Suggestions</option>
-                    <option value="bug" className="bg-gray-800 text-white">Bug Report</option>
-                    <option value="other" className="bg-gray-800 text-white">Other</option>
+                    <option value="" className="bg-gray-800">Select a subject</option>
+                    <option value="general" className="bg-gray-800">General Inquiry</option>
+                    <option value="technical" className="bg-gray-800">Technical Support</option>
+                    <option value="content" className="bg-gray-800">Content Issues</option>
+                    <option value="account" className="bg-gray-800">Account Help</option>
+                    <option value="payment" className="bg-gray-800">Payment Issues</option>
+                    <option value="feedback" className="bg-gray-800">Feedback & Suggestions</option>
+                    <option value="bug" className="bg-gray-800">Bug Report</option>
+                    <option value="other" className="bg-gray-800">Other</option>
                   </select>
                 </div>
 
@@ -304,7 +304,7 @@ const Support = () => {
                     rows={6}
                     value={formData.message}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-400 text-white placeholder-gray-300 backdrop-blur-sm transition-all resize-none"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-sm transition-all resize-none"
                     placeholder="Tell us how we can help you..."
                   />
                 </div>
