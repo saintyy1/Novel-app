@@ -1147,21 +1147,19 @@ const NovelOverview = () => {
                     d="M4 6h16M4 10h16M4 14h16M4 18h16"
                   />
                 </svg>
-                Chapters ({novel.chapters?.length || 0})
+                Chapters ({(novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + (novel.chapters?.length || 0)})
               </h2>
               <div className="space-y-3 max-h-[50vh] overflow-y-auto">
-                {novel.chapters?.map((chapter, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group"
-                  >
+                {/* Author's Note */}
+                {novel.authorsNote && (
+                  <div className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group">
                     <Link
-                      to={`/novel/${novel.id}/read?chapter=${index}`}
+                      to={`/novel/${novel.id}/read?chapter=0`}
                       className="flex-1 flex items-center justify-between"
                     >
                       <div>
                         <h3 className="text-white font-semibold group-hover:text-purple-300 transition-colors">
-                          Chapter {index + 1}: {chapter.title}
+                          Author's Note
                         </h3>
                       </div>
                       <svg
@@ -1173,51 +1171,106 @@ const NovelOverview = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                       </svg>
                     </Link>
-                    {/* Edit Button for Author */}
-                    {isAuthor && (
-                      <>
-                        <Link
-                          to={`/novel/${novel.id}/edit-chapter/${index}`}
-                          className="inline-flex items-center px-1 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 hover:bg-purple-900/20 rounded-md transition-colors"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </Link>
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation()
-                            if (!window.confirm("Are you sure you want to delete this chapter?")) return
-                            try {
-                              const updatedChapters = [...novel.chapters]
-                              updatedChapters.splice(index, 1)
-                              await updateDoc(doc(db, "novels", novel.id), { chapters: updatedChapters })
-                              setNovel({ ...novel, chapters: updatedChapters })
-                            } catch (err) {
-                              alert("Failed to delete chapter.")
-                            }
-                          }}
-                          className="inline-flex items-center px-1 py-1 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-md transition-colors"
-                        >
-                          <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </>
-                    )}
                   </div>
-                )) || (
+                )}
+
+                {/* Prologue */}
+                {novel.prologue && (
+                  <div className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group">
+                    <Link
+                      to={`/novel/${novel.id}/read?chapter=${novel.authorsNote ? 1 : 0}`}
+                      className="flex-1 flex items-center justify-between"
+                    >
+                      <div>
+                        <h3 className="text-white font-semibold group-hover:text-purple-300 transition-colors">
+                          Prologue
+                        </h3>
+                      </div>
+                      <svg
+                        className="h-5 w-5 text-gray-400 group-hover:text-purple-300 transition-colors"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                )}
+
+                {/* Chapters */}
+                {novel.chapters?.map((chapter, index) => {
+                  // Calculate the reading order index for this chapter
+                  const readingOrderIndex = (novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + index
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group"
+                    >
+                      <Link
+                        to={`/novel/${novel.id}/read?chapter=${readingOrderIndex}`}
+                        className="flex-1 flex items-center justify-between"
+                      >
+                        <div>
+                          <h3 className="text-white font-semibold group-hover:text-purple-300 transition-colors">
+                            Chapter {index + 1}: {chapter.title}
+                          </h3>
+                        </div>
+                        <svg
+                          className="h-5 w-5 text-gray-400 group-hover:text-purple-300 transition-colors"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                      {/* Edit Button for Author */}
+                      {isAuthor && (
+                        <>
+                          <Link
+                            to={`/novel/${novel.id}/edit-chapter/${index}`}
+                            className="inline-flex items-center px-1 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 hover:bg-purple-900/20 rounded-md transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </Link>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              if (!window.confirm("Are you sure you want to delete this chapter?")) return
+                              try {
+                                const updatedChapters = [...novel.chapters]
+                                updatedChapters.splice(index, 1)
+                                await updateDoc(doc(db, "novels", novel.id), { chapters: updatedChapters })
+                                setNovel({ ...novel, chapters: updatedChapters })
+                              } catch (err) {
+                                alert("Failed to delete chapter.")
+                              }
+                            }}
+                            className="inline-flex items-center px-1 py-1 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-md transition-colors"
+                          >
+                            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )
+                }) || (
                   <div className="text-center py-8">
                     <p className="text-gray-400">No chapters available yet.</p>
                   </div>

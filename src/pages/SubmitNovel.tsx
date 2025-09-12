@@ -19,6 +19,8 @@ const SubmitNovel = () => {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [summary, setSummary] = useState("")
+  const [authorsNote, setAuthorsNote] = useState("")
+  const [prologue, setPrologue] = useState("")
   const [genres, setGenres] = useState<string[]>([])
   const [hasGraphicContent, setHasGraphicContent] = useState<boolean>(false)
   const [chapters, setChapters] = useState([{ title: "", content: "" }])
@@ -261,6 +263,8 @@ const SubmitNovel = () => {
         title,
         description,
         summary,
+        authorsNote: authorsNote || null,
+        prologue: prologue || null,
         genres,
         hasGraphicContent,
         chapters,
@@ -357,6 +361,34 @@ const SubmitNovel = () => {
               required
               placeholder="Write a compelling summary of your novel"
             />
+          </div>
+
+          <div className="mb-6">
+            <label htmlFor="authorsNote" className="block text-sm font-medium text-gray-300 mb-1">
+              Author's Note (Optional)
+            </label>
+            <textarea
+              id="authorsNote"
+              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[120px]"
+              value={authorsNote}
+              onChange={(e) => setAuthorsNote(e.target.value)}
+              placeholder="Write a personal note to your readers (optional)"
+            />
+            <p className="mt-1 text-xs text-gray-400">This will appear before the prologue and chapters</p>
+          </div>
+
+          <div className="mb-6">
+            <label htmlFor="prologue" className="block text-sm font-medium text-gray-300 mb-1">
+              Prologue (Optional)
+            </label>
+            <textarea
+              id="prologue"
+              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[120px]"
+              value={prologue}
+              onChange={(e) => setPrologue(e.target.value)}
+              placeholder="Write your prologue (optional)"
+            />
+            <p className="mt-1 text-xs text-gray-400">This will appear after the author's note and before Chapter 1</p>
           </div>
 
           <div className="mb-6">

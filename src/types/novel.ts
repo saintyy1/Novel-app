@@ -5,6 +5,8 @@ export interface Novel {
   summary: string
   genres: string[]
   hasGraphicContent: boolean
+  authorsNote?: string
+  prologue?: string
   chapters: {
     title: string
     content: string

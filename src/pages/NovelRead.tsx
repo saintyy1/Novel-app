@@ -438,7 +438,7 @@ const NovelRead = () => {
   const [novel, setNovel] = useState<Novel | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string>("")
-  const [currentChapter, setCurrentChapter] = useState<number>(0)
+  const [currentChapter, setCurrentChapter] = useState<number>(0) // This now represents the reading order index
   const { currentUser, isAdmin } = useAuth()
   const { t, translateParagraphs, language } = useTranslation()
   const [showCommentModal, setShowCommentModal] = useState(false)
@@ -536,18 +536,37 @@ const NovelRead = () => {
   useEffect(() => {
     if (novel) {
       // Track page view with more details
+      const contentInfo = getContentInfo(currentChapter)
+      let chapterNumber = currentChapter + 1
+      
+      if (contentInfo.type === "chapter") {
+        chapterNumber = contentInfo.chapterIndex + 1
+      }
+      
       trackPageView('novel_read', { 
         novel_id: novel.id,
         novel_title: novel.title,
-        chapter_number: currentChapter + 1,
+        chapter_number: chapterNumber,
         is_anonymous: !currentUser,
         session_id: localStorage.getItem('anonymous_session_id') || 'unknown'
       });
 
       // Track chapter read with more context
+      let title = ""
+      let number = currentChapter + 1
+      
+      if (contentInfo.type === "authors-note") {
+        title = "Author's Note"
+      } else if (contentInfo.type === "prologue") {
+        title = "Prologue"
+      } else if (contentInfo.type === "chapter") {
+        title = novel.chapters[contentInfo.chapterIndex]?.title || `Chapter ${contentInfo.chapterIndex + 1}`
+        number = contentInfo.chapterIndex + 1
+      }
+      
       trackChapterRead(novel.id, {
-        title: novel.chapters[currentChapter].title,
-        number: currentChapter + 1,
+        title: title,
+        number: number,
         total_chapters: novel.chapters.length,
         reader_id: currentUser?.uid || 'anonymous',
         genre: novel.genres?.[0] || 'unknown'
@@ -629,32 +648,72 @@ const NovelRead = () => {
     return contentPages
   }
 
-  // Helper: Calculate total pages for a specific chapter
-  const calculateChapterPages = (chapterIndex: number) => {
-    if (!novel || chapterIndex >= novel.chapters.length) return 0
-    const chapterContent = novel.chapters[chapterIndex]?.content || ""
-    const formattedParagraphs = formatContent(chapterContent)
-    // For previous chapters, we can't translate them, so use original content
+  // Helper: Calculate total pages for a specific reading order index
+  const calculateReadingOrderPages = (readingOrderIndex: number) => {
+    if (!novel) return 0
+    
+    const contentInfo = getContentInfo(readingOrderIndex)
+    if (contentInfo.type === "none") return 0
+    
+    const formattedParagraphs = formatContent(contentInfo.content)
     const contentPages = paginateContentIntoPages(formattedParagraphs, 6)
     return 1 + contentPages.length // 1 for title page + content pages
   }
 
-  // Helper: Calculate the absolute page number across all chapters
+  // Helper: Calculate the absolute page number across all sections
   const calculateAbsolutePageNumber = () => {
     if (!novel) return 1
 
     let totalPreviousPages = 0
-    // Sum up all pages from previous chapters
+    
+    // Add pages from all previous reading order items
     for (let i = 0; i < currentChapter; i++) {
-      totalPreviousPages += calculateChapterPages(i)
+      totalPreviousPages += calculateReadingOrderPages(i)
     }
 
     return totalPreviousPages + currentPage + 1 // +1 because currentPage is 0-indexed
   }
 
-  // Prepare pages for the current chapter, including the title page
-  const chapterContent = novel?.chapters[currentChapter]?.content || ""
-  const formattedParagraphs = useMemo(() => formatContent(chapterContent), [chapterContent])
+  // Helper function to get the content type and actual chapter index for a given reading order index
+  const getContentInfo = (readingOrderIndex: number) => {
+    if (!novel) return { type: "none", chapterIndex: -1, content: "" }
+    
+    let currentIndex = 0
+    
+    // Check Author's Note (index 0)
+    if (novel.authorsNote) {
+      if (readingOrderIndex === currentIndex) {
+        return { type: "authors-note", chapterIndex: -1, content: novel.authorsNote }
+      }
+      currentIndex++
+    }
+    
+    // Check Prologue (index 1 if author's note exists, 0 if not)
+    if (novel.prologue) {
+      if (readingOrderIndex === currentIndex) {
+        return { type: "prologue", chapterIndex: -1, content: novel.prologue }
+      }
+      currentIndex++
+    }
+    
+    // Check Chapters (starting from currentIndex)
+    const chapterIndex = readingOrderIndex - currentIndex
+    if (chapterIndex >= 0 && chapterIndex < novel.chapters.length) {
+      return { 
+        type: "chapter", 
+        chapterIndex: chapterIndex, 
+        content: novel.chapters[chapterIndex]?.content || "" 
+      }
+    }
+    
+    return { type: "none", chapterIndex: -1, content: "" }
+  }
+
+  // Get current content info
+  const currentContentInfo = getContentInfo(currentChapter)
+  
+  const sectionContent = currentContentInfo.content
+  const formattedParagraphs = useMemo(() => formatContent(sectionContent), [sectionContent])
   
   // Translate content when language changes or chapter changes
   useEffect(() => {
@@ -685,13 +744,13 @@ const NovelRead = () => {
   }, [formattedParagraphs, language, translateParagraphs])
 
   const contentPages = paginateContentIntoPages(translatedContent, 6) // 6 paragraphs per page
-  const chapterPages: ("title" | string[])[] = []
+  const sectionPages: ("title" | string[])[] = []
   if (novel) {
-    chapterPages.push("title") // First page is always the chapter title page
-    contentPages.forEach((page) => chapterPages.push(page))
+    sectionPages.push("title") // First page is always the section title page
+    contentPages.forEach((page) => sectionPages.push(page))
   }
 
-  // Enhanced page navigation with chapter transitions
+  // Enhanced page navigation with reading order transitions
   const handlePageNavigation = (direction: "prev" | "next") => {
     const changeBookPage = (newPage: number) => {
       setPageFade(true)
@@ -701,34 +760,42 @@ const NovelRead = () => {
       }, 300)
     }
 
+    const getTotalReadingOrderItems = () => {
+      if (!novel) return 0
+      let count = 0
+      if (novel.authorsNote) count++
+      if (novel.prologue) count++
+      count += novel.chapters.length
+      return count
+    }
+
     if (direction === "prev") {
       if (currentPage > 0) {
-        // Navigate to previous page in current chapter
+        // Navigate to previous page in current reading order item
         changeBookPage(currentPage - 1)
       } else if (currentChapter > 0) {
-        // Go to previous chapter's last page
-        const prevChapter = currentChapter - 1
-        const prevChapterContent = novel?.chapters[prevChapter]?.content || ""
-        const prevFormattedParagraphs = formatContent(prevChapterContent)
-        // For previous chapters, we can't translate them, so use original content
-        const prevContentPages = paginateContentIntoPages(prevFormattedParagraphs, 6)
-        const prevChapterPages = ["title", ...prevContentPages]
-        const targetPage = prevChapterPages.length - 1
-
-        // Set both chapter and page simultaneously with fade effect
-        setPageFade(true)
-        setTimeout(() => {
-          setCurrentChapter(prevChapter)
-          setCurrentPage(targetPage)
-          setTimeout(() => setPageFade(false), 300)
-        }, 300)
+        // Go to previous reading order item's last page
+        const prevReadingOrderIndex = currentChapter - 1
+        const prevContentInfo = getContentInfo(prevReadingOrderIndex)
+        if (prevContentInfo.type !== "none") {
+          const prevFormattedParagraphs = formatContent(prevContentInfo.content)
+          const prevContentPages = paginateContentIntoPages(prevFormattedParagraphs, 6)
+          const prevSectionPages = ["title", ...prevContentPages]
+          const targetPage = prevSectionPages.length - 1
+          setPageFade(true)
+          setTimeout(() => {
+            setCurrentChapter(prevReadingOrderIndex)
+            setCurrentPage(targetPage)
+            setTimeout(() => setPageFade(false), 300)
+          }, 300)
+        }
       }
     } else if (direction === "next") {
-      if (currentPage < chapterPages.length - 1) {
-        // Navigate to next page in current chapter
+      if (currentPage < sectionPages.length - 1) {
+        // Navigate to next page in current reading order item
         changeBookPage(currentPage + 1)
-      } else if (novel && currentChapter < novel.chapters.length - 1) {
-        // Go to next chapter's title page with fade effect
+      } else if (currentChapter < getTotalReadingOrderItems() - 1) {
+        // Go to next reading order item's title page
         setPageFade(true)
         setTimeout(() => {
           setCurrentChapter(currentChapter + 1)
@@ -759,22 +826,53 @@ const NovelRead = () => {
   })
 
   // Check if navigation is possible
-  const canNavigatePrev = currentPage > 0 || currentChapter > 0
-  const canNavigateNext = currentPage < chapterPages.length - 1 || (novel && currentChapter < novel.chapters.length - 1)
+  const canNavigatePrev = () => {
+    if (currentPage > 0) return true
+    return currentChapter > 0
+  }
+  
+  const canNavigateNext = () => {
+    if (currentPage < sectionPages.length - 1) return true
+    
+    const getTotalReadingOrderItems = () => {
+      if (!novel) return 0
+      let count = 0
+      if (novel.authorsNote) count++
+      if (novel.prologue) count++
+      count += novel.chapters.length
+      return count
+    }
+    
+    return currentChapter < getTotalReadingOrderItems() - 1
+  }
 
   // Render current page content
   const renderCurrentPageContent = () => {
     if (!novel) return null
-    const pageContent = chapterPages[currentPage]
+    const pageContent = sectionPages[currentPage]
     if (pageContent === "title") {
-      // This is the chapter title page
+      // This is the section title page
+      let sectionTitle = ""
+      let sectionSubtitle = ""
+      
+      if (currentContentInfo.type === "authors-note") {
+        sectionTitle = "Author's Note"
+        sectionSubtitle = `${novel.authorName}`
+      } else if (currentContentInfo.type === "prologue") {
+        sectionTitle = "Prologue"
+        sectionSubtitle = `${novel.authorName}`
+      } else if (currentContentInfo.type === "chapter") {
+        sectionTitle = novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`
+        sectionSubtitle = `${novel.authorName}`
+      }
+      
       return (
         <div className="flex flex-col items-center justify-center h-full text-center px-4 sm:px-8 py-8 sm:py-12">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-white mb-4 leading-tight">
-            {novel.chapters[currentChapter].title}
+            {sectionTitle}
           </h2>
           <div className="w-16 sm:w-24 h-1 bg-purple-500 my-4 sm:my-6 rounded-full"></div>
-          <p className="text-lg sm:text-xl md:text-2xl font-serif text-gray-300">{t("written_by")} {novel.authorName}</p>
+          <p className="text-lg sm:text-xl md:text-2xl font-serif text-gray-300">{sectionSubtitle}</p>
         </div>
       )
     } else if (Array.isArray(pageContent)) {
@@ -822,13 +920,20 @@ const NovelRead = () => {
             setShowGraphicWarning(true)
           }
 
-          // Get chapter from URL params
+          // Get chapter from URL params (this is now the reading order index)
           const chapterParam = searchParams.get("chapter")
           if (chapterParam) {
-            const chapterIndex = Number.parseInt(chapterParam, 10)
-            if (chapterIndex >= 0 && chapterIndex < novelData.chapters.length) {
-              setCurrentChapter(chapterIndex)
+            const readingOrderIndex = Number.parseInt(chapterParam, 10)
+            const totalItems = (novelData.authorsNote ? 1 : 0) + (novelData.prologue ? 1 : 0) + novelData.chapters.length
+            if (readingOrderIndex >= 0 && readingOrderIndex < totalItems) {
+              setCurrentChapter(readingOrderIndex)
+            } else {
+              // Default to first available item
+              setCurrentChapter(0)
             }
+          } else {
+            // Default to first available item
+            setCurrentChapter(0)
           }
           if (currentUser) {
             await updateDoc(doc(db, "novels", id), {
@@ -949,8 +1054,8 @@ const NovelRead = () => {
           type: "chapter_like",
           novelId: novel.id,
           novelTitle: novel.title,
-          chapterNumber: currentChapter + 1,
-          chapterTitle: novel.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`,
+          chapterNumber: currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1,
+          chapterTitle: currentContentInfo.type === "chapter" ? (novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`) : (currentContentInfo.type === "authors-note" ? "Author's Note" : "Prologue"),
           createdAt: new Date().toISOString(),
           read: false,
         })
@@ -1004,8 +1109,8 @@ const NovelRead = () => {
           novelId: novel.id,
           novelTitle: novel.title,
           commentContent: newComment.trim(),
-          chapterNumber: currentChapter + 1,
-          chapterTitle: novel.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`,
+          chapterNumber: currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1,
+          chapterTitle: currentContentInfo.type === "chapter" ? (novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`) : (currentContentInfo.type === "authors-note" ? "Author's Note" : "Prologue"),
           createdAt: new Date().toISOString(),
           read: false,
         })
@@ -1058,8 +1163,8 @@ const NovelRead = () => {
           novelTitle: novel.title,
           commentContent: replyContent.trim(),
           parentId: parentId,
-          chapterNumber: currentChapter + 1,
-          chapterTitle: novel.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`,
+          chapterNumber: currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1,
+          chapterTitle: currentContentInfo.type === "chapter" ? (novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`) : (currentContentInfo.type === "authors-note" ? "Author's Note" : "Prologue"),
           createdAt: new Date().toISOString(),
           read: false,
         })
@@ -1080,8 +1185,8 @@ const NovelRead = () => {
           novelTitle: novel.title,
           commentContent: replyContent.trim(),
           parentId: parentId,
-          chapterNumber: currentChapter + 1,
-          chapterTitle: novel.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`,
+          chapterNumber: currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1,
+          chapterTitle: currentContentInfo.type === "chapter" ? (novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`) : (currentContentInfo.type === "authors-note" ? "Author's Note" : "Prologue"),
           createdAt: new Date().toISOString(),
           read: false,
         })
@@ -1184,8 +1289,8 @@ const NovelRead = () => {
             novelTitle: novel.title,
             commentId: commentId,
             commentContent: targetComment.text,
-            chapterNumber: currentChapter + 1,
-            chapterTitle: novel.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`,
+            chapterNumber: currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1,
+            chapterTitle: currentContentInfo.type === "chapter" ? (novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`) : (currentContentInfo.type === "authors-note" ? "Author's Note" : "Prologue"),
             createdAt: new Date().toISOString(),
             read: false,
           })
@@ -1351,7 +1456,9 @@ const NovelRead = () => {
         <div className="relative bg-gray-800 rounded-xl shadow-lg py-6 sm:py-9 px-3 sm:px-8 md:px-12 w-full max-w-4xl min-h-[500px] sm:min-h-[600px] mx-2 sm:mx-4 flex flex-col justify-between">
           {/* Chapter indicator */}
           <div className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 text-xs sm:text-sm">
-            {t("chapter")} {currentChapter + 1}
+            {currentContentInfo.type === "authors-note" ? "Author's Note" : 
+             currentContentInfo.type === "prologue" ? "Prologue" : 
+             `${t("chapter")} ${currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1}`}
             {isTranslating && (
               <div className="flex items-center mt-1 text-purple-400">
                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-400 mr-1"></div>
@@ -1408,25 +1515,25 @@ const NovelRead = () => {
           <div className="flex justify-between items-center w-full mt-4 sm:mt-6 text-sm">
             <button
               className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
-                !canNavigatePrev
+                !canNavigatePrev()
                   ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                   : "bg-purple-900 text-purple-200 hover:bg-purple-800"
               }`}
-              disabled={!canNavigatePrev}
+              disabled={!canNavigatePrev()}
               onClick={() => handlePageNavigation("prev")}
             >
               <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
             <span className="px-2 sm:px-4 py-1 sm:py-2 bg-gray-700 text-gray-300 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap">
-              {t("page")} {calculateAbsolutePageNumber()}
+              {currentContentInfo.type === "authors-note" && currentPage === 0 ? "Page 1" : `${t("page")} ${calculateAbsolutePageNumber()}`}
             </span>
             <button
               className={`p-2 sm:px-4 sm:py-2 rounded-md text-sm font-medium transition-colors ${
-                !canNavigateNext
+                !canNavigateNext()
                   ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                   : "bg-purple-900 text-purple-200 hover:bg-purple-800"
               }`}
-              disabled={!canNavigateNext}
+              disabled={!canNavigateNext()}
               onClick={() => handlePageNavigation("next")}
             >
               <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
