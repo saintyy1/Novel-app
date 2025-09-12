@@ -151,7 +151,7 @@ const Support = () => {
           {/* FAQ Section */}
           <div className="lg:col-span-2 space-y-8">
             {/* Search and Filter */}
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+            <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-6">
               <div className="flex flex-col md:flex-row gap-4 mb-6">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -204,7 +204,7 @@ const Support = () => {
             </div>
 
             {/* Contact Form */}
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-2xl p-6">
+            <div className="bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-6">
               <div className="flex items-center mb-8">
                 <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center mr-4">
                   <MessageCircle className="h-6 w-6 text-white" />
@@ -333,7 +333,7 @@ const Support = () => {
           {/* Contact Info Sidebar */}
           <div className="space-y-6">
             {/* Contact Methods */}
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+            <div className="bg-white/10 border border-white/20 rounded-2xl p-6">
               <h3 className="text-xl font-bold text-white mb-6">Get in Touch</h3>
               <div className="space-y-4">
                 <div className="flex items-center">
@@ -358,7 +358,7 @@ const Support = () => {
             </div>
 
             {/* Quick Links */}
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+            <div className="bg-white/10 border border-white/20 rounded-2xl p-6">
               <h3 className="text-xl font-bold text-white mb-6">Quick Links</h3>
               <div className="space-y-3">
                 <Link to="/privacy" className="flex items-center text-gray-300 hover:text-white transition-colors">
@@ -377,7 +377,7 @@ const Support = () => {
             </div>
 
             {/* Status */}
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+            <div className="bg-white/10 border border-white/20 rounded-2xl p-6">
               <h3 className="text-xl font-bold text-white mb-4">System Status</h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
