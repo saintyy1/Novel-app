@@ -247,7 +247,7 @@ const Support = () => {
                       required
                       readOnly
                       value={currentUser?.displayName || formData.name}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-sm cursor-not-allowed opacity-75"
+                      className="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white placeholder-gray-300 backdrop-blur-sm cursor-not-allowed"
                       placeholder="Your full name"
                     />
                   </div>
@@ -263,7 +263,7 @@ const Support = () => {
                       required
                       readOnly
                       value={currentUser?.email || formData.email}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 backdrop-blur-sm cursor-not-allowed opacity-75"
+                      className="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white placeholder-gray-300 backdrop-blur-sm cursor-not-allowed"
                       placeholder="your@email.com"
                     />
                   </div>
@@ -279,17 +279,17 @@ const Support = () => {
                     required
                     value={formData.subject}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white backdrop-blur-sm transition-all"
+                    className="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-400 text-white backdrop-blur-sm transition-all"
                   >
-                    <option value="" className="bg-gray-800">Select a subject</option>
-                    <option value="general" className="bg-gray-800">General Inquiry</option>
-                    <option value="technical" className="bg-gray-800">Technical Support</option>
-                    <option value="content" className="bg-gray-800">Content Issues</option>
-                    <option value="account" className="bg-gray-800">Account Help</option>
-                    <option value="payment" className="bg-gray-800">Payment Issues</option>
-                    <option value="feedback" className="bg-gray-800">Feedback & Suggestions</option>
-                    <option value="bug" className="bg-gray-800">Bug Report</option>
-                    <option value="other" className="bg-gray-800">Other</option>
+                    <option value="" className="bg-gray-800 text-white">Select a subject</option>
+                    <option value="general" className="bg-gray-800 text-white">General Inquiry</option>
+                    <option value="technical" className="bg-gray-800 text-white">Technical Support</option>
+                    <option value="content" className="bg-gray-800 text-white">Content Issues</option>
+                    <option value="account" className="bg-gray-800 text-white">Account Help</option>
+                    <option value="payment" className="bg-gray-800 text-white">Payment Issues</option>
+                    <option value="feedback" className="bg-gray-800 text-white">Feedback & Suggestions</option>
+                    <option value="bug" className="bg-gray-800 text-white">Bug Report</option>
+                    <option value="other" className="bg-gray-800 text-white">Other</option>
                   </select>
                 </div>
 
@@ -304,7 +304,7 @@ const Support = () => {
                     rows={6}
                     value={formData.message}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-400 backdrop-blur-sm transition-all resize-none"
+                    className="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-400 text-white placeholder-gray-300 backdrop-blur-sm transition-all resize-none"
                     placeholder="Tell us how we can help you..."
                   />
                 </div>
