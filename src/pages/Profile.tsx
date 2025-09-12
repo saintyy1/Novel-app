@@ -1609,7 +1609,7 @@ const Profile = () => {
                     // For international users with URLs
                     return (
                       <div className="space-y-2">
-                        <div className="flex justify-between">
+                        <div className="flex flex-col justify-between">
                           <span className="text-gray-300">Support Link:</span>
                           <a 
                             href={supportLink} 
