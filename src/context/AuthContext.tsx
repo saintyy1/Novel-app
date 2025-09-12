@@ -44,6 +44,8 @@ export interface ExtendedUser extends User {
   following?: string[]
   instagramUrl?: string
   twitterUrl?: string
+  supportLink?: string
+  location?: string // Nigerian or International
   library?: string[]
   finishedReads?: string[]
   pendingEmail?: string | null // New property for pending email change
@@ -59,7 +61,7 @@ interface AuthContextType {
   isAdmin: boolean
   refreshUser: () => Promise<void>
   updateUserPhoto: (photoBase64: string | null) => Promise<void>
-  updateUserProfile: (displayName: string, bio: string, instagramUrl: string, twitterUrl: string) => Promise<void>
+  updateUserProfile: (displayName: string, bio: string, instagramUrl: string, twitterUrl: string, supportLink: string, location: string) => Promise<void>
   toggleFollow: (targetUserId: string, isFollowing: boolean) => Promise<void>
   signInWithGoogle: () => Promise<void>
   updateUserLibrary: (novelId: string, add: boolean, novelTitle: string, novelAuthorId: string) => Promise<void>
@@ -146,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userDoc.exists()) {
         const data = userDoc.data()
         // Extend the Firebase user with Firestore data
-        const extendedUser: ExtendedUser = {
+        const extendedUser = {
           ...user,
           isAdmin: data.isAdmin || false,
           createdAt: data.createdAt,
@@ -159,10 +161,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           following: data.following || [], // New
           instagramUrl: data.instagramUrl || "", // New
           twitterUrl: data.twitterUrl || "", // New
+          supportLink: data.supportLink || "", // New
+          location: data.location || "", // New
           library: data.library || [], // New: Initialize library
           finishedReads: data.finishedReads || [], // Add this line
           pendingEmail: data.pendingEmail, // New property for pending email change
-        }
+        } as ExtendedUser
         setCurrentUser(extendedUser)
         setFirebaseUser(user)
         setIsAdmin(data.isAdmin === true)
@@ -181,12 +185,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           following: [], // New
           instagramUrl: "", // New: Initialize social links
           twitterUrl: "", // New: Initialize social links
+          supportLink: "", // New
+          location: "", // New
           library: [], // New: Initialize library
           finishedReads: [], // Add this line
           pendingEmail: null, // New property for pending email change
         }
         await setDoc(doc(db, "users", user.uid), newUserData)
-        const extendedUser: ExtendedUser = {
+        const extendedUser = {
           ...user,
           displayName: user.displayName || user.email?.split("@")[0] || "User",
           photoURL: user.photoURL,
@@ -197,10 +203,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           following: newUserData.following, // New
           instagramUrl: newUserData.instagramUrl, // New
           twitterUrl: newUserData.twitterUrl, // New
+          supportLink: "", // New: Initialize support link
+          location: "", // New
           library: newUserData.library, // New
           finishedReads: newUserData.finishedReads, // Add this line
           pendingEmail: newUserData.pendingEmail, // New property for pending email change
-        }
+        } as ExtendedUser
         setCurrentUser(extendedUser)
         setFirebaseUser(user)
         setIsAdmin(false)
@@ -240,7 +248,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   // Updated function to update user's display name, bio, and social links
-  const updateUserProfile = async (displayName: string, bio: string, instagramUrl: string, twitterUrl: string) => {
+  const updateUserProfile = async (displayName: string, bio: string, instagramUrl: string, twitterUrl: string, supportLink: string, location: string) => {
     if (!currentUser || !firebaseUser) throw new Error("No user logged in")
     try {
       await updateDoc(doc(db, "users", currentUser.uid), {
@@ -248,6 +256,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         bio: bio,
         instagramUrl: instagramUrl, // Save new social link
         twitterUrl: twitterUrl, // Save new social link
+        supportLink: supportLink, // Save support link
+        location: location, // Save location
         updatedAt: new Date().toISOString(),
       })
       // Update Firebase Auth display name if it changed
@@ -265,7 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
       // Update local state
-      setCurrentUser((prev) => (prev ? { ...prev, displayName, bio, instagramUrl, twitterUrl } : null))
+      setCurrentUser((prev) => (prev ? { ...prev, displayName, bio, instagramUrl, twitterUrl, supportLink, location } : null))
     } catch (error) {
       console.error("Error updating user profile:", error)
       throw error
@@ -588,6 +598,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       following: [], // New
       instagramUrl: "", // New: Initialize social links
       twitterUrl: "", // New: Initialize social links
+      supportLink: "", // New
+      location: "", // New
       library: [], // New: Initialize library
       finishedReads: [], // Add this line
       pendingEmail: null, // New property for pending email change
@@ -605,6 +617,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       following: newUserData.following, // New
       instagramUrl: newUserData.instagramUrl, // New
       twitterUrl: newUserData.twitterUrl, // New
+      supportLink: newUserData.supportLink, // New
+      location: newUserData.location, // New
       library: newUserData.library, // New
       finishedReads: newUserData.finishedReads, // Add this line
       pendingEmail: newUserData.pendingEmail, // New property for pending email change
@@ -652,6 +666,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           following: [], // New
           instagramUrl: "", // New: Initialize social links
           twitterUrl: "", // New: Initialize social links
+          supportLink: "", // New
+          location: "", // New
           library: [], // New: Initialize library
           finishedReads: [], // Add this line
           pendingEmail: null, // New property for pending email change

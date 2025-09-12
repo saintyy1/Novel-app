@@ -19,8 +19,30 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
   const [bio, setBio] = useState(profileUser?.bio || "")
   const [instagramUrl, setInstagramUrl] = useState(profileUser?.instagramUrl || "")
   const [twitterUrl, settwitterUrl] = useState(profileUser?.twitterUrl || "")
+  const [supportLink, setSupportLink] = useState((profileUser as any)?.supportLink || "")
+  const [location, setLocation] = useState((profileUser as any)?.location || "")
+  const [bankName, setBankName] = useState("")
+  const [accountNumber, setAccountNumber] = useState("")
+  const [accountName, setAccountName] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState("")
+
+  // Parse support link for Nigerian users
+  const parseNigerianSupportLink = (link: string) => {
+    if (!link) return { bankName: "", accountNumber: "", accountName: "" }
+    
+    // Try to parse format: "BankName: AccountNumber, AccountName"
+    const match = link.match(/^(.+?):\s*(\d+),\s*(.+)$/)
+    if (match) {
+      return {
+        bankName: match[1].trim(),
+        accountNumber: match[2].trim(),
+        accountName: match[3].trim()
+      }
+    }
+    
+    return { bankName: "", accountNumber: "", accountName: "" }
+  }
 
   useEffect(() => {
     if (isOpen && profileUser) {
@@ -28,6 +50,17 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
       setBio(profileUser.bio || "")
       setInstagramUrl(profileUser.instagramUrl || "")
       settwitterUrl(profileUser.twitterUrl || "")
+      setSupportLink((profileUser as any).supportLink || "")
+      setLocation((profileUser as any).location || "")
+      
+      // Parse Nigerian support link if location is Nigerian
+      if ((profileUser as any).location === "Nigerian") {
+        const parsed = parseNigerianSupportLink((profileUser as any).supportLink || "")
+        setBankName(parsed.bankName)
+        setAccountNumber(parsed.accountNumber)
+        setAccountName(parsed.accountName)
+      }
+      
       setSaveError("") // Clear error on open
     }
   }, [isOpen, profileUser])
@@ -56,12 +89,21 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
       setSaveError("Invalid TikTok URL.")
       return;
     }
-
+    if (supportLink && !urlRegex.test(supportLink)) {
+      setSaveError("Invalid support link URL.")
+      return;
+    }
 
     setIsSaving(true)
     setSaveError("")
     try {
-      await updateUserProfile(displayName, bio, instagramUrl, twitterUrl)
+      // Format support link based on location
+      let formattedSupportLink = supportLink
+      if (location === "Nigerian" && bankName && accountNumber && accountName) {
+        formattedSupportLink = `${bankName}: ${accountNumber}, ${accountName}`
+      }
+      
+      await updateUserProfile(displayName, bio, instagramUrl, twitterUrl, formattedSupportLink, location)
       showSuccessToast("Profile updated successfully!")
       onClose()
       await refreshUser() // Ensure the main profile page data is refreshed
@@ -72,13 +114,13 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
     } finally {
       setIsSaving(false)
     }
-  }, [displayName, bio, instagramUrl, twitterUrl, profileUser, updateUserProfile, refreshUser, onClose])
+  }, [displayName, bio, instagramUrl, twitterUrl, supportLink, location, bankName, accountNumber, accountName, profileUser, updateUserProfile, refreshUser, onClose])
 
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl shadow-lg p-6 max-w-lg w-full relative border border-gray-700">
+      <div className="bg-gray-800 rounded-xl shadow-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto relative border border-gray-700">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
@@ -86,9 +128,9 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
         >
           <FaTimes className="h-6 w-6" />
         </button>
-        <h2 className="text-2xl font-bold text-white mb-6 text-center">Edit Profile</h2>
+        <h2 className="text-2xl font-bold text-white mb-4 text-center">Edit Profile</h2>
 
-        <form onSubmit={handleSave} className="space-y-5">
+        <form onSubmit={handleSave} className="space-y-4">
           <div>
             <label htmlFor="displayName" className="block text-sm font-medium text-gray-300 mb-1">
               Display Name
@@ -114,7 +156,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
               onChange={(e) => setBio(e.target.value)}
               placeholder="Tell us about yourself..."
               className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
-              rows={4}
+              rows={3}
               maxLength={500}
             />
           </div>
@@ -157,6 +199,117 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
               />
             </div>
           </div>
+
+          <div>
+            <label htmlFor="location" className="block text-sm font-medium text-gray-300 mb-1">
+              Location
+            </label>
+            <select
+              id="location"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+            >
+              <option value="">Select your location</option>
+              <option value="Nigerian">Nigerian</option>
+              <option value="International">International</option>
+            </select>
+          </div>
+
+          {location === "Nigerian" ? (
+            <div className="space-y-3">
+              <h3 className="text-lg font-medium text-white">Bank Details — optional</h3>
+              
+              <div>
+                <label htmlFor="bankName" className="block text-sm font-medium text-gray-300 mb-1">
+                  Bank Name
+                </label>
+                <select
+                  id="bankName"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                >
+                  <option value="">Select your bank</option>
+                  <option value="Access Bank">Access Bank</option>
+                  <option value="Citibank Nigeria">Citibank Nigeria</option>
+                  <option value="Ecobank Nigeria">Ecobank Nigeria</option>
+                  <option value="Fidelity Bank">Fidelity Bank</option>
+                  <option value="First Bank of Nigeria">First Bank of Nigeria</option>
+                  <option value="First City Monument Bank">First City Monument Bank</option>
+                  <option value="Guaranty Trust Bank">Guaranty Trust Bank</option>
+                  <option value="Heritage Bank">Heritage Bank</option>
+                  <option value="Keystone Bank">Keystone Bank</option>
+                  <option value="Kuda Bank">Kuda Bank</option>
+                  <option value="Opay">Opay</option>
+                  <option value="PalmPay">PalmPay</option>
+                  <option value="Polaris Bank">Polaris Bank</option>
+                  <option value="Providus Bank">Providus Bank</option>
+                  <option value="Stanbic IBTC Bank">Stanbic IBTC Bank</option>
+                  <option value="Standard Chartered Bank">Standard Chartered Bank</option>
+                  <option value="Sterling Bank">Sterling Bank</option>
+                  <option value="Union Bank of Nigeria">Union Bank of Nigeria</option>
+                  <option value="United Bank for Africa">United Bank for Africa</option>
+                  <option value="Unity Bank">Unity Bank</option>
+                  <option value="VBank">VBank</option>
+                  <option value="Wema Bank">Wema Bank</option>
+                  <option value="Zenith Bank">Zenith Bank</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="accountNumber" className="block text-sm font-medium text-gray-300 mb-1">
+                  Account Number
+                </label>
+                <input
+                  type="text"
+                  id="accountNumber"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  placeholder="Enter your account number"
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="accountName" className="block text-sm font-medium text-gray-300 mb-1">
+                  Account Name
+                </label>
+                <input
+                  type="text"
+                  id="accountName"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  placeholder="Enter the account holder's name"
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="supportLink" className="block text-sm font-medium text-gray-300 mb-1">
+                Support link (PayPal, Ko-fi, BuyMeACoffee, etc.) — optional
+              </label>
+              <input
+                type="url"
+                id="supportLink"
+                value={supportLink}
+                onChange={(e) => setSupportLink(e.target.value)}
+                placeholder="https://paypal.me/yourname or https://ko-fi.com/yourname"
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              />
+              <div className="mt-1 text-xs text-gray-400">
+                <p className="font-medium mb-1">Popular international options:</p>
+                <ul className="space-y-0.5 ml-2">
+                  <li>• <strong>PayPal:</strong> https://paypal.me/yourname</li>
+                  <li>• <strong>Ko-fi:</strong> https://ko-fi.com/yourname</li>
+                  <li>• <strong>Buy Me a Coffee:</strong> https://buymeacoffee.com/yourname</li>
+                  <li>• <strong>Patreon:</strong> https://patreon.com/yourname</li>
+                </ul>
+              </div>
+            </div>
+          )}
 
           {saveError && (
             <div className="text-red-400 text-sm text-center">{saveError}</div>

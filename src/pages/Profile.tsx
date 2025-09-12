@@ -39,6 +39,7 @@ import {
   MoreHorizontal,
   Edit,
   TrendingUp,
+  Gift,
 } from "lucide-react" // Use Lucide icons
 
 interface Announcement {
@@ -84,6 +85,7 @@ const Profile = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedNovel, setSelectedNovel] = useState<any>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isTipModalOpen, setIsTipModalOpen] = useState(false)
   // Edit Novel modal form state
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
@@ -877,6 +879,15 @@ const Profile = () => {
                     <FaXTwitter className="h-5 w-5" />
                   </a>
                 )}
+                {(profileUser as any)?.supportLink && (
+                  <button
+                    onClick={() => setIsTipModalOpen(true)}
+                    className="text-green-600 hover:text-green-400 transition-colors flex items-center text-sm"
+                    title="Support this creator"
+                  >
+                    <Gift className="h-5 w-5" />
+                  </button>
+                )}
               </div>
               {/* Photo Error/Success Message */}
               {isOwnProfile && photoError && (
@@ -1567,6 +1578,127 @@ const Profile = () => {
           onClose={() => setShowEditProfileModal(false)}
           profileUser={profileUser}
         />
+      )}
+
+      {/* Tip Modal */}
+      {isTipModalOpen && profileUser && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-lg p-6 max-w-md w-full relative border border-gray-700">
+            <button
+              onClick={() => setIsTipModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+              title="Close"
+            >
+              <FaTimes className="h-6 w-6" />
+            </button>
+            
+            <div className="text-center mb-6">
+              <Gift className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-2">Want to tip this author?</h2>
+              <p className="text-gray-300">Here are the payment details:</p>
+            </div>
+
+            <div className="bg-gray-700 rounded-lg p-4 mb-6">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-white mb-3">Payment Information</h3>
+                {(() => {
+                  const supportLink = (profileUser as any).supportLink
+                  const isUrl = supportLink?.startsWith('http')
+                  
+                  if (isUrl) {
+                    // For international users with URLs
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Support Link:</span>
+                          <a 
+                            href={supportLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 underline break-all"
+                          >
+                            {supportLink}
+                          </a>
+                        </div>
+                      </div>
+                    )
+                  } else {
+                    // For Nigerian users with bank details
+                    return (
+                      <div className="space-y-2 text-left">
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Bank:</span>
+                          <span className="text-white font-medium">
+                            {supportLink?.split(':')[0] || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Account Number:</span>
+                          <span className="text-white font-medium">
+                            {supportLink?.split(':')[1]?.split(',')[0]?.trim() || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Account Name:</span>
+                          <span className="text-white font-medium">
+                            {supportLink?.split(',')[1]?.trim() || 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  }
+                })()}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => {
+                  const supportText = (profileUser as any).supportLink
+                  if (supportText) {
+                    navigator.clipboard.writeText(supportText)
+                    const isUrl = supportText.startsWith('http')
+                    showSuccessToast(isUrl ? "Support link copied to clipboard!" : "Payment details copied to clipboard!")
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center justify-center"
+              >
+                <FaCopy className="h-4 w-4 mr-2" />
+                {(() => {
+                  const supportText = (profileUser as any).supportLink
+                  const isUrl = supportText?.startsWith('http')
+                  return isUrl ? "Copy Link" : "Copy Details"
+                })()}
+              </button>
+              <button
+                onClick={() => {
+                  const supportText = (profileUser as any).supportLink
+                  if (supportText) {
+                    const isUrl = supportText.startsWith('http')
+                    const shareText = isUrl 
+                      ? `Support this author: ${supportText}`
+                      : `Support this author: ${supportText}`
+                    
+                    if (navigator.share) {
+                      navigator.share({ text: shareText })
+                    } else {
+                      navigator.clipboard.writeText(shareText)
+                      showSuccessToast("Share text copied to clipboard!")
+                    }
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center"
+              >
+                <FaShare className="h-4 w-4 mr-2" />
+                Share
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400 text-center mt-4">
+              Thank you for supporting this author! 💚
+            </p>
+          </div>
+        </div>
       )}
 
       {/* User List Drawer */}
