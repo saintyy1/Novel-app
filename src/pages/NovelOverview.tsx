@@ -1106,7 +1106,7 @@ const NovelOverview = () => {
               <div className="relative">
                 <p
                   className={`text-gray-300 leading-relaxed text-base sm:text-lg ${
-                    !isSummaryExpanded ? "line-clamp-6" : ""
+                    !isSummaryExpanded ? "line-clamp-5" : ""
                   }`}
                 >
                   {novel.summary}

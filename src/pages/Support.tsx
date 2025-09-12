@@ -74,6 +74,12 @@ const Support = () => {
       answer: 'Go to your Settings page, click on "Security", then "Change Password". Enter your current password and new password. Make sure your new password is strong and unique.',
       category: 'account'
     },
+    {
+      id: '5',
+      question: 'How do I add tip information to my profile?',
+      answer: 'To add tip information to your profile, go to your profile page and click "Edit Profile". In the edit modal, you can add your support link or payment details in the "Support Link" field. This can be a payment URL (like PayPal, Ko-fi, etc.) or bank details in the format "Bank: Account Number, Account Name". Once saved, readers will see a gift icon on your profile and can click it to view your tip information.',
+      category: 'account'
+    },
   ]
 
   const categories = [

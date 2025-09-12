@@ -92,6 +92,7 @@ const Profile = () => {
   const [editSummary, setEditSummary] = useState("")
   const [savingNovel, setSavingNovel] = useState(false)
   const [saveNovelError, setSaveNovelError] = useState("")
+  const [showEndPromotionConfirm, setShowEndPromotionConfirm] = useState(false)
 
   const isOwnProfile = !userId || userId === currentUser?.uid
   const displayName = profileUser?.displayName || currentUser?.displayName || "User"
@@ -729,6 +730,69 @@ const Profile = () => {
     }
   }
 
+  // Check if a novel is currently on promotion
+  const isNovelOnPromotion = (novel: Novel) => {
+    if (!novel.isPromoted || !novel.promotionEndDate) return false
+    
+    const now = new Date()
+    let endDate: Date
+    
+    // Handle Firestore Timestamp objects
+    if (novel.promotionEndDate && typeof novel.promotionEndDate === 'object' && 'toDate' in novel.promotionEndDate) {
+      endDate = (novel.promotionEndDate as any).toDate()
+    } else {
+      endDate = new Date(novel.promotionEndDate)
+    }
+    
+    return endDate > now
+  }
+
+  // Handle ending promotion
+  const handleEndPromotion = (novel: Novel) => {
+    setSelectedNovel(novel)
+    setShowEndPromotionConfirm(true)
+    setOpenKebabMenu(null)
+  }
+
+  // Confirm end promotion
+  const confirmEndPromotion = async () => {
+    if (!selectedNovel) return
+
+    try {
+      const novelRef = doc(db, "novels", selectedNovel.id)
+      await updateDoc(novelRef, {
+        isPromoted: false,
+        promotionStartDate: null,
+        promotionEndDate: null,
+        reference: null,
+        promotionPlan: null
+      })
+
+      // Update local state
+      setUserNovels((prevNovels) =>
+        prevNovels.map((novel) =>
+          novel.id === selectedNovel.id
+            ? {
+                ...novel,
+                isPromoted: false,
+                promotionStartDate: undefined,
+                promotionEndDate: undefined,
+                reference: undefined,
+                promotionPlan: undefined
+              }
+            : novel
+        )
+      )
+
+      showSuccessToast("Promotion ended successfully!")
+      setShowEndPromotionConfirm(false)
+      setSelectedNovel(null)
+    } catch (error) {
+      console.error("Error ending promotion:", error)
+      showErrorToast("Failed to end promotion. Please try again.")
+    }
+  }
+
   if (!currentUser && !userId) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -1283,13 +1347,23 @@ const Profile = () => {
                               <Plus className="h-3 w-3" />
                               Add Chapters
                             </Link>
-                            <Link
-                              to="/promote"
-                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2"
-                            >
-                              <TrendingUp className="h-3 w-3" />
-                              Promote
-                            </Link>
+                            {isNovelOnPromotion(novel) ? (
+                              <button
+                                onClick={() => handleEndPromotion(novel)}
+                                className="w-full px-3 py-2 text-left text-sm text-orange-400 hover:text-orange-300 hover:bg-gray-700 flex items-center gap-2"
+                              >
+                                <TrendingUp className="h-3 w-3" />
+                                End Promotion
+                              </button>
+                            ) : (
+                              <Link
+                                to="/promote"
+                                className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2"
+                              >
+                                <TrendingUp className="h-3 w-3" />
+                                Promote
+                              </Link>
+                            )}
                             <button
                               onClick={() => handleDeleteNovel(novel)}
                               className="w-full px-3 py-2 text-left text-sm text-red-400 hover:text-red-300 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
@@ -1697,6 +1771,57 @@ const Profile = () => {
             <p className="text-xs text-gray-400 text-center mt-4">
               Thank you for supporting this author! 💚
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* End Promotion Confirmation Modal */}
+      {showEndPromotionConfirm && selectedNovel && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-gray-700 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">End Promotion</h3>
+              <button
+                onClick={() => setShowEndPromotionConfirm(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="bg-orange-900/30 border border-orange-800 text-orange-400 px-4 py-3 rounded-lg mb-4">
+                <div className="flex items-center gap-2">
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <span className="font-semibold">Warning</span>
+                </div>
+                <p className="mt-2 text-sm">
+                  Ending this promotion will immediately remove your novel from all promoted sections and you will not be refunded for the remaining promotion time.
+                </p>
+              </div>
+              
+              <p className="text-gray-300 mb-2">Are you sure you want to end the promotion for "{selectedNovel.title}"?</p>
+              <p className="text-sm text-gray-400">
+                This action cannot be undone. Your novel will no longer appear in promoted sections.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowEndPromotionConfirm(false)}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmEndPromotion}
+                className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+              >
+                End Promotion
+              </button>
+            </div>
           </div>
         </div>
       )}
