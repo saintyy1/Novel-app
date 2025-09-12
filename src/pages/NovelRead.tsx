@@ -939,6 +939,22 @@ const NovelRead = () => {
           setChapterLikes((prev) => prev - 1)
         }
       }
+
+      // Send notification to novel author when chapter is liked (not unliked)
+      if (newLikeStatus && novel.authorId !== currentUser.uid) {
+        await addDoc(collection(db, "notifications"), {
+          toUserId: novel.authorId,
+          fromUserId: currentUser.uid,
+          fromUserName: currentUser.displayName || "Anonymous User",
+          type: "chapter_like",
+          novelId: novel.id,
+          novelTitle: novel.title,
+          chapterNumber: currentChapter + 1,
+          chapterTitle: novel.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`,
+          createdAt: new Date().toISOString(),
+          read: false,
+        })
+      }
     } catch (error) {
       console.error("Error updating chapter like:", error)
       setChapterLiked(!chapterLiked)

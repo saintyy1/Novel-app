@@ -27,6 +27,7 @@ interface Notification {
     | "novel_reply"
     | "comment_reply"
     | "comment_like"
+    | "chapter_like"
     | "novel_added_to_library"
     | "novel_finished"
     | "followed_author_announcement"
@@ -176,6 +177,8 @@ const NotificationsPage = () => {
           return <Heart className="h-5 w-5 text-red-400" />
         case "comment_like":
           return <Heart className="h-5 w-5 text-red-400" />
+        case "chapter_like":
+          return <Heart className="h-5 w-5 text-red-400" />
         case "novel_comment":
         case "novel_reply":
         case "comment_reply":
@@ -232,6 +235,23 @@ const NotificationsPage = () => {
         return (
           <>
             {fromUserLink} liked your comment on{" "}
+            <Link
+              to={notification.chapterNumber ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}` : `/novel/${notification.novelId}`}
+              className="text-purple-400 hover:underline"
+              onClick={(e) => e.stopPropagation()} // Prevent parent div's onClick from triggering
+            >
+              "{notification.novelTitle}"
+            </Link>
+            {notification.chapterTitle && (
+              <span className="text-gray-300"> ({notification.chapterTitle})</span>
+            )}
+            .
+          </>
+        )
+      case "chapter_like":
+        return (
+          <>
+            {fromUserLink} liked your chapter{" "}
             <Link
               to={notification.chapterNumber ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}` : `/novel/${notification.novelId}`}
               className="text-purple-400 hover:underline"
@@ -365,6 +385,7 @@ const NotificationsPage = () => {
       case "new_chapter":
         return `/novel/${notification.novelId}`
       case "comment_like":
+      case "chapter_like":
       case "novel_comment":
       case "novel_reply":
       case "comment_reply":
