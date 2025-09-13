@@ -93,6 +93,7 @@ const LibraryPage = () => {
     if (genres.includes("Historical")) return "from-amber-500 to-yellow-600"
     if (genres.includes("Comedy")) return "from-teal-500 to-green-600"
     if (genres.includes("Drama")) return "from-violet-500 to-purple-600"
+    if (genres.includes("Dark Romance")) return "from-rose-700 to-purple-900"
     return "from-gray-600 to-gray-800" // Default
   }
 

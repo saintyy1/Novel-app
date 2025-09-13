@@ -23,7 +23,7 @@ const SubmitNovel = () => {
   const [prologue, setPrologue] = useState("")
   const [genres, setGenres] = useState<string[]>([])
   const [hasGraphicContent, setHasGraphicContent] = useState<boolean>(false)
-  const [chapters, setChapters] = useState([{ title: "", content: "" }])
+  const [chapters, setChapters] = useState<{ title: string; content: string }[]>([])
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -43,6 +43,7 @@ const SubmitNovel = () => {
     "Drama",
     "Fiction",
     "Dystopian",
+    "Dark Romance",
   ]
 
   const handleGenreChange = (genre: string) => {
@@ -89,11 +90,9 @@ const SubmitNovel = () => {
   }
 
   const removeChapter = (index: number) => {
-    if (chapters.length > 1) {
-      const newChapters = [...chapters]
-      newChapters.splice(index, 1)
-      setChapters(newChapters)
-    }
+    const newChapters = [...chapters]
+    newChapters.splice(index, 1)
+    setChapters(newChapters)
   }
 
   // Resize image under 1MB
@@ -219,8 +218,18 @@ const SubmitNovel = () => {
       return setError("Please select at least one genre")
     }
 
-    if (chapters.some((chapter) => !chapter.content.trim())) {
+    // Allow submission even without chapters if author has notes or prologue
+    if (chapters.length > 0 && chapters.some((chapter) => !chapter.content.trim())) {
       return setError("All chapters must have content")
+    }
+
+    // Ensure user has at least some content (chapters, author's note, or prologue)
+    const hasChapters = chapters.length > 0 && chapters.some((chapter) => chapter.content.trim())
+    const hasAuthorsNote = authorsNote.trim().length > 0
+    const hasPrologue = prologue.trim().length > 0
+    
+    if (!hasChapters && !hasAuthorsNote && !hasPrologue) {
+      return setError("Please add at least one chapter, author's note, or prologue before submitting")
     }
 
     if (countSentences(description) > 1) {
@@ -489,7 +498,9 @@ const SubmitNovel = () => {
 
         <div className="mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-white">Chapters</h2>
+            <div>
+              <h2 className="text-xl font-bold text-white">Chapters</h2>
+            </div>
             <button
               type="button"
               onClick={addChapter}
@@ -508,33 +519,44 @@ const SubmitNovel = () => {
             </button>
           </div>
 
-          {chapters.map((chapter, index) => (
+          {chapters.length === 0 ? (
+            <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-8 text-center">
+              <div className="text-gray-400 mb-4">
+                <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                <h3 className="text-lg font-medium text-gray-300 mb-2">No chapters added yet</h3>
+                <p className="text-sm text-gray-400">
+                  You can submit your novel with just the author's note and prologue, then add chapters later from your profile.
+                </p>
+              </div>
+            </div>
+          ) : (
+            chapters.map((chapter, index) => (
             <div key={index} className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white">Chapter {index + 1}</h3>
-                {chapters.length > 1 && (
-                  <button
-                    type="button"
-                    className="inline-flex items-center text-red-400 hover:text-red-300 transition-colors"
-                    onClick={() => removeChapter(index)}
+                <button
+                  type="button"
+                  className="inline-flex items-center text-red-400 hover:text-red-300 transition-colors"
+                  onClick={() => removeChapter(index)}
+                >
+                  <svg
+                    className="w-4 h-4 mr-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
                   >
-                    <svg
-                      className="w-4 h-4 mr-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                    Remove
-                  </button>
-                )}
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                  Remove
+                </button>
               </div>
 
               <div className="mb-4">
@@ -579,7 +601,8 @@ const SubmitNovel = () => {
                 />
               </div>
             </div>
-          ))}
+            ))
+          )}
         </div>
 
         <div className="flex justify-end">

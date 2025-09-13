@@ -417,12 +417,12 @@ const AdminDashboard = () => {
                               </span>
                             </div>
                           )}
-                          <a 
-                            href={`/profile/${user.uid}`}
+                          <Link
+                            to={`/profile/${user.uid}`}
                             className="font-medium hover:text-purple-400 transition-colors"
                           >
                             {user.displayName || "Anonymous User"}
-                          </a>
+                          </Link>
                         </div>
                         {user.isAdmin && (
                           <span className="px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
@@ -523,12 +523,12 @@ const AdminDashboard = () => {
                           <td className="py-3 px-4 text-gray-300">{new Date(novel.createdAt).toLocaleDateString()}</td>
                           <td className="py-3 px-4">
                             <div className="flex justify-end gap-2">
-                              <button
-                                onClick={() => window.open(`/novel/${novel.id}`, "_blank")}
+                              <Link
+                                to={`/novel/${novel.id}`}
                                 className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
                               >
                                 <FaEye className="h-4 w-4" />
-                              </button>
+                              </Link>
 
                               {novelTab === "pending" ? (
                                 <button

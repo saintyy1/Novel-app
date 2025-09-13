@@ -126,6 +126,7 @@ const Home = () => {
     if (genres.includes("Drama")) return "from-violet-500 to-purple-600"
     if (genres.includes("Dystopian")) return "from-red-400 to-purple-500"
     if (genres.includes("Fiction")) return "from-gray-600 to-gray-800"
+    if (genres.includes("Dark Romance")) return "from-rose-700 to-purple-900"
     return "from-gray-600 to-gray-800"
   }
 
