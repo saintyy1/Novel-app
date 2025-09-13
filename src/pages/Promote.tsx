@@ -4,6 +4,13 @@ import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { db } from "../firebase/config"
 import { collection, query, where, getDocs } from "firebase/firestore"
+import { 
+  detectUserCurrency, 
+  convertFromNaira, 
+  formatCurrency, 
+  getAvailableCurrencies, 
+  getCurrencyByCode
+} from "../utils/currencyUtils"
 
 
 const Promote = () => {
@@ -14,6 +21,29 @@ const Promote = () => {
   const [userBooks, setUserBooks] = useState<any[]>([])
   const [loadingBooks, setLoadingBooks] = useState(true)
   const [processingPayment, setProcessingPayment] = useState(false)
+  const [selectedCurrency, setSelectedCurrency] = useState<string>("NGN")
+  const [showCurrencySelector, setShowCurrencySelector] = useState(false)
+
+  // Detect user currency on component mount
+  useEffect(() => {
+    const detectedCurrency = detectUserCurrency()
+    setSelectedCurrency(detectedCurrency)
+  }, [])
+
+  // Close currency selector when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (showCurrencySelector && !target.closest('.currency-selector')) {
+        setShowCurrencySelector(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showCurrencySelector])
 
   useEffect(() => {
     const fetchUserBooks = async () => {
@@ -43,7 +73,8 @@ const Promote = () => {
     {
       id: "1-month",
       name: "Essential Boost",
-      price: 1500,
+      price: 1000,
+      originalPrice: 1500,
       duration: "30 days",
       features: [
         "Promoted sections feature",
@@ -57,7 +88,8 @@ const Promote = () => {
     {
       id: "2-months",
       name: "Premium Growth",
-      price: 2500,
+      price: 2000,
+      originalPrice: 2500,
       duration: "60 days",
       features: [
         "Everything in Essential Boost",
@@ -79,6 +111,18 @@ const Promote = () => {
     setCurrentStep("select-book")
     setSelectedPlan(null)
   }
+
+  // Get display price in selected currency
+  const getDisplayPrice = (nairaPrice: number) => {
+    if (selectedCurrency === "NGN") {
+      return formatCurrency(nairaPrice, "NGN")
+    }
+    const convertedPrice = convertFromNaira(nairaPrice, selectedCurrency)
+    return formatCurrency(convertedPrice, selectedCurrency)
+  }
+
+  // Get the current currency object
+  const currentCurrency = getCurrencyByCode(selectedCurrency)
 
   const getFirebaseDownloadUrl = (url: string) => {
     if (!url || !url.includes("firebasestorage.app")) {
@@ -342,15 +386,74 @@ const Promote = () => {
                 )}
 
                 <div className="py-8">
-                  <div className="text-center mb-16">
+                  <div className="text-center">
                     <div className="inline-flex items-center gap-2 bg-purple-100 rounded-full px-6 py-3 mb-6">
                       <span className="text-purple-600 font-semibold">💎 Promotion Plans</span>
                     </div>
                     <h2 className="text-5xl font-black text-gray-900 mb-6">Choose Your Plan</h2>
-                    <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+                    <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed mb-8">
                       Select the perfect promotion package to boost your novel's visibility and connect with more
                       readers
                     </p>
+                    
+                    {/* Currency Selector */}                     
+                      <div className="relative currency-selector flex justify-center mb-8">
+                        <button
+                          onClick={() => setShowCurrencySelector(!showCurrencySelector)}
+                          className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-purple-200 rounded-lg hover:border-purple-400 transition-colors"
+                        >
+                          <span className="text-lg font-semibold">{currentCurrency?.symbol}</span>
+                          <span className="text-gray-700 font-medium">{currentCurrency?.code}</span>
+                          <svg className={`w-4 h-4 text-gray-500 transition-transform ${showCurrencySelector ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        
+                        {showCurrencySelector && (
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                            {getAvailableCurrencies().map((currency) => (
+                              <button
+                                key={currency.code}
+                                onClick={() => {
+                                  setSelectedCurrency(currency.code)
+                                  setShowCurrencySelector(false)
+                                }}
+                                className={`w-full px-4 py-3 text-left hover:bg-purple-50 transition-colors flex items-center gap-3 ${
+                                  selectedCurrency === currency.code ? 'bg-purple-100 text-purple-700' : 'text-gray-700'
+                                }`}
+                              >
+                                <span className="text-lg font-semibold">{currency.symbol}</span>
+                                <div>
+                                  <div className="font-medium">{currency.code}</div>
+                                  <div className="text-sm text-gray-500">{currency.name}</div>
+                                </div>
+                                {selectedCurrency === currency.code && (
+                                  <svg className="w-4 h-4 ml-auto text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    
+                    {/* Currency Conversion Note */}
+                    {selectedCurrency !== "NGN" && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto mb-8">
+                        <div className="flex items-start gap-3">
+                          <div className="text-blue-600 text-xl">ℹ️</div>
+                          <div className="text-sm text-blue-800">
+                            <p className="font-medium mb-1">Currency Conversion Notice</p>
+                            <p>
+                              Prices are displayed in {currentCurrency?.name} for your convenience. 
+                              Payment will be processed in Nigerian Naira (₦) through our secure payment system. 
+                              The final amount charged will be the equivalent Naira value.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
@@ -370,9 +473,14 @@ const Promote = () => {
                             {plan.icon}
                           </div>
                           <h3 className="text-3xl font-black text-gray-900 mb-4">{plan.name}</h3>
-                          <div className="flex items-center justify-center gap-3 mb-3">
-                            <div className="text-5xl font-black bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">
-                              ₦{plan.price}
+                          <div className="flex flex-col items-center gap-2 mb-3">
+                            <div className="relative">
+                              <div className="text-5xl font-black bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">
+                                {getDisplayPrice(plan.price)}
+                              </div>
+                                <div className="absolute -top-4 -right-6 text-xl text-gray-500 line-through bg-white px-2 py-1 rounded shadow-sm">
+                                  {formatCurrency(convertFromNaira(plan.originalPrice, selectedCurrency), selectedCurrency)}
+                                </div>
                             </div>
                           </div>
                           <p className="text-gray-600 text-lg font-medium">{plan.duration} of premium promotion</p>

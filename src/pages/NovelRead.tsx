@@ -42,6 +42,7 @@ interface CommentItemProps {
   handleReplySubmitDirect: (e: React.FormEvent, parentId: string) => void
   setReplyingTo: (v: string | null) => void
   deletingComment: string | null
+  submittingReply: string | null
   getUserInitials: (name: string) => string
   formatDate: (dateString: string) => string
   replyInputRef: React.RefObject<HTMLInputElement | null>
@@ -63,6 +64,7 @@ interface CommentItemProps {
   handleReplySubmitDirect,
   setReplyingTo,
   deletingComment,
+  submittingReply,
   getUserInitials,
   formatDate,
   replyInputRef,
@@ -236,10 +238,24 @@ interface CommentItemProps {
             </button>
             <button
               type="submit"
-              disabled={!replyContent.trim()}
-              className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              disabled={!replyContent.trim() || submittingReply === comment.id}
+              className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center"
             >
-              Reply
+              {submittingReply === comment.id ? (
+                <>
+                  <svg className="animate-spin h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Replying...
+                </>
+              ) : (
+                "Reply"
+              )}
             </button>
           </div>
         </form>
@@ -265,6 +281,7 @@ interface CommentItemProps {
             handleReplySubmitDirect={handleReplySubmitDirect}
             setReplyingTo={setReplyingTo}
             deletingComment={deletingComment}
+            submittingReply={submittingReply}
             getUserInitials={getUserInitials}
             formatDate={formatDate}
             replyInputRef={replyInputRef}
@@ -296,6 +313,8 @@ interface CommentModalProps {
   handleReplySubmitDirect: (e: React.FormEvent, parentId: string) => void
   setReplyingTo: (v: string | null) => void
   deletingComment: string | null
+  submittingComment: boolean
+  submittingReply: string | null
   getUserInitials: (name: string) => string
   formatDate: (dateString: string) => string
   replyInputRef: React.RefObject<HTMLInputElement | null>
@@ -321,6 +340,8 @@ const CommentModal = ({
   handleReplySubmitDirect,
   setReplyingTo,
   deletingComment,
+  submittingComment,
+  submittingReply,
   getUserInitials,
   formatDate,
   replyInputRef,
@@ -399,6 +420,7 @@ const CommentModal = ({
                 handleReplySubmitDirect={handleReplySubmitDirect}
                 setReplyingTo={setReplyingTo}
                 deletingComment={deletingComment}
+                submittingReply={submittingReply}
                 getUserInitials={getUserInitials}
                 formatDate={formatDate}
                 replyInputRef={replyInputRef}
@@ -419,10 +441,24 @@ const CommentModal = ({
               />
               <button
                 type="submit"
-                disabled={!newComment.trim()}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!newComment.trim() || submittingComment}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
-                Post
+                {submittingComment ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Posting...
+                  </>
+                ) : (
+                  "Post"
+                )}
               </button>
             </form>
           </div>
@@ -449,6 +485,8 @@ const NovelRead = () => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState("")
   const [deletingComment, setDeletingComment] = useState<string | null>(null)
+  const [submittingComment, setSubmittingComment] = useState(false)
+  const [submittingReply, setSubmittingReply] = useState<string | null>(null)
   const replyInputRef = useRef<HTMLInputElement>(null)
   const [currentPage, setCurrentPage] = useState(0)
   const [pageFade, setPageFade] = useState(false)
@@ -1067,8 +1105,9 @@ const NovelRead = () => {
   }
 
   const handleAddComment = async () => {
-    if (!novel?.id || !currentUser || !newComment.trim()) return
+    if (!novel?.id || !currentUser || !newComment.trim() || submittingComment) return
     try {
+      setSubmittingComment(true)
       const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
       const chapterDoc = await getDoc(chapterRef)
       const comment: Comment = {
@@ -1121,12 +1160,15 @@ const NovelRead = () => {
       setNewComment("")
     } catch (error) {
       console.error("Error adding comment:", error)
+    } finally {
+      setSubmittingComment(false)
     }
   }
 
   const handleAddReply = async (parentId: string) => {
-    if (!novel?.id || !currentUser || !replyContent.trim()) return
+    if (!novel?.id || !currentUser || !replyContent.trim() || submittingReply === parentId) return
     try {
+      setSubmittingReply(parentId)
       const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
       const chapterDoc = await getDoc(chapterRef)
       if (!chapterDoc.exists()) return
@@ -1198,6 +1240,8 @@ const NovelRead = () => {
       setReplyingTo(null)
     } catch (error) {
       console.error("Error adding reply:", error)
+    } finally {
+      setSubmittingReply(null)
     }
   }
 
@@ -1598,6 +1642,8 @@ const NovelRead = () => {
           handleReplySubmitDirect={handleReplySubmitDirect}
           setReplyingTo={setReplyingTo}
           deletingComment={deletingComment}
+          submittingComment={submittingComment}
+          submittingReply={submittingReply}
           getUserInitials={getUserInitials}
           formatDate={formatDate}
           replyInputRef={replyInputRef}
