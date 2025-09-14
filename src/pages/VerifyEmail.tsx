@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import { auth } from "../firebase/config"
 
 const VerifyEmail = () => {
   const [searchParams] = useSearchParams()
@@ -10,7 +11,14 @@ const VerifyEmail = () => {
   const navigate = useNavigate()
 
   useEffect(() => {
+    let isVerifying = false
+    let hasVerified = false
+    
     const verifyEmailFromLink = async () => {
+      // Prevent multiple verification attempts
+      if (isVerifying || hasVerified) return
+      isVerifying = true
+      
       const actionCode = searchParams.get('oobCode')
       
       if (!actionCode) {
@@ -21,6 +29,7 @@ const VerifyEmail = () => {
 
       try {
         await verifyEmail(actionCode)
+        hasVerified = true
         setStatus('success')
         
         // Redirect to novels page after 3 seconds
@@ -29,18 +38,34 @@ const VerifyEmail = () => {
         }, 3000)
       } catch (error: any) {
         console.error('Email verification error:', error)
-        setStatus('error')
         
         // Handle specific error cases
         if (error.code === 'auth/invalid-action-code') {
-          setError('This verification link is invalid or has expired. Please request a new one.')
+          // Code already used - check if user is already verified
+          const currentUser = auth.currentUser
+          if (currentUser && currentUser.emailVerified) {
+            // User is already verified, treat as success
+            hasVerified = true
+            setStatus('success')
+            setTimeout(() => {
+              navigate('/novels')
+            }, 3000)
+          } else {
+            setStatus('error')
+            setError('This verification link has already been used or is invalid. Please request a new one.')
+          }
         } else if (error.code === 'auth/user-disabled') {
+          setStatus('error')
           setError('This account has been disabled. Please contact support.')
         } else if (error.code === 'auth/expired-action-code') {
+          setStatus('error')
           setError('This verification link has expired. Please request a new one.')
         } else {
+          setStatus('error')
           setError('Failed to verify email. Please try again or contact support.')
         }
+      } finally {
+        isVerifying = false
       }
     }
 
