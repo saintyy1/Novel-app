@@ -90,6 +90,8 @@ const Profile = () => {
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
   const [editSummary, setEditSummary] = useState("")
+  const [editAuthorsNote, setEditAuthorsNote] = useState("")
+  const [editPrologue, setEditPrologue] = useState("")
   const [savingNovel, setSavingNovel] = useState(false)
   const [saveNovelError, setSaveNovelError] = useState("")
   const [showEndPromotionConfirm, setShowEndPromotionConfirm] = useState(false)
@@ -707,6 +709,8 @@ const Profile = () => {
     setEditTitle(novel.title || "")
     setEditDescription(novel.description || "")
     setEditSummary(novel.summary || "")
+    setEditAuthorsNote(novel.authorsNote || "")
+    setEditPrologue(novel.prologue || "")
     setSaveNovelError("")
   }
   
@@ -1484,6 +1488,28 @@ const Profile = () => {
                 />
               </div>
 
+              {/* Authors Note */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Authors Note</label>
+                <textarea
+                  rows={6}
+                  value={editAuthorsNote}
+                  onChange={(e) => setEditAuthorsNote(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                />
+              </div>
+
+              {/* Prologue */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Prologue</label>
+                <textarea
+                  rows={6}
+                  value={editPrologue}
+                  onChange={(e) => setEditPrologue(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                />
+              </div>
+
               {saveNovelError && (
                 <div className="text-red-400 text-sm">{saveNovelError}</div>
               )}
@@ -1506,18 +1532,20 @@ const Profile = () => {
                         title: editTitle,
                         description: editDescription,
                         summary: editSummary,
+                        authorsNote: editAuthorsNote,
+                        prologue: editPrologue,
                         updatedAt: new Date().toISOString(),
                       })
                       setUserNovels((prev) =>
                         prev.map((n) =>
                           n.id === selectedNovel.id
-                            ? { ...n, title: editTitle, description: editDescription, summary: editSummary, updatedAt: new Date().toISOString() }
+                            ? { ...n, title: editTitle, description: editDescription, summary: editSummary, authorsNote: editAuthorsNote, prologue: editPrologue, updatedAt: new Date().toISOString() }
                             : n,
                         ),
                       )
                       setSelectedNovel((prev: any) =>
                         prev
-                          ? { ...prev, title: editTitle, description: editDescription, summary: editSummary, updatedAt: new Date().toISOString() }
+                          ? { ...prev, title: editTitle, description: editDescription, summary: editSummary, authorsNote: editAuthorsNote, prologue: editPrologue, updatedAt: new Date().toISOString() }
                           : prev,
                       )
                       setShowEditModal(false)

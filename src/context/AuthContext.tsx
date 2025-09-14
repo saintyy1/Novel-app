@@ -9,11 +9,14 @@ import {
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
+  sendEmailVerification,
   signInWithPopup,
   EmailAuthProvider,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
   verifyBeforeUpdateEmail,
+  applyActionCode,
+  checkActionCode,
 } from "firebase/auth"
 import {
   doc,
@@ -30,7 +33,7 @@ import {
   orderBy,
   writeBatch,
 } from "firebase/firestore"
-import { auth, db, googleProvider } from "../firebase/config"
+import { auth, db, googleProvider, actionCodeSettings } from "../firebase/config"
 import { trackUserRegistration } from "../utils/Analytics-utils"
 
 // Extend the Firebase User type with our custom properties
@@ -57,6 +60,8 @@ interface AuthContextType {
   register: (email: string, password: string, displayName: string) => Promise<void>
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
+  sendEmailVerificationLink: () => Promise<void>
+  verifyEmail: (actionCode: string) => Promise<any>
   loading: boolean
   isAdmin: boolean
   refreshUser: () => Promise<void>
@@ -585,6 +590,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await updateProfile(user, {
       displayName: displayName,
     })
+
+    // Send email verification
+    await sendEmailVerification(user, actionCodeSettings)
+
     // Create user document in Firestore
     const newUserData = {
       uid: user.uid,
@@ -644,6 +653,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetPassword = async (email: string) => {
     await sendPasswordResetEmail(auth, email)
+  }
+
+  const sendEmailVerificationLink = async () => {
+    if (!firebaseUser) throw new Error("No user logged in")
+    await sendEmailVerification(firebaseUser, actionCodeSettings)
+  }
+
+  const verifyEmail = async (actionCode: string) => {
+    try {
+      // Verify the action code
+      const info = await checkActionCode(auth, actionCode)
+      
+      // Apply the action code
+      await applyActionCode(auth, actionCode)
+      
+      // Refresh the user to get updated email verification status
+      if (firebaseUser) {
+        await firebaseUser.reload()
+        await fetchUserData(firebaseUser)
+      }
+      
+      return info
+    } catch (error) {
+      console.error("Error verifying email:", error)
+      throw error
+    }
   }
 
   const signInWithGoogle = async () => {
@@ -750,6 +785,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     register,
     logout,
     resetPassword,
+    sendEmailVerificationLink,
+    verifyEmail,
     loading,
     isAdmin,
     refreshUser,
