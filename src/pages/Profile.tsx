@@ -18,10 +18,12 @@ import {
 import { db, storage } from "../firebase/config"
 import { ref, uploadBytes, deleteObject } from "firebase/storage"
 import { useAuth } from "../context/AuthContext"
+import { useChat } from "../context/ChatContext"
 import type { Novel } from "../types/novel"
 import type { ExtendedUser } from "../context/AuthContext"
 import EditProfileModal from "../components/EditProfileModal" // Import the new modal component
 import UserListDrawer from "../components/UserListDrawer" // Import the new UserListDrawer
+import ChatInbox from "../components/ChatInbox" // Import the chat component
 import { FaInstagram, FaTimes, FaFacebook, FaWhatsapp, FaCopy, FaShare } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
@@ -40,6 +42,7 @@ import {
   Edit,
   TrendingUp,
   Gift,
+  MessageCircle,
 } from "lucide-react" // Use Lucide icons
 
 interface Announcement {
@@ -52,6 +55,7 @@ interface Announcement {
 const Profile = () => {
   const { userId } = useParams()
   const { currentUser, updateUserPhoto, toggleFollow } = useAuth()
+  const { fetchUserData, setCurrentConversation } = useChat()
   const [profileUser, setProfileUser] = useState<ExtendedUser | null>(null)
   const [userNovels, setUserNovels] = useState<Novel[]>([])
   const [loading, setLoading] = useState(true) // Initialize loading to true
@@ -86,6 +90,10 @@ const Profile = () => {
   const [selectedNovel, setSelectedNovel] = useState<any>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isTipModalOpen, setIsTipModalOpen] = useState(false)
+  
+  // Chat modal state
+  const [isChatOpen, setIsChatOpen] = useState(false)
+  
   // Edit Novel modal form state
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
@@ -702,6 +710,24 @@ const Profile = () => {
     }
   }
 
+  // Function to get genre-based color class for fallback covers
+  const getGenreColorClass = (genres: string[]) => {
+    if (genres.includes("Fantasy")) return "from-purple-500 to-indigo-600"
+    if (genres.includes("Sci-Fi")) return "from-blue-500 to-cyan-600"
+    if (genres.includes("Romance")) return "from-pink-500 to-rose-600"
+    if (genres.includes("Mystery")) return "from-yellow-500 to-amber-600"
+    if (genres.includes("Horror")) return "from-red-500 to-rose-800"
+    if (genres.includes("Adventure")) return "from-green-500 to-emerald-600"
+    if (genres.includes("Thriller")) return "from-orange-500 to-red-600"
+    if (genres.includes("Historical")) return "from-amber-500 to-yellow-600"
+    if (genres.includes("Comedy")) return "from-teal-500 to-green-600"
+    if (genres.includes("Drama")) return "from-violet-500 to-purple-600"
+    if (genres.includes("Dystopian")) return "from-red-400 to-purple-500"
+    if (genres.includes("Fiction")) return "from-gray-600 to-gray-800"
+    if (genres.includes("Dark Romance")) return "from-rose-700 to-purple-900"
+    return "from-gray-600 to-gray-800" // Default
+  }
+
   const handleEditNovel = (novel: any) => {
     setSelectedNovel(novel)
     setShowEditModal(true)
@@ -757,6 +783,36 @@ const Profile = () => {
     setShowEndPromotionConfirm(true)
     setOpenKebabMenu(null)
   }
+
+  // Handle opening chat with profile user
+  const handleOpenChat = useCallback(async () => {
+    if (!profileUser || !currentUser || profileUser.uid === currentUser.uid) return
+
+    try {
+      // Fetch user data for the chat
+      await fetchUserData(profileUser.uid)
+      
+      // Create conversation ID (same format as in ChatContext)
+      const conversationId = [currentUser.uid, profileUser.uid].sort().join('_')
+      
+      // Create a conversation object
+      const conversation = {
+        id: conversationId,
+        participants: [currentUser.uid, profileUser.uid],
+        unreadCount: 0,
+        lastActivity: Date.now(),
+        isTyping: false,
+        typingUsers: []
+      }
+      
+      // Set the current conversation and open chat
+      setCurrentConversation(conversation)
+      setIsChatOpen(true)
+    } catch (error) {
+      console.error('Error opening chat:', error)
+      showErrorToast('Failed to open chat')
+    }
+  }, [profileUser, currentUser, fetchUserData, setCurrentConversation])
 
   // Confirm end promotion
   const confirmEndPromotion = async () => {
@@ -1079,6 +1135,18 @@ const Profile = () => {
                         </>
                       )}
                     </button>
+                    
+                    {/* Message Button - only show if not own profile */}
+                    {profileUser && currentUser && profileUser.uid !== currentUser.uid && (
+                      <button
+                        onClick={handleOpenChat}
+                        className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
+                      >
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        Message
+                      </button>
+                    )}
+                    
                     {/* Share Button next to Follow on mobile, stacked on sm+ */}
                     <button
                       onClick={handleShare}
@@ -1315,8 +1383,24 @@ const Profile = () => {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-purple-600/80 to-indigo-600/80 flex items-center justify-center">
-                              <BookOpen className="h-12 w-12 text-white/60" />
+                            <div
+                              className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(
+                                novel.genres || []
+                              )} relative overflow-hidden`}
+                            >
+                              <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
+                              <div className="absolute inset-0 opacity-10">
+                                <div className="absolute top-2 left-2 w-4 h-4 border border-white rounded-full"></div>
+                                <div className="absolute top-6 right-3 w-2 h-2 bg-white rounded-full"></div>
+                                <div className="absolute bottom-3 left-3 w-3 h-3 border border-white"></div>
+                              </div>
+                              <div className="absolute inset-0 flex flex-col justify-center items-center p-3 text-center">
+                                <h3 className="text-white text-sm font-bold leading-tight line-clamp-2 mb-1">{novel.title}</h3>
+                                <div className="w-8 h-px bg-white opacity-50 mb-1"></div>
+                                <p className="text-white text-xs opacity-75 truncate w-full">{novel.authorName}</p>
+                              </div>
+                              <div className="absolute right-0 top-1 w-px h-full bg-white opacity-20"></div>
+                              <div className="absolute right-1 top-1 w-px h-full bg-white opacity-15"></div>
                             </div>
                           )}
                         </div>
@@ -1863,6 +1947,12 @@ const Profile = () => {
           title={followListType === "followers" ? "Followers" : "Following"}
         />
       )}
+
+      {/* Chat Modal */}
+      <ChatInbox
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+      />
     </div>
   )
 }

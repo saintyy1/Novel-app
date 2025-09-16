@@ -3,12 +3,20 @@ import { useState, useRef, useEffect } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { useNotifications } from "../context/NotificationContext"
+import { useChat } from "../context/ChatContext"
 import { Bell, Settings, HelpCircle } from "lucide-react" // Import the Bell icon
+import ChatButton from "./ChatButton"
 
 const Navbar = () => {
   const { currentUser, isAdmin, logout } = useAuth()
   const { unreadCount } = useNotifications()
+  const { state: chatState } = useChat()
   const navigate = useNavigate()
+  
+  // Calculate total unread count safely
+  const totalUnreadCount = Array.isArray(chatState?.conversations) 
+    ? chatState.conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0)
+    : 0
   const location = useLocation()
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
   const desktopDropdownRef = useRef<HTMLDivElement>(null)
@@ -222,6 +230,14 @@ const Navbar = () => {
                     )}
                   </div>
                 </Link>
+                {/* Chat Button */}
+                {currentUser && (
+                  <div className="px-3 py-2">
+                    <ChatButton 
+                      unreadCount={totalUnreadCount}
+                    />
+                  </div>
+                )}
                 {isAdmin && (
                   <>
                     <Link
@@ -507,6 +523,13 @@ const Navbar = () => {
                           )}
                         </div>
                       </Link>
+                      {/* Messages Link for Mobile */}
+                      <div className="px-4 py-2">
+                        <ChatButton 
+                          unreadCount={totalUnreadCount}
+                          className="w-full justify-start"
+                        />
+                      </div>
                       {isAdmin && (
                         <>
                           <Link

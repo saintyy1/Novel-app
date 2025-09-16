@@ -34,12 +34,24 @@ import VerifyEmail from "./pages/VerifyEmail"
 import { AuthProvider } from "./context/AuthContext"
 import { NotificationProvider } from "./context/NotificationContext"
 import { TranslationProvider } from "./context/TranslationContext"
+import { ChatProvider, useChat } from "./context/ChatContext"
 import ToastContainer from "./components/ToastContainer"
+import MobileChatButton from "./components/MobileChatButton"
 
 function AppContent() {
   const location = useLocation()
   const { currentUser } = useAuth()
   const isNovelReadPage = /^\/novel\/[^/]+\/read$/.test(location.pathname)
+
+  // Wrapper component to access chat context
+  function MobileChatButtonWrapper() {
+    const { state: chatState } = useChat()
+    const totalUnreadCount = Array.isArray(chatState?.conversations) 
+      ? chatState.conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0)
+      : 0
+    
+    return <MobileChatButton unreadCount={totalUnreadCount} />
+  }
 
     useEffect(() => {
     // Get session ID for anonymous users
@@ -64,7 +76,8 @@ function AppContent() {
     <AuthProvider>
       <NotificationProvider>
         <TranslationProvider>
-          <div className="min-h-screen bg-[#121212] flex flex-col">
+          <ChatProvider>
+            <div className="min-h-screen bg-[#121212] flex flex-col">
           {!isNovelReadPage && <Navbar />}
           <main className={`flex-grow ${!isNovelReadPage ? "px-3 py-8" : "px-0 py-0"}`}>
             <Routes>
@@ -102,7 +115,10 @@ function AppContent() {
             </Routes>
           </main>
           {!isNovelReadPage && <Footer />}
-          </div>
+            </div>
+            {/* Mobile Chat Button - Always visible on mobile */}
+            <MobileChatButtonWrapper />
+          </ChatProvider>
         </TranslationProvider>
       </NotificationProvider>
     </AuthProvider>

@@ -371,7 +371,7 @@ const NotificationsPage = () => {
           </>
         )
       default:
-        return "You have a new notification."
+        return "You have a new message."
     }
   }
 

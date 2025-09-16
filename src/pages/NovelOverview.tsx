@@ -63,7 +63,7 @@ const NovelOverview = () => {
   const [authorData, setAuthorData] = useState<any>(null)
   const { currentUser, updateUserLibrary, markNovelAsFinished } = useAuth() // Destructure updateUserLibrary
   const commentTextareaRef = useRef<HTMLTextAreaElement>(null)
-  const replyTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const replyInputRef = useRef<HTMLInputElement | null>(null)
 
   const buildCommentTree = useCallback((allComments: Comment[], parentId: string | null = null): Comment[] => {
     const children: Comment[] = []
@@ -585,15 +585,8 @@ const NovelOverview = () => {
     })
   }, [])
 
-  const handleReplyContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const cursorPosition = e.target.selectionStart
+  const handleReplyContentChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setReplyContent(e.target.value)
-    // Restore cursor position after state update
-    requestAnimationFrame(() => {
-      if (replyTextareaRef.current) {
-        replyTextareaRef.current.setSelectionRange(cursorPosition, cursorPosition)
-      }
-    })
   }, [])
 
   const handleReplyToggle = useCallback(
@@ -615,14 +608,13 @@ const NovelOverview = () => {
     replyingTo: string | null
     setReplyingTo: (id: string | null) => void
     replyContent: string
-    setReplyContent: (content: string) => void
     submittingReply: boolean
     handleReplySubmit: (parentId: string) => Promise<void>
     handleCancelReply: () => void
     currentUser: typeof currentUser
     novel: typeof novel
-    replyTextareaRef: React.RefObject<HTMLTextAreaElement | null>
-    handleReplyContentChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
+    replyInputRef: React.RefObject<HTMLInputElement | null>
+    handleReplyContentChange: (e: React.ChangeEvent<HTMLInputElement>) => void
     handleDeleteComment: (commentId: string) => Promise<void>
     deletingComment: string | null
     handleCommentLike: (commentId: string, isLiked: boolean) => Promise<void>
@@ -634,13 +626,12 @@ const NovelOverview = () => {
     replyingTo,
     setReplyingTo,
     replyContent,
-    setReplyContent,
     submittingReply,
     handleReplySubmit,
     handleCancelReply,
     currentUser,
     novel,
-    replyTextareaRef,
+    replyInputRef,
     handleReplyContentChange,
     handleDeleteComment,
     deletingComment,
@@ -800,13 +791,14 @@ const NovelOverview = () => {
                     )}
                   </div>
                   <div className="flex-1">
-                    <textarea
-                      ref={replyTextareaRef}
+                    <input
+                      ref={replyInputRef}
+                      type="text"
                       value={replyContent}
                       onChange={handleReplyContentChange}
                       placeholder={`Reply to ${comment.userName}...`}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm"
-                      rows={2}
+                      className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 w-full"
+                      autoComplete="off"
                       autoFocus
                     />
                     <div className="flex justify-end space-x-2 mt-2">
@@ -840,13 +832,12 @@ const NovelOverview = () => {
                 replyingTo={replyingTo}
                 setReplyingTo={setReplyingTo}
                 replyContent={replyContent}
-                setReplyContent={setReplyContent}
                 submittingReply={submittingReply}
                 handleReplySubmit={handleReplySubmit}
                 handleCancelReply={handleCancelReply}
                 currentUser={currentUser}
                 novel={novel}
-                replyTextareaRef={replyTextareaRef}
+                replyInputRef={replyInputRef}
                 handleReplyContentChange={handleReplyContentChange}
                 handleDeleteComment={handleDeleteComment}
                 deletingComment={deletingComment}
@@ -1419,13 +1410,12 @@ const NovelOverview = () => {
                       replyingTo={replyingTo}
                       setReplyingTo={setReplyingTo}
                       replyContent={replyContent}
-                      setReplyContent={setReplyContent}
                       submittingReply={submittingReply}
                       handleReplySubmit={handleReplySubmit}
                       handleCancelReply={handleCancelReply}
                       currentUser={currentUser}
                       novel={novel}
-                      replyTextareaRef={replyTextareaRef}
+                      replyInputRef={replyInputRef}
                       handleReplyContentChange={handleReplyContentChange}
                       handleDeleteComment={handleDeleteComment}
                       deletingComment={deletingComment}
