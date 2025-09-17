@@ -37,12 +37,10 @@ const Messages: React.FC = () => {
     loadConversations()
   }, [loadConversations])
 
-  // Focus message input when conversation is selected
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (state.currentConversation && messageInputRef.current) {
-      messageInputRef.current.focus()
-    }
-  }, [state.currentConversation])
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [state.messages])
 
   // Hide conversations on mobile when a conversation is selected
   useEffect(() => {
@@ -73,6 +71,13 @@ const Messages: React.FC = () => {
     if (receiverId) {
       sendMessage(receiverId, messageInput.trim(), "text")
       setMessageInput("")
+    }
+  }
+
+  const handleInputFocus = () => {
+    // Only focus on desktop or when user explicitly taps the input
+    if (window.innerWidth >= 768 && messageInputRef.current) {
+      messageInputRef.current.focus()
     }
   }
 
@@ -480,6 +485,7 @@ const Messages: React.FC = () => {
                       type="text"
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
+                      onFocus={handleInputFocus}
                       placeholder="Type a message..."
                       className="w-full px-6 py-4 bg-gray-700 border border-gray-600 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                     />
