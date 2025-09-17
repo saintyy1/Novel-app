@@ -141,7 +141,7 @@ const Messages: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col pt-8">
+    <div className="min-h-screen bg-gray-900 flex flex-col pt-8" style={{ paddingTop: 'calc(2rem + env(safe-area-inset-top))' }}>
       {/* Mobile Header */}
       <div className="md:hidden bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between flex-shrink-0 shadow-sm">
         {state.currentConversation ? (

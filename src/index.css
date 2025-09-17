@@ -1,1 +1,49 @@
 @import "tailwindcss";
+
+/* iOS Safari Safe Area Support */
+@supports (padding: max(0px)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Ensure the app fills the entire viewport including safe areas */
+#root {
+  min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile */
+}
+
+/* Fix for iOS Safari white areas */
+html, body {
+  background-color: #1f2937; /* Match your navbar color */
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure navbar extends into safe areas */
+.navbar-safe-area {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Safe area support for content */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Fix for iOS Safari white areas in safe zones */
+@supports (padding: max(0px)) {
+  .ios-safe-area {
+    padding-top: max(env(safe-area-inset-top), 0px);
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+}
