@@ -197,7 +197,7 @@ const Messages: React.FC = () => {
 
       <div
         className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden"
-        style={{ height: "calc(100vh - 4rem)" }}
+        style={{ height: "calc(100vh - 8rem)" }}
       >
         {/* Desktop Sidebar / Mobile Conversations List */}
         <div
@@ -264,7 +264,7 @@ const Messages: React.FC = () => {
           </div>
 
           {/* Conversations List */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="flex-1 overflow-y-auto min-h-0" style={{ maxHeight: 'calc(100vh)' }}>
             {!Array.isArray(state.conversations) || state.conversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-400 p-6">
                 <div className="w-16 h-16 bg-gray-700/20 rounded-full flex items-center justify-center mb-4">
@@ -388,7 +388,7 @@ const Messages: React.FC = () => {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 min-h-0 bg-gradient-to-b from-gray-900 to-gray-900/95">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 min-h-0 bg-gradient-to-b from-gray-900 to-gray-900/95" style={{ maxHeight: 'calc(100vh)' }}>
                 {/* Load More Button */}
                 {state.hasMoreMessages && state.messages.length > 0 && (
                   <div className="flex justify-center py-4">
