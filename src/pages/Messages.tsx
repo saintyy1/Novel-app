@@ -29,7 +29,6 @@ const Messages: React.FC = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<{ messageId: string; conversationId: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showConversations, setShowConversations] = useState(true) // For mobile toggle
-  const messagesEndRef = useRef<HTMLDivElement>(null)
   const messageInputRef = useRef<HTMLInputElement>(null)
 
   // Load conversations on mount
@@ -37,10 +36,6 @@ const Messages: React.FC = () => {
     loadConversations()
   }, [loadConversations])
 
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [state.messages])
 
   // Hide conversations on mobile when a conversation is selected
   useEffect(() => {
@@ -471,9 +466,8 @@ const Messages: React.FC = () => {
                           </div>
                         )
                       })}
-                    </>
-                  )}
-                <div ref={messagesEndRef} />
+                     </>
+                   )}
               </div>
 
               {/* Message Input */}
