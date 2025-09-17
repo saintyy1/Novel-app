@@ -46,6 +46,7 @@ interface ChatState {
   messageCache: Map<string, ChatMessage[]>
   hasMoreMessages: boolean
   isLoadingMore: boolean
+  loadingConversations: Set<string>
 }
 
 type ChatAction =
@@ -69,6 +70,7 @@ type ChatAction =
   | { type: 'SET_USER'; payload: ChatUser }
   | { type: 'SEARCH_RESULTS'; payload: { query: string; results: ChatMessage[] } }
   | { type: 'SET_SEARCHING'; payload: boolean }
+  | { type: 'SET_CONVERSATION_LOADING'; payload: { conversationId: string; isLoading: boolean } }
 
 const initialState: ChatState = {
   conversations: [],
@@ -82,7 +84,8 @@ const initialState: ChatState = {
   isSearching: false,
   messageCache: new Map(),
   hasMoreMessages: false,
-  isLoadingMore: false
+  isLoadingMore: false,
+  loadingConversations: new Set()
 }
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -128,11 +131,14 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
     case 'MESSAGES_LOADED':
       const newCache = new Map(state.messageCache)
       newCache.set(action.payload.conversationId, action.payload.messages)
+      const newLoadingConversationsForLoaded = new Set(state.loadingConversations)
+      newLoadingConversationsForLoaded.delete(action.payload.conversationId)
       return {
         ...state,
         messages: action.payload.messages,
         messageCache: newCache,
-        isLoading: false
+        isLoading: false,
+        loadingConversations: newLoadingConversationsForLoaded
       }
     
     case 'MESSAGES_APPENDED':
@@ -258,6 +264,15 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
     
     case 'SET_SEARCHING':
       return { ...state, isSearching: action.payload }
+    
+    case 'SET_CONVERSATION_LOADING':
+      const newLoadingConversations = new Set(state.loadingConversations)
+      if (action.payload.isLoading) {
+        newLoadingConversations.add(action.payload.conversationId)
+      } else {
+        newLoadingConversations.delete(action.payload.conversationId)
+      }
+      return { ...state, loadingConversations: newLoadingConversations }
     
     default:
       return state
@@ -490,6 +505,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       dispatch({ type: 'SET_LOADING_MORE', payload: true })
     } else {
       dispatch({ type: 'SET_LOADING', payload: true })
+      dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: true } })
     }
 
     try {
@@ -548,11 +564,16 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         setupMessageListener(conversationId)
       }
 
+      // Clear conversation loading state
+      dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
+
       // Set pagination state
       dispatch({ type: 'SET_HAS_MORE_MESSAGES', payload: { conversationId, hasMore: messages.length === 50 } })
     } catch (error) {
       console.error('Error loading messages:', error)
       dispatch({ type: 'SET_ERROR', payload: 'Failed to load messages' })
+      // Clear conversation loading state on error
+      dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
     }
   }, [currentUser, state.messageCache])
 

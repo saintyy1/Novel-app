@@ -319,49 +319,63 @@ const ChatInbox: React.FC<ChatInboxProps> = ({ isOpen, onClose }) => {
                   </div>
                 )}
 
-                {state.messages.length === 0 ? (
+                {/* Loading State for Conversation */}
+                {state.currentConversation && state.loadingConversations.has(state.currentConversation.id) && (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mb-4"></div>
+                    <p className="text-sm sm:text-base">Loading messages...</p>
+                  </div>
+                )}
+
+                {/* No Messages State */}
+                {state.messages.length === 0 && state.currentConversation && !state.loadingConversations.has(state.currentConversation.id) && (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400">
                     <MessageCircle className="h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4" />
                     <p className="text-sm sm:text-base">No messages yet</p>
                     <p className="text-xs sm:text-sm">Start the conversation!</p>
                   </div>
-                ) : (
-                  state.messages.map((message) => {
-                    const isOwn = message.senderId === currentUser?.uid
-                    
-                    return (
-                      <div
-                        key={message.id}
-                        className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group`}
-                      >
-                        <div className="flex items-end">
-                          <div
-                            className={`sm:max-w-xs lg:max-w-md px-3 sm:px-4 py-2 rounded-lg ${
-                              isOwn
-                                ? 'bg-purple-600 text-white'
-                                : 'bg-gray-700 text-gray-100'
-                            }`}
-                          >
-                            <p className="text-sm sm:text-base break-words">{message.content}</p>
-                            <p className={`text-xs mt-1 ${
-                              isOwn ? 'text-purple-200' : 'text-gray-400'
-                            }`}>
-                              {formatTime(message.timestamp)}
-                            </p>
-                          </div>
-                          {isOwn && (
-                            <button
-                              onClick={() => handleDeleteMessage(message.id, state.currentConversation?.id || '')}
-                              className="p-1 text-gray-400 hover:text-red-400 transition-colors"
-                              title="Delete message"
+                )}
+
+                {/* Messages List */}
+                {state.messages.length > 0 && state.currentConversation && !state.loadingConversations.has(state.currentConversation.id) && (
+                  <>
+                    {state.messages.map((message) => {
+                      const isOwn = message.senderId === currentUser?.uid
+                      
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group`}
+                        >
+                          <div className="flex items-end">
+                            <div
+                              className={`sm:max-w-xs lg:max-w-md px-3 sm:px-4 py-2 rounded-lg ${
+                                isOwn
+                                  ? 'bg-purple-600 text-white'
+                                  : 'bg-gray-700 text-gray-100'
+                              }`}
                             >
-                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                            </button>
-                          )}
+                              <p className="text-sm sm:text-base break-words">{message.content}</p>
+                              <p className={`text-xs mt-1 ${
+                                isOwn ? 'text-purple-200' : 'text-gray-400'
+                              }`}>
+                                {formatTime(message.timestamp)}
+                              </p>
+                            </div>
+                            {isOwn && (
+                              <button
+                                onClick={() => handleDeleteMessage(message.id, state.currentConversation?.id || '')}
+                                className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                                title="Delete message"
+                              >
+                                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })
+                      )
+                    })}
+                  </>
                 )}
                 <div ref={messagesEndRef} />
               </div>

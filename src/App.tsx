@@ -31,6 +31,7 @@ import Support from "./pages/Support"
 import ForgotPassword from "./pages/ForgotPassword"
 import Settings from "./pages/Settings"
 import VerifyEmail from "./pages/VerifyEmail"
+import Messages from "./pages/Messages"
 import { AuthProvider } from "./context/AuthContext"
 import { NotificationProvider } from "./context/NotificationContext"
 import { TranslationProvider } from "./context/TranslationContext"
@@ -101,6 +102,7 @@ function AppContent() {
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/support" element={<Support />} />
+              <Route path="/messages" element={<Messages />} />
               <Route
                 path="/admin"
                 element={
