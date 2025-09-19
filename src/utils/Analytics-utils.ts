@@ -188,3 +188,45 @@ export const trackAnonymousPageView = (pageData: {
     user_agent: navigator.userAgent
   });
 };
+
+// Invitation tracking
+export const trackInvitationSent = (inviterId: string, inviteeEmail: string, hasMessage: boolean) => {
+  if (!analytics) return;
+
+  const additionalData = {
+    inviter_id: inviterId,
+    invitee_email: inviteeEmail,
+    has_personal_message: hasMessage
+  };
+
+  const userId = inviterId;
+
+  if (!shouldTrackEvent('invitation_sent', userId, additionalData)) {
+    return;
+  }
+
+  logEvent(analytics, 'invitation_sent', {
+    ...additionalData,
+    timestamp: new Date().toISOString()
+  });
+};
+
+export const trackInvitationAccepted = (inviterId: string, inviteeEmail: string) => {
+  if (!analytics) return;
+
+  const additionalData = {
+    inviter_id: inviterId,
+    invitee_email: inviteeEmail
+  };
+
+  const userId = inviterId;
+
+  if (!shouldTrackEvent('invitation_accepted', userId, additionalData)) {
+    return;
+  }
+
+  logEvent(analytics, 'invitation_accepted', {
+    ...additionalData,
+    timestamp: new Date().toISOString()
+  });
+};

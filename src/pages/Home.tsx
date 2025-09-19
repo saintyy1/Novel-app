@@ -6,6 +6,7 @@ import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
 import NovelCarousel from "../components/NovelCarousel"
 import PromotionSection from "../components/PromotionSection"
+import InviteFriendsSection from "../components/InviteFriendsSection"
 
 const Home = () => {
   const [promotionalNovels, setPromotionalNovels] = useState<Novel[]>([])
@@ -191,6 +192,11 @@ const Home = () => {
         handleImageError={handleImageError}
         getGenreColorClass={getGenreColorClass}
       />
+
+      {/* Invite Friends Section */}
+      <section className="py-8 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+        <InviteFriendsSection />
+      </section>
 
       <section className="py-8 sm:px-6 lg:px-8 max-w-5xl mx-auto">
         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl shadow-xl overflow-hidden">

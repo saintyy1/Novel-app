@@ -55,7 +55,7 @@ function AppContent() {
     if (isNovelReadPage) {
       return null
     }
-    
+  
     return <MobileChatButton unreadCount={totalUnreadCount} />
   }
 
