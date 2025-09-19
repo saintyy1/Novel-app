@@ -1,3 +1,9 @@
+export type ChatMessage = {
+  id: string
+  sender: string
+  content: string
+}
+
 export interface Novel {
   id: string
   title: string
@@ -10,6 +16,7 @@ export interface Novel {
   chapters: {
     title: string
     content: string
+    chatMessages?: ChatMessage[]
   }[]
   authorId: string
   authorName: string

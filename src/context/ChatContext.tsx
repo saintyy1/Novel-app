@@ -31,6 +31,7 @@ export interface ChatUser {
   photoURL?: string
   isOnline: boolean
   lastSeen?: number
+  isAdmin?: boolean
 }
 
 interface ChatState {
@@ -408,7 +409,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           displayName: userData.displayName || 'Unknown User',
           photoURL: userData.photoURL,
           isOnline: userData.isOnline || false,
-          lastSeen: userData.lastSeen?.toDate?.()?.getTime() || Date.now()
+          lastSeen: userData.lastSeen?.toDate?.()?.getTime() || Date.now(),
+          isAdmin: userData.isAdmin || false
         }
         
         dispatch({ type: 'SET_USER', payload: chatUser })

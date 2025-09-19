@@ -7,7 +7,7 @@ import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc, col
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import { useTranslation } from "../context/TranslationContext"
-import type { Novel } from "../types/novel"
+import type { Novel, ChatMessage } from "../types/novel"
 import ReactMarkdown from "react-markdown"
 import { useSwipeable } from "react-swipeable"
 import { useRef as useReactRef } from "react"
@@ -628,10 +628,80 @@ const NovelRead = () => {
   }, [novel, currentChapter, currentUser]);
 
   // Helper: Split content into readable paragraphs
-  const formatContent = (content: string) => {
+  const formatContent = (content: string, chatMessages?: ChatMessage[]) => {
     if (!content) return []
-    // First, split by existing paragraph breaks (double newlines, <br>, </n>, etc.)
-    const paragraphs = content
+    
+    // First, check if we have text message groups to insert
+    let processedContent = content
+    
+    
+    // Then, check if we have simple chat messages to insert
+    if (chatMessages && chatMessages.length > 0) {
+      // Group chat messages by sender for better organization
+      const messageGroups: { sender: string; messages: ChatMessage[] }[] = []
+      let currentGroup: { sender: string; messages: ChatMessage[] } | null = null
+      
+      chatMessages.forEach(message => {
+        if (!currentGroup || currentGroup.sender !== message.sender) {
+          currentGroup = { sender: message.sender, messages: [message] }
+          messageGroups.push(currentGroup)
+        } else {
+          currentGroup.messages.push(message)
+        }
+      })
+      
+      // Try to find text triggers first, otherwise use default insertion
+      let insertedCount = 0
+      const lines = processedContent.split('\n')
+      
+      // Look for conversation triggers in the text
+      const conversationTriggers = [
+        'texted', 'messaged', 'called', 'phoned', 'contacted',
+        'received a message', 'got a text', 'checked her phone',
+        'opened her phone', 'looked at her phone', 'saw a message'
+      ]
+      
+      for (let i = 0; i < lines.length && insertedCount < messageGroups.length; i++) {
+        const line = lines[i]
+        const hasTrigger = conversationTriggers.some(trigger => 
+          line.toLowerCase().includes(trigger.toLowerCase())
+        )
+        
+        if (hasTrigger) {
+          const chatMessageData = `[CHAT_MESSAGE_START]${JSON.stringify(messageGroups[insertedCount])}[CHAT_MESSAGE_END]`
+          lines[i] = line + '\n\n' + chatMessageData + '\n\n'
+          insertedCount++
+        }
+      }
+      
+      // If we didn't find enough triggers, insert remaining groups at default positions
+      if (insertedCount < messageGroups.length) {
+        const remainingGroups = messageGroups.slice(insertedCount)
+        remainingGroups.forEach((group, index) => {
+          const chatMessageData = `[CHAT_MESSAGE_START]${JSON.stringify(group)}[CHAT_MESSAGE_END]`
+          // Insert after every 3rd paragraph or at the end
+          const insertPosition = Math.min((insertedCount + index + 1) * 3, processedContent.length)
+          processedContent = processedContent.slice(0, insertPosition) + 
+                            '\n\n' + chatMessageData + '\n\n' + 
+                            processedContent.slice(insertPosition)
+        })
+      } else {
+        processedContent = lines.join('\n')
+      }
+    }
+    
+    // First, extract JSON chat content to prevent it from being split
+    const chatRegex = /\[CHAT_START\][\s\S]*?\[CHAT_END\]/g
+    const chatMatches = processedContent.match(chatRegex) || []
+    
+    // Replace chat content with placeholders
+    let contentWithPlaceholders = processedContent
+    chatMatches.forEach((match, index) => {
+      contentWithPlaceholders = contentWithPlaceholders.replace(match, `[CHAT_PLACEHOLDER_${index}]`)
+    })
+
+    // Split by existing paragraph breaks (double newlines, <br>, </n>, etc.)
+    const paragraphs = contentWithPlaceholders
       .split(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi)
       .filter((para) => para.trim() && !para.match(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi))
 
@@ -639,6 +709,26 @@ const NovelRead = () => {
     paragraphs.forEach((paragraph) => {
       const cleanPara = paragraph.trim()
       if (!cleanPara) return
+
+      // Check if this is a chat placeholder
+      const chatMatch = cleanPara.match(/\[CHAT_PLACEHOLDER_(\d+)\]/)
+      if (chatMatch) {
+        const chatIndex = parseInt(chatMatch[1])
+        formattedParagraphs.push(chatMatches[chatIndex])
+        return
+      }
+
+      // Check if this is a text message group
+      if (cleanPara.includes('[TEXT_MESSAGE_START]') && cleanPara.includes('[TEXT_MESSAGE_END]')) {
+        formattedParagraphs.push(cleanPara)
+        return
+      }
+
+      // Check if this is a chat message
+      if (cleanPara.includes('[CHAT_MESSAGE_START]') && cleanPara.includes('[CHAT_MESSAGE_END]')) {
+        formattedParagraphs.push(cleanPara)
+        return
+      }
 
       // Split long paragraphs by sentences
       const sentences = cleanPara.split(/(?<=[.!?])\s+/).filter((s) => s.trim())
@@ -660,8 +750,8 @@ const NovelRead = () => {
     })
 
     // If no paragraphs were created (single long text), split by character count
-    if (formattedParagraphs.length === 0 && content.trim()) {
-      const words = content.trim().split(/\s+/)
+    if (formattedParagraphs.length === 0 && processedContent.trim()) {
+      const words = processedContent.trim().split(/\s+/)
       const wordsPerParagraph = 100 // Approximately 6-8 lines
       for (let i = 0; i < words.length; i += wordsPerParagraph) {
         const chunk = words
@@ -674,7 +764,7 @@ const NovelRead = () => {
       }
     }
 
-    return formattedParagraphs.length > 0 ? formattedParagraphs : [content.trim()]
+    return formattedParagraphs.length > 0 ? formattedParagraphs : [processedContent.trim()]
   }
 
   // Helper: Paginate paragraphs into pages
@@ -693,7 +783,10 @@ const NovelRead = () => {
     const contentInfo = getContentInfo(readingOrderIndex)
     if (contentInfo.type === "none") return 0
     
-    const formattedParagraphs = formatContent(contentInfo.content)
+    const chatMessages = contentInfo.type === "chapter" 
+      ? novel.chapters[contentInfo.chapterIndex]?.chatMessages || []
+      : []
+    const formattedParagraphs = formatContent(contentInfo.content, chatMessages)
     const contentPages = paginateContentIntoPages(formattedParagraphs, 6)
     return 1 + contentPages.length // 1 for title page + content pages
   }
@@ -748,10 +841,16 @@ const NovelRead = () => {
   }
 
   // Get current content info
-  const currentContentInfo = getContentInfo(currentChapter)
+  const currentContentInfo = useMemo(() => getContentInfo(currentChapter), [currentChapter, novel])
   
-  const sectionContent = currentContentInfo.content
-  const formattedParagraphs = useMemo(() => formatContent(sectionContent), [sectionContent])
+  const sectionContent = useMemo(() => currentContentInfo.content, [currentContentInfo])
+  const chatMessages = useMemo(() => 
+    currentContentInfo.type === "chapter" && novel 
+      ? novel.chapters[currentContentInfo.chapterIndex]?.chatMessages || []
+      : [], 
+    [currentContentInfo, novel]
+  )
+  const formattedParagraphs = useMemo(() => formatContent(sectionContent, chatMessages), [sectionContent, chatMessages])
   
   // Translate content when language changes or chapter changes
   useEffect(() => {
@@ -816,7 +915,10 @@ const NovelRead = () => {
         const prevReadingOrderIndex = currentChapter - 1
         const prevContentInfo = getContentInfo(prevReadingOrderIndex)
         if (prevContentInfo.type !== "none") {
-          const prevFormattedParagraphs = formatContent(prevContentInfo.content)
+          const prevChatMessages = prevContentInfo.type === "chapter" && novel
+            ? novel.chapters[prevContentInfo.chapterIndex]?.chatMessages || []
+            : []
+          const prevFormattedParagraphs = formatContent(prevContentInfo.content, prevChatMessages)
           const prevContentPages = paginateContentIntoPages(prevFormattedParagraphs, 6)
           const prevSectionPages = ["title", ...prevContentPages]
           const targetPage = prevSectionPages.length - 1
@@ -917,20 +1019,126 @@ const NovelRead = () => {
       // This is a content page
       return (
         <div className="prose dark:prose-invert max-w-none mx-auto px-4 sm:px-6 pt-2 md:px-8">
-          {pageContent.map((paragraph, idx) => (
-            <div
-              key={idx}
-              className="mb-4 sm:mb-6 text-gray-300 leading-relaxed text-sm sm:text-base indent-4 sm:indent-8 text-justify font-serif"
-            >
-              <ReactMarkdown
-                components={{
-                  p: ({ children }) => <span>{children}</span>,
-                }}
+          {pageContent.map((paragraph, idx) => {
+            // Check if this paragraph contains chat message markers
+            if (paragraph.includes('[CHAT_MESSAGE_START]') && paragraph.includes('[CHAT_MESSAGE_END]')) {
+              try {
+                const startIndex = paragraph.indexOf('[CHAT_MESSAGE_START]') + '[CHAT_MESSAGE_START]'.length
+                const endIndex = paragraph.indexOf('[CHAT_MESSAGE_END]')
+                const jsonData = paragraph.substring(startIndex, endIndex)
+                const messageGroup: { sender: string; messages: ChatMessage[] } = JSON.parse(jsonData)
+                
+                return (
+                  <div key={idx} className="mb-6">
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium text-gray-300">
+                        {messageGroup.sender}:
+                      </div>
+                      <div className="space-y-2 ml-4">
+                        {messageGroup.messages.map((message, msgIdx) => (
+                          <div key={msgIdx} className="bg-gray-200 border border-gray-300 rounded-lg p-3 text-gray-800">
+                            {message.content}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
+              } catch (error) {
+                console.error('Error parsing chat message:', error)
+                // Fallback to regular paragraph rendering
+                return (
+                  <div
+                    key={idx}
+                    className="mb-4 sm:mb-6 text-gray-300 leading-relaxed text-sm sm:text-base indent-4 sm:indent-8 text-justify font-serif"
+                  >
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <span>{children}</span>,
+                      }}
+                    >
+                      {paragraph}
+                    </ReactMarkdown>
+                  </div>
+                )
+              }
+            }
+            
+            // Check if this paragraph contains chat messages
+            if (paragraph.includes('[CHAT_START]') && paragraph.includes('[CHAT_END]')) {
+              try {
+                const startIndex = paragraph.indexOf('[CHAT_START]') + '[CHAT_START]'.length
+                const endIndex = paragraph.indexOf('[CHAT_END]')
+                const jsonData = paragraph.substring(startIndex, endIndex)
+                const messages: ChatMessage[] = JSON.parse(jsonData)
+                
+                // Group consecutive messages by sender
+                const messageGroups: { sender: string; messages: ChatMessage[] }[] = []
+                let currentGroup: { sender: string; messages: ChatMessage[] } | null = null
+                
+                messages.forEach(message => {
+                  if (!currentGroup || currentGroup.sender !== message.sender) {
+                    currentGroup = { sender: message.sender, messages: [message] }
+                    messageGroups.push(currentGroup)
+                  } else {
+                    currentGroup.messages.push(message)
+                  }
+                })
+                
+                return (
+                  <div key={`chat-${idx}`} className="mb-4 sm:mb-6">
+                    <div className="chat-conversation">
+                      {messageGroups.map((group, groupIdx) => (
+                        <div key={groupIdx} className="chat-group">
+                          <div className="chat-sender">{group.sender}:</div>
+                          <div className="chat-messages">
+                            {group.messages.map((message, msgIdx) => (
+                              <div key={msgIdx} className="chat-bubble">
+                                {message.content}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              } catch (error) {
+                console.error('Error parsing chat messages:', error)
+                // Fallback to regular paragraph rendering
+                return (
+                  <div
+                    key={idx}
+                    className="mb-4 sm:mb-6 text-gray-300 leading-relaxed text-sm sm:text-base indent-4 sm:indent-8 text-justify font-serif"
+                  >
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <span>{children}</span>,
+                      }}
+                    >
+                      {paragraph}
+                    </ReactMarkdown>
+                  </div>
+                )
+              }
+            }
+            
+            // Regular paragraph rendering
+            return (
+              <div
+                key={idx}
+                className="mb-4 sm:mb-6 text-gray-300 leading-relaxed text-sm sm:text-base indent-4 sm:indent-8 text-justify font-serif"
               >
-                {paragraph}
-              </ReactMarkdown>
-            </div>
-          ))}
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <span>{children}</span>,
+                  }}
+                >
+                  {paragraph}
+                </ReactMarkdown>
+              </div>
+            )
+          })}
         </div>
       )
     }

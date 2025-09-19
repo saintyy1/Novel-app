@@ -6,10 +6,11 @@ import { useParams, useNavigate, Link } from "react-router-dom"
 import { doc, getDoc, updateDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
-import type { Novel } from "../types/novel"
+import type { Novel, ChatMessage } from "../types/novel"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
 import MDEditor from "@uiw/react-md-editor"
 import rehypeSanitize from "rehype-sanitize"
+import InlineChatEditor from "../components/InlineChatEditor"
 
 const EditChapter = () => {
   const { id: novelId, chapterIndex } = useParams<{ id: string; chapterIndex: string }>()
@@ -167,6 +168,16 @@ const EditChapter = () => {
     setChapterContent(originalContent)
   }
 
+  const insertChatIntoChapter = (messages: ChatMessage[]) => {
+    // Create simple JSON marker for chat messages
+    const chatData = `[CHAT_START]${JSON.stringify(messages)}[CHAT_END]`
+    
+    // Insert at cursor position or at the end
+    const newContent = chapterContent + '\n\n' + chatData + '\n\n'
+    setChapterContent(newContent)
+    setHasChanges(true)
+  }
+
   const getFirebaseDownloadUrl = (url: string) => {
     if (!url || !url.includes("firebasestorage.app")) {
       return url
@@ -307,13 +318,16 @@ const EditChapter = () => {
             <label htmlFor="chapter-content" className="block text-sm font-medium text-gray-300 mb-2">
               Chapter Content
             </label>
-            <button
-              type="button"
-              className="mb-2 px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              onClick={() => setShowPreview((prev) => !prev)}
-            >
-              {showPreview ? 'Show Preview' : 'Hide Preview'}
-            </button>
+            <div className="flex space-x-2 mb-2">
+              <button
+                type="button"
+                className="px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                onClick={() => setShowPreview((prev) => !prev)}
+              >
+                {showPreview ? 'Show Preview' : 'Hide Preview'}
+              </button>
+              <InlineChatEditor onAddChat={insertChatIntoChapter} />
+            </div>
             <MDEditor
               value={chapterContent}
               onChange={(val) => setChapterContent(val || "")}

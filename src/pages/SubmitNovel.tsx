@@ -10,6 +10,8 @@ import { db, storage } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import MDEditor from "@uiw/react-md-editor"
 import rehypeSanitize from "rehype-sanitize"
+import InlineChatEditor from "../components/InlineChatEditor"
+import type { ChatMessage } from "../types/novel"
 
 const SubmitNovel = () => {
   const { currentUser } = useAuth()
@@ -23,7 +25,7 @@ const SubmitNovel = () => {
   const [prologue, setPrologue] = useState("")
   const [genres, setGenres] = useState<string[]>([])
   const [hasGraphicContent, setHasGraphicContent] = useState<boolean>(false)
-  const [chapters, setChapters] = useState<{ title: string; content: string }[]>([])
+  const [chapters, setChapters] = useState<{ title: string; content: string; chatMessages?: ChatMessage[] }[]>([])
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -82,6 +84,18 @@ const SubmitNovel = () => {
   const handleChapterContentChange = (index: number, content: string) => {
     const newChapters = [...chapters]
     newChapters[index].content = content
+    setChapters(newChapters)
+  }
+
+  const insertChatIntoChapter = (index: number, messages: ChatMessage[]) => {
+    const newChapters = [...chapters]
+    const currentContent = newChapters[index].content
+    
+    // Create simple JSON marker for chat messages
+    const chatData = `[CHAT_START]${JSON.stringify(messages)}[CHAT_END]`
+    
+    // Insert at cursor position or at the end
+    newChapters[index].content = currentContent + '\n\n' + chatData + '\n\n'
     setChapters(newChapters)
   }
 
@@ -578,13 +592,16 @@ const SubmitNovel = () => {
                 <label htmlFor={`chapter-content-${index}`} className="block text-sm font-medium text-gray-300 mb-1">
                   Chapter Content
                 </label>
-                <button
-                  type="button"
-                  className="mb-2 px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  onClick={() => setShowPreview((prev) => !prev)}
-                >
-                  {showPreview ? "Show Preview" : "Hide Preview"}
-                </button>
+                <div className="flex space-x-2 mb-2">
+                  <button
+                    type="button"
+                    className="px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    onClick={() => setShowPreview((prev) => !prev)}
+                  >
+                    {showPreview ? "Show Preview" : "Hide Preview"}
+                  </button>
+                  <InlineChatEditor onAddChat={(messages) => insertChatIntoChapter(index, messages)} />
+                </div>
                 <MDEditor
                   value={chapter.content}
                   onChange={(val) => handleChapterContentChange(index, val || "")}

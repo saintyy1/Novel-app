@@ -170,11 +170,21 @@ const Messages: React.FC = () => {
                   </div>
                 )
               })()}
-              <h3 className="text-white font-semibold text-balance">
+              <h3 className="text-white font-semibold text-balance flex items-center gap-2">
                 {(() => {
                   const otherParticipant = getOtherParticipant(state.currentConversation)
                   const user = getUser(otherParticipant || "")
-                  return user?.displayName || `User ${otherParticipant?.slice(-4) || "Unknown"}`
+                  const displayName = user?.displayName || `User ${otherParticipant?.slice(-4) || "Unknown"}`
+                  return (
+                    <>
+                      {user?.isAdmin && (
+                        <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                          ADMIN
+                        </span>
+                      )}
+                      {displayName}
+                    </>
+                  )
                 })()}
               </h3>
             </div>
@@ -314,8 +324,20 @@ const Messages: React.FC = () => {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <h3 className="text-white font-semibold truncate text-balance">
-                              {user?.displayName || `User ${otherParticipant?.slice(-4) || "Unknown"}`}
+                            <h3 className="text-white font-semibold truncate text-balance flex items-center gap-2">
+                              {(() => {
+                                const displayName = user?.displayName || `User ${otherParticipant?.slice(-4) || "Unknown"}`
+                                return (
+                                  <>
+                                    {user?.isAdmin && (
+                                      <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full font-medium flex-shrink-0">
+                                        ADMIN
+                                      </span>
+                                    )}
+                                    <span className="truncate">{displayName}</span>
+                                  </>
+                                )
+                              })()}
                             </h3>
                             <span className="text-xs text-gray-400">
                               {conversation.lastMessage && formatTime(conversation.lastMessage.timestamp)}
@@ -368,11 +390,21 @@ const Messages: React.FC = () => {
                     })()}
 
                     <div>
-                      <h3 className="text-white font-semibold text-lg text-balance">
+                      <h3 className="text-white font-semibold text-lg text-balance flex items-center gap-2">
                         {(() => {
                           const otherParticipant = getOtherParticipant(state.currentConversation)
                           const user = getUser(otherParticipant || "")
-                          return user?.displayName || `User ${otherParticipant?.slice(-4) || "Unknown"}`
+                          const displayName = user?.displayName || `User ${otherParticipant?.slice(-4) || "Unknown"}`
+                          return (
+                            <>
+                              {user?.isAdmin && (
+                                <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                                  ADMIN
+                                </span>
+                              )}
+                              {displayName}
+                            </>
+                          )
                         })()}
                       </h3>
                       <p className="text-gray-400 text-sm">Online</p>

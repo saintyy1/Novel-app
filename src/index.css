@@ -47,3 +47,41 @@ html, body {
     padding-right: max(env(safe-area-inset-right), 0px);
   }
 }
+
+/* Chat Message Styles */
+.chat-conversation {
+  margin: 16px 0;
+}
+
+.chat-group {
+  margin-bottom: 16px;
+}
+
+.chat-group:last-child {
+  margin-bottom: 0;
+}
+
+.chat-sender {
+  font-weight: 600;
+  color: #d1d5db;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.chat-bubble {
+  background-color: #4b5563;
+  border: 1px solid #6b7280;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #f3f4f6;
+  font-size: 14px;
+  line-height: 1.4;
+  max-width: 80%;
+}

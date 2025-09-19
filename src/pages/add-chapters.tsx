@@ -5,9 +5,10 @@ import { useParams, useNavigate, Link } from "react-router-dom"
 import { doc, getDoc, updateDoc, arrayUnion, collection, query, where, getDocs, addDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
-import type { Novel } from "../types/novel"
+import type { Novel, ChatMessage } from "../types/novel"
 import MDEditor from "@uiw/react-md-editor"
 import rehypeSanitize from "rehype-sanitize"
+import InlineChatEditor from "../components/InlineChatEditor"
 
 interface Chapter {
   title: string
@@ -71,6 +72,18 @@ const AddChapters = () => {
   const handleChapterContentChange = (index: number, content: string) => {
     const updatedChapters = [...newChapters]
     updatedChapters[index].content = content
+    setNewChapters(updatedChapters)
+  }
+
+  const insertChatIntoChapter = (index: number, messages: ChatMessage[]) => {
+    const updatedChapters = [...newChapters]
+    const currentContent = updatedChapters[index].content
+    
+    // Create simple JSON marker for chat messages
+    const chatData = `[CHAT_START]${JSON.stringify(messages)}[CHAT_END]`
+    
+    // Insert at cursor position or at the end
+    updatedChapters[index].content = currentContent + '\n\n' + chatData + '\n\n'
     setNewChapters(updatedChapters)
   }
 
@@ -297,13 +310,16 @@ const AddChapters = () => {
                   <label htmlFor={`chapter-content-${index}`} className="block text-sm font-medium text-gray-300 mb-1">
                     Chapter Content
                   </label>
-                  <button
-                    type="button"
-                    className="mb-2 px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    onClick={() => setShowPreview((prev) => !prev)}
-                  >
-                    {showPreview ? "Show Preview" : "Hide Preview"}
-                  </button>
+                  <div className="flex space-x-2 mb-2">
+                    <button
+                      type="button"
+                      className="px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      onClick={() => setShowPreview((prev) => !prev)}
+                    >
+                      {showPreview ? "Show Preview" : "Hide Preview"}
+                    </button>
+                    <InlineChatEditor onAddChat={(messages) => insertChatIntoChapter(index, messages)} />
+                  </div>
                   <MDEditor
                     value={chapter.content}
                     onChange={(val) => handleChapterContentChange(index, val || "")}
