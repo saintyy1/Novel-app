@@ -51,6 +51,11 @@ function AppContent() {
       ? chatState.conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0)
       : 0
     
+    // Hide mobile chat button on NovelRead page to prevent interference with page navigation
+    if (isNovelReadPage) {
+      return null
+    }
+    
     return <MobileChatButton unreadCount={totalUnreadCount} />
   }
 
@@ -58,19 +63,24 @@ function AppContent() {
     // Get session ID for anonymous users
     const sessionId = !currentUser ? getOrCreateSessionId() : null
 
-    // Track page view on route change with enhanced data
-    logEvent(analytics, 'page_view', {
-      page_path: location.pathname,
-      page_location: window.location.href,
-      page_title: document.title,
-      user_type: currentUser ? 'registered' : 'anonymous',
-      user_id: currentUser?.uid || sessionId,
-      timestamp: new Date().toISOString(),
-      referrer: document.referrer,
-      screen_resolution: `${window.screen.width}x${window.screen.height}`,
-      viewport_size: `${window.innerWidth}x${window.innerHeight}`,
-      device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
-    })
+    // Only track basic page views for pages that don't have their own detailed tracking
+    // Skip novel pages as they have their own detailed tracking
+    const isNovelPage = /^\/novel\/[^/]+(\/read)?$/.test(location.pathname)
+    
+    if (!isNovelPage) {
+      logEvent(analytics, 'page_view', {
+        page_path: location.pathname,
+        page_location: window.location.href,
+        page_title: document.title,
+        user_type: currentUser ? 'registered' : 'anonymous',
+        user_id: currentUser?.uid || sessionId,
+        timestamp: new Date().toISOString(),
+        referrer: document.referrer,
+        screen_resolution: `${window.screen.width}x${window.screen.height}`,
+        viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+        device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+      })
+    }
   }, [location, currentUser])
   
   return (

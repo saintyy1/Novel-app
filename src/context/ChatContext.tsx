@@ -320,7 +320,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   // This effect is kept for future WebSocket integration if needed
   useEffect(() => {
     if (currentUser) {
-      console.log('Chat context initialized for user:', currentUser.uid)
       dispatch({ type: 'SET_CONNECTED', payload: true })
       // Future WebSocket initialization could go here
     }

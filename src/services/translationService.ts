@@ -31,10 +31,8 @@ class TranslationService {
   }
 
   async translateText(text: string, targetLanguage: Language): Promise<string> {
-    console.log("translateText called:", { text: text.substring(0, 50) + "...", targetLanguage, hasApiKey: !!this.apiKey })
     
     if (!this.apiKey) {
-      console.warn("Google Translate API key not found. Using original text.")
       return text
     }
 
@@ -72,11 +70,9 @@ class TranslationService {
       }
 
       const data: TranslationResponse = await response.json()
-      console.log("Translation response:", data)
       
       if (data.data?.translations?.[0]?.translatedText) {
         const translated = data.data.translations[0].translatedText
-        console.log("Translation successful:", text.substring(0, 30) + "... → " + translated.substring(0, 30) + "...")
         return translated
       }
 
@@ -88,15 +84,12 @@ class TranslationService {
   }
 
   async translateParagraphs(paragraphs: string[], targetLanguage: Language): Promise<string[]> {
-    console.log("translateParagraphs called:", { paragraphsCount: paragraphs.length, targetLanguage, hasApiKey: !!this.apiKey })
     
     if (targetLanguage === "en") {
-      console.log("Target language is English, returning original paragraphs")
       return paragraphs
     }
 
     try {
-      console.log("Starting batch translation...")
       // Translate all paragraphs in a single batch request for efficiency
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
         method: "POST",
@@ -117,19 +110,15 @@ class TranslationService {
       }
 
       const data: TranslationResponse = await response.json()
-      console.log("Batch translation response:", data)
       
       if (data.data?.translations) {
         const translated = data.data.translations.map(t => t.translatedText)
-        console.log("Batch translation successful:", translated.length, "paragraphs translated")
         return translated
       }
 
-      console.log("No translations in response, returning original paragraphs")
       return paragraphs
     } catch (error) {
       console.error("Batch translation error:", error)
-      console.log("Falling back to individual translations...")
       // Fallback to individual translations
       return Promise.all(paragraphs.map(p => this.translateText(p, targetLanguage)))
     }
@@ -166,7 +155,6 @@ class TranslationService {
   // Test function to verify API connection
   async testConnection(): Promise<boolean> {
     if (!this.apiKey) {
-      console.error("❌ No API key found")
       return false
     }
 
@@ -175,14 +163,12 @@ class TranslationService {
       const result = await this.translateText(testText, "fr")
       
       if (result && result !== testText) {
-        console.log("✅ Translation API test successful:", testText, "→", result)
         return true
       } else {
-        console.error("❌ Translation API test failed - no translation returned")
         return false
       }
     } catch (error) {
-      console.error("❌ Translation API test failed:", error)
+      console.error("Translation API test failed:", error)
       return false
     }
   }

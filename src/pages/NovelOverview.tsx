@@ -79,10 +79,20 @@ const NovelOverview = () => {
 
   useEffect(() => {
     if (novel) {
-      trackPageView('novel_overview');
-      trackNovelView(novel.id, novel);
+      // Consolidated tracking - single event with all novel overview data
+      trackPageView('novel_overview', {
+        novel_id: novel.id,
+        novel_title: novel.title,
+        novel_author: novel.authorName,
+        novel_genres: novel.genres,
+        novel_views: novel.views || 0,
+        novel_likes: novel.likes || 0,
+        is_anonymous: !currentUser,
+        reader_id: currentUser?.uid || 'anonymous',
+        session_id: localStorage.getItem('anonymous_session_id') || 'unknown'
+      });
     }
-  }, [novel]);
+  }, [novel, currentUser]);
 
   // Fetch author data for tip functionality
   useEffect(() => {

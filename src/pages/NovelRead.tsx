@@ -2,7 +2,7 @@
 import type React from "react"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
-import { trackPageView, trackChapterRead, trackEngagementTime, trackAnonymousPageView } from '../utils/Analytics-utils';
+import { trackPageView, trackEngagementTime } from '../utils/Analytics-utils';
 import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc, collection, query, where, getDocs, addDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
@@ -573,40 +573,30 @@ const NovelRead = () => {
 
   useEffect(() => {
     if (novel) {
-      // Track page view with more details
+      // Track page view with more details - consolidated single event
       const contentInfo = getContentInfo(currentChapter)
       let chapterNumber = currentChapter + 1
+      let title = ""
       
       if (contentInfo.type === "chapter") {
         chapterNumber = contentInfo.chapterIndex + 1
+        title = novel.chapters[contentInfo.chapterIndex]?.title || `Chapter ${contentInfo.chapterIndex + 1}`
+      } else if (contentInfo.type === "authors-note") {
+        title = "Author's Note"
+      } else if (contentInfo.type === "prologue") {
+        title = "Prologue"
       }
       
+      // Single consolidated tracking event instead of multiple separate events
       trackPageView('novel_read', { 
         novel_id: novel.id,
         novel_title: novel.title,
         chapter_number: chapterNumber,
-        is_anonymous: !currentUser,
-        session_id: localStorage.getItem('anonymous_session_id') || 'unknown'
-      });
-
-      // Track chapter read with more context
-      let title = ""
-      let number = currentChapter + 1
-      
-      if (contentInfo.type === "authors-note") {
-        title = "Author's Note"
-      } else if (contentInfo.type === "prologue") {
-        title = "Prologue"
-      } else if (contentInfo.type === "chapter") {
-        title = novel.chapters[contentInfo.chapterIndex]?.title || `Chapter ${contentInfo.chapterIndex + 1}`
-        number = contentInfo.chapterIndex + 1
-      }
-      
-      trackChapterRead(novel.id, {
-        title: title,
-        number: number,
+        chapter_title: title,
         total_chapters: novel.chapters.length,
+        is_anonymous: !currentUser,
         reader_id: currentUser?.uid || 'anonymous',
+        session_id: localStorage.getItem('anonymous_session_id') || 'unknown',
         genre: novel.genres?.[0] || 'unknown'
       });
     }
@@ -615,16 +605,6 @@ const NovelRead = () => {
       const timeSpent = (Date.now() - startTime) / 1000;
       trackEngagementTime('novel_read', timeSpent);
     };
-  }, [novel, currentChapter, currentUser]);
-
-  useEffect(() => {
-    if (novel && !currentUser) {
-      trackAnonymousPageView({
-        pageName: 'novel_read',
-        novelId: novel.id,
-        chapterIndex: currentChapter
-      });
-    }
   }, [novel, currentChapter, currentUser]);
 
   // Helper: Split content into readable paragraphs
@@ -855,19 +835,15 @@ const NovelRead = () => {
   // Translate content when language changes or chapter changes
   useEffect(() => {
     const translateChapterContent = async () => {
-      console.log("Translation effect triggered:", { language, paragraphsCount: formattedParagraphs.length })
       
       if (!formattedParagraphs.length || language === "en") {
-        console.log("Using original content (English or no content)")
         setTranslatedContent(formattedParagraphs)
         return
       }
 
-      console.log("Starting translation...")
       setIsTranslating(true)
       try {
         const translated = await translateParagraphs(formattedParagraphs)
-        console.log("Translation completed:", translated.length, "paragraphs")
         setTranslatedContent(translated)
       } catch (error) {
         console.error("Translation failed:", error)
