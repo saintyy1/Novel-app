@@ -18,12 +18,11 @@ import {
 import { db, storage } from "../firebase/config"
 import { ref, uploadBytes, deleteObject } from "firebase/storage"
 import { useAuth } from "../context/AuthContext"
-import { useChat } from "../context/ChatContext"
+import { useNavigate } from "react-router-dom"
 import type { Novel } from "../types/novel"
 import type { ExtendedUser } from "../context/AuthContext"
 import EditProfileModal from "../components/EditProfileModal" // Import the new modal component
 import UserListDrawer from "../components/UserListDrawer" // Import the new UserListDrawer
-import ChatInbox from "../components/ChatInbox" // Import the chat component
 import { FaInstagram, FaTimes, FaFacebook, FaWhatsapp, FaCopy, FaShare } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
@@ -55,7 +54,7 @@ interface Announcement {
 const Profile = () => {
   const { userId } = useParams()
   const { currentUser, updateUserPhoto, toggleFollow } = useAuth()
-  const { fetchUserData, setCurrentConversation } = useChat()
+  const navigate = useNavigate()
   const [profileUser, setProfileUser] = useState<ExtendedUser | null>(null)
   const [userNovels, setUserNovels] = useState<Novel[]>([])
   const [loading, setLoading] = useState(true) // Initialize loading to true
@@ -91,8 +90,6 @@ const Profile = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isTipModalOpen, setIsTipModalOpen] = useState(false)
   
-  // Chat modal state
-  const [isChatOpen, setIsChatOpen] = useState(false)
   
   // Edit Novel modal form state
   const [editTitle, setEditTitle] = useState("")
@@ -626,7 +623,7 @@ const Profile = () => {
       if (!newAnnouncementContent.trim() || !currentUser || !profileUser) return
       setSubmittingAnnouncement(true)
       try {
-        const newAnnouncementRef = await addDoc(collection(db, "announcements"), {
+        await addDoc(collection(db, "announcements"), {
           authorId: currentUser.uid,
           content: newAnnouncementContent.trim(),
           createdAt: new Date().toISOString(),
@@ -785,34 +782,12 @@ const Profile = () => {
   }
 
   // Handle opening chat with profile user
-  const handleOpenChat = useCallback(async () => {
+  const handleOpenChat = useCallback(() => {
     if (!profileUser || !currentUser || profileUser.uid === currentUser.uid) return
 
-    try {
-      // Fetch user data for the chat
-      await fetchUserData(profileUser.uid)
-      
-      // Create conversation ID (same format as in ChatContext)
-      const conversationId = [currentUser.uid, profileUser.uid].sort().join('_')
-      
-      // Create a conversation object
-      const conversation = {
-        id: conversationId,
-        participants: [currentUser.uid, profileUser.uid],
-        unreadCount: 0,
-        lastActivity: Date.now(),
-        isTyping: false,
-        typingUsers: []
-      }
-      
-      // Set the current conversation and open chat
-      setCurrentConversation(conversation)
-      setIsChatOpen(true)
-    } catch (error) {
-      console.error('Error opening chat:', error)
-      showErrorToast('Failed to open chat')
-    }
-  }, [profileUser, currentUser, fetchUserData, setCurrentConversation])
+    // Navigate to messages page with the user ID as a query parameter
+    navigate(`/messages?user=${profileUser.uid}`)
+  }, [profileUser, currentUser, navigate])
 
   // Confirm end promotion
   const confirmEndPromotion = async () => {
@@ -1006,7 +981,7 @@ const Profile = () => {
                 {(profileUser as any)?.supportLink && (
                   <button
                     onClick={() => setIsTipModalOpen(true)}
-                    className="text-green-600 hover:text-green-400 transition-colors flex items-center text-sm"
+                    className="text-green-600 cursor-pointer hover:text-green-400 transition-colors flex items-center text-sm"
                     title="Support this creator"
                   >
                     <Gift className="h-5 w-5" />
@@ -1097,12 +1072,12 @@ const Profile = () => {
               ) : (
                 currentUser &&
                 profileUser && (
-                  <div className="flex flex-row justify-center sm:flex-col gap-2">
-                    {/* Follow / Unfollow Button */}
+                  <>
+                    {/* Follow / Unfollow Button - always on top */}
                     <button
                       onClick={handleFollowToggle}
                       disabled={!currentUser || !profileUser || isTogglingFollow}
-                      className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors ${
+                      className={`inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors w-full ${
                         isFollowing ? "bg-gray-600 hover:bg-gray-700" : "bg-purple-600 hover:bg-purple-700"
                       } ${isTogglingFollow ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
@@ -1136,26 +1111,29 @@ const Profile = () => {
                       )}
                     </button>
                     
-                    {/* Message Button - only show if not own profile */}
-                    {profileUser && currentUser && profileUser.uid !== currentUser.uid && (
+                    {/* Message and Share buttons side-by-side on small screens, stacked on sm+ */}
+                    <div className="flex flex-row sm:flex-col gap-2">
+                      {/* Message Button - only show if not own profile */}
+                      {profileUser && currentUser && profileUser.uid !== currentUser.uid && (
+                        <button
+                          onClick={handleOpenChat}
+                          className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors flex-1 sm:w-full"
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Message
+                        </button>
+                      )}
+                      
+                      {/* Share Button */}
                       <button
-                        onClick={handleOpenChat}
-                        className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
+                        onClick={handleShare}
+                        className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 transition-colors flex-1 sm:w-full"
                       >
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Message
+                        <FaShare className="h-4 w-4 mr-2" />
+                        Share Profile
                       </button>
-                    )}
-                    
-                    {/* Share Button next to Follow on mobile, stacked on sm+ */}
-                    <button
-                      onClick={handleShare}
-                      className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 transition-colors"
-                    >
-                      <FaShare className="h-4 w-4 mr-2" />
-                      Share Profile
-                    </button>
-                  </div>
+                    </div>
+                  </>
                 )
               )}
             </div>
@@ -1948,11 +1926,6 @@ const Profile = () => {
         />
       )}
 
-      {/* Chat Modal */}
-      <ChatInbox
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-      />
     </div>
   )
 }

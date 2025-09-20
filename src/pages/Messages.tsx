@@ -6,7 +6,7 @@ import { useChat, type ChatConversation } from "../context/ChatContext"
 import { useAuth } from "../context/AuthContext"
 import UserSearch from "../components/UserSearch"
 import { MessageCircle, Search, Send, MoreVertical, ArrowLeft, UserPlus, Trash2 } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 
 const Messages: React.FC = () => {
   const {
@@ -22,6 +22,7 @@ const Messages: React.FC = () => {
   } = useChat()
   const { currentUser } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
   const [messageInput, setMessageInput] = useState("")
   const [showSearch, setShowSearch] = useState(false)
@@ -35,6 +36,53 @@ const Messages: React.FC = () => {
   useEffect(() => {
     loadConversations()
   }, [loadConversations])
+
+  // Handle user query parameter to open specific conversation
+  useEffect(() => {
+    const userId = searchParams.get('user')
+    if (userId && currentUser && userId !== currentUser.uid && 
+        (!state.currentConversation || !state.currentConversation.participants.includes(userId))) {
+      // Use a timeout to ensure conversations are loaded first
+      const timer = setTimeout(() => {
+        // Check if conversation already exists
+        const existingConversation = state.conversations.find(conv => 
+          conv.participants.includes(userId) && conv.participants.includes(currentUser.uid)
+        )
+        
+        if (existingConversation) {
+          // Open existing conversation
+          setCurrentConversation(existingConversation)
+          markAsRead(existingConversation.id)
+          if (window.innerWidth < 768) {
+            setShowConversations(false)
+          }
+        } else {
+          // Create new conversation
+          const newConversation: ChatConversation = {
+            id: [currentUser.uid, userId].sort().join('_'),
+            participants: [currentUser.uid, userId],
+            unreadCount: 0,
+            lastActivity: Date.now(),
+            isTyping: false,
+            typingUsers: [],
+          }
+          
+          // Fetch user data for the selected user
+          fetchUserData(userId).then(() => {
+            setCurrentConversation(newConversation)
+            if (window.innerWidth < 768) {
+              setShowConversations(false)
+            }
+          })
+        }
+        
+        // Clear the query parameter
+        navigate('/messages', { replace: true })
+      }, 100)
+
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams.get('user'), currentUser?.uid])
 
 
   // Hide conversations on mobile when a conversation is selected
@@ -140,8 +188,20 @@ const Messages: React.FC = () => {
     return conversation.participants.find((id) => id !== currentUser.uid)
   }
 
+  // Show loading state when initially fetching conversations and messages
+  if (state.loadingConversations.size > 0 && state.conversations.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-lg font-medium">Loading messages...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col pt-8" style={{ paddingTop: 'calc(2rem + env(safe-area-inset-top))' }}>
+    <div className="h-screen bg-gray-900 flex flex-col pt-8" style={{ paddingTop: 'calc(2rem + env(safe-area-inset-top))' }}>
       {/* Mobile Header */}
       <div className="md:hidden bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between flex-shrink-0 shadow-sm">
         {state.currentConversation ? (
@@ -362,11 +422,11 @@ const Messages: React.FC = () => {
         </div>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col min-h-0 h-1/2 md:h-full bg-gray-900">
+        <div className="flex-1 flex flex-col min-h-0 bg-gray-900" style={{ height: 'calc(100vh - 2rem - env(safe-area-inset-top))' }}>
           {state.currentConversation ? (
-            <>
+            <div className="flex flex-col h-full">
               {/* Desktop Chat Header */}
-              <div className="hidden md:block p-6 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
+              <div className="hidden md:block p-6 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     {(() => {
@@ -420,7 +480,7 @@ const Messages: React.FC = () => {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 min-h-0 bg-gradient-to-b from-gray-900 to-gray-900/95" style={{ maxHeight: 'calc(100vh)' }}>
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-gray-900 to-gray-900/95">
                 {/* Load More Button */}
                 {state.hasMoreMessages && state.messages.length > 0 && (
                   <div className="flex justify-center py-4">
@@ -441,31 +501,19 @@ const Messages: React.FC = () => {
                   </div>
                 )}
 
-                {/* Loading State for Conversation */}
-                {state.currentConversation && state.loadingConversations.has(state.currentConversation.id) && (
+                {/* No Messages State */}
+                {state.messages.length === 0 && state.currentConversation && (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mb-4"></div>
-                    <p className="font-medium">Loading messages...</p>
+                    <div className="w-16 h-16 bg-gray-700/20 rounded-full flex items-center justify-center mb-4">
+                      <MessageCircle className="h-8 w-8" />
+                    </div>
+                    <p className="font-medium mb-2">No messages yet</p>
+                    <p className="text-sm opacity-75">Start the conversation!</p>
                   </div>
                 )}
 
-                {/* No Messages State */}
-                {state.messages.length === 0 &&
-                  state.currentConversation &&
-                  !state.loadingConversations.has(state.currentConversation.id) && (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                      <div className="w-16 h-16 bg-gray-700/20 rounded-full flex items-center justify-center mb-4">
-                        <MessageCircle className="h-8 w-8" />
-                      </div>
-                      <p className="font-medium mb-2">No messages yet</p>
-                      <p className="text-sm opacity-75">Start the conversation!</p>
-                    </div>
-                  )}
-
                 {/* Messages List */}
-                {state.messages.length > 0 &&
-                  state.currentConversation &&
-                  !state.loadingConversations.has(state.currentConversation.id) && (
+                {state.messages.length > 0 && state.currentConversation && (
                     <>
                       {state.messages.map((message) => {
                         const isOwn = message.senderId === currentUser?.uid
@@ -526,7 +574,7 @@ const Messages: React.FC = () => {
                   </button>
                 </form>
               </div>
-            </>
+            </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-400 bg-gradient-to-br from-gray-900 to-gray-800/5">
               <div className="text-center">
