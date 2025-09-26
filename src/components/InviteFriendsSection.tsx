@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Users, Mail, Gift, ArrowRight } from 'lucide-react'
+import { Users, Mail, ArrowRight } from 'lucide-react'
 import InviteFriendsModal from './InviteFriendsModal'
 
 const InviteFriendsSection: React.FC = () => {
@@ -36,31 +36,6 @@ const InviteFriendsSection: React.FC = () => {
               Send Invitation
               <ArrowRight className="h-5 w-5 ml-2" />
             </button>
-          </div>
-
-          {/* Benefits */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-            <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mb-2">
-                <Gift className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-white mb-1">Share Great Stories</h3>
-              <p className="text-purple-100 text-sm">Help friends discover amazing novels</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mb-2">
-                <Users className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-white mb-1">Build Community</h3>
-              <p className="text-purple-100 text-sm">Connect with fellow readers</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mb-2">
-                <Mail className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-white mb-1">Easy Invites</h3>
-              <p className="text-purple-100 text-sm">Send personalized invitations</p>
-            </div>
           </div>
         </div>
       </section>
