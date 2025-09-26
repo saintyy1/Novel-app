@@ -49,6 +49,22 @@ const Support = () => {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null)
 
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Please log in to view the support page</h2>
+          <Link
+            to="/login"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
+          >
+            Go to Login
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   const faqData: FAQItem[] = [
     {
       id: '1',

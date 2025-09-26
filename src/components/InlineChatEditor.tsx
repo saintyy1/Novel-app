@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { MessageSquare, Plus, Trash2, X } from 'lucide-react'
 
 interface ChatMessage {
@@ -16,6 +16,20 @@ const InlineChatEditor: React.FC<InlineChatEditorProps> = ({ onAddChat }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [newSender, setNewSender] = useState('')
   const [newContent, setNewContent] = useState('')
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen])
 
   const addMessage = () => {
     if (!newSender.trim() || !newContent.trim()) return

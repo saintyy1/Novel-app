@@ -1,9 +1,23 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 
 const PromotionSection = () => {
   const [showLearnMore, setShowLearnMore] = useState(false)
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (showLearnMore) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = "unset"
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = "unset"
+    }
+  }, [showLearnMore])
 
   return (
     <>

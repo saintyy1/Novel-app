@@ -28,6 +28,20 @@ const UserListDrawer: React.FC<UserListDrawerProps> = ({ isOpen, onClose, userId
   const [loading, setLoading] = useState(true)
   const [togglingFollowId, setTogglingFollowId] = useState<string | null>(null)
 
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = "unset"
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = "unset"
+    }
+  }, [isOpen])
+
   const fetchUserDetails = useCallback(async () => {
     setLoading(true)
     const fetchedUsers: UserDisplayInfo[] = []

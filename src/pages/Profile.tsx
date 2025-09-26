@@ -189,6 +189,20 @@ const Profile = () => {
     return () => unsubscribe()
   }, [profileUser?.uid])
 
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (showEditModal) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = "unset"
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = "unset"
+    }
+  }, [showEditModal])
+
   const refreshProfileUser = useCallback(async () => {
     if (!currentUser && !userId) {
       return
