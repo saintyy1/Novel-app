@@ -188,6 +188,18 @@ const Messages: React.FC = () => {
     return conversation.participants.find((id) => id !== currentUser.uid)
   }
 
+  // Filter conversations by search query (matches other participant's name or id)
+  const filteredConversations = (() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return state.conversations
+    return state.conversations.filter((conversation) => {
+      const otherParticipant = getOtherParticipant(conversation)
+      const user = getUser(otherParticipant || "")
+      const name = (user?.displayName || "").toLowerCase()
+      return name.includes(query)
+    })
+  })()
+
   // Show loading state when initially fetching conversations and messages
   if (state.loadingConversations.size > 0 && state.conversations.length === 0) {
     return (
@@ -361,7 +373,9 @@ const Messages: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-2 p-3">
-                {state.conversations.map((conversation) => {
+                {filteredConversations.length === 0 ? (
+                  <div className="text-center text-gray-400 py-6">No matching conversations</div>
+                ) : filteredConversations.map((conversation) => {
                   const otherParticipant = getOtherParticipant(conversation)
                   const user = getUser(otherParticipant || "")
                   const isActive = state.currentConversation?.id === conversation.id
@@ -431,7 +445,8 @@ const Messages: React.FC = () => {
                       </div>
                     </div>
                   )
-                })}
+                })
+                }
               </div>
             )}
           </div>
