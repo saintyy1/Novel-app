@@ -1365,7 +1365,7 @@ const Profile = () => {
                   <div key={novel.id} className="group flex flex-col">
                     {/* Book Cover */}
                     <div className="relative aspect-[3/4] mb-3">
-                      <Link to={`/novel/${novel.id}`}>
+                      <Link to={novel.published ? `/novel/${novel.id}` : "#"}>
                         <div className="w-full h-full rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                           {novel.coverImage ? (
                             <img
