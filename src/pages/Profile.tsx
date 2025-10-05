@@ -1637,7 +1637,7 @@ const Profile = () => {
                     savingNovel ? "bg-purple-700 opacity-70 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"
                   }`}
                 >
-                  {savingNovel ? "Saving..." : "Save Changes"}
+                  {savingNovel ? "Saving..." : "Save"}
                 </button>
               </div>
             </div>
