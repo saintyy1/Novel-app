@@ -1,6 +1,15 @@
+import SEOHead from "../components/SEOHead"
+
 const TermsOfService = () => {
   return (
     <div className="min-h-screen bg-gray-900 py-16">
+      <SEOHead
+        title="Terms of Service - NovlNest"
+        description="Read NovlNest's Terms of Service to understand the rules and guidelines for using our platform. Learn about user responsibilities and platform policies."
+        keywords="terms of service, user agreement, NovlNest terms, platform rules, user guidelines, legal terms"
+        url="https://novlnest.com/terms-of-service"
+      />
+      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-10">

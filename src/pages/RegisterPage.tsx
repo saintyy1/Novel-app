@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import SEOHead from "../components/SEOHead"
 
 const RegisterPage = () => {
   const [displayName, setDisplayName] = useState("")
@@ -67,6 +68,13 @@ const RegisterPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-purple-950 py-12 px-4 sm:px-6 lg:px-8">
+      <SEOHead
+        title="Sign Up - NovlNest"
+        description="Join NovlNest today! Create your free account to start reading and writing novels, connect with authors, and be part of our creative community."
+        keywords="sign up, register, create account, join NovlNest, free account, novel platform, writing community"
+        url="https://novlnest.com/register"
+      />
+      
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl shadow-lg flex items-center justify-center">

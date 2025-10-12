@@ -1,8 +1,16 @@
 import { Link } from "react-router-dom"
+import SEOHead from "../components/SEOHead"
 
 const About = () => {
   return (
     <div className="min-h-screen bg-gray-900 py-16">
+      <SEOHead
+        title="About NovlNest - Free Online Novel Platform"
+        description="Learn about NovlNest, the free platform for readers and writers. Discover our mission to connect storytellers with readers and build a vibrant creative community."
+        keywords="about NovlNest, novel platform, reading community, writing platform, free books, creative writing, storytelling"
+        url="https://novlnest.com/about"
+      />
+      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">

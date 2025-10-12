@@ -1,6 +1,15 @@
+import SEOHead from "../components/SEOHead"
+
 const Contact = () => {
   return (
     <div className="bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 py-16">
+      <SEOHead
+        title="Contact Us - NovlNest"
+        description="Get in touch with the NovlNest team. We're here to help with questions, feedback, or support. Contact us for any inquiries about our platform."
+        keywords="contact NovlNest, support, help, feedback, customer service, get in touch, NovlNest team"
+        url="https://novlnest.com/contact"
+      />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-8">

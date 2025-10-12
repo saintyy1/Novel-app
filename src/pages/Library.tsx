@@ -8,6 +8,7 @@ import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import { BookOpen, BookOpenCheck, BookOpenText } from "lucide-react"
+import SEOHead from "../components/SEOHead"
 
 const getFirebaseDownloadUrl = (url: string) => {
     if (!url || !url.includes("firebasestorage.app")) {
@@ -236,6 +237,13 @@ const LibraryPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 py-8">
+      <SEOHead
+        title="My Library - NovlNest"
+        description="Access your personal library on NovlNest. View your liked novels, reading history, and manage your book collection in one place."
+        keywords="library, my books, reading list, liked novels, book collection, personal library, NovlNest"
+        url="https://novlnest.com/library"
+      />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">
         <h1 className="text-3xl font-bold text-white mb-8 flex items-center">
           <BookOpen className="h-8 w-8 mr-3 text-purple-400" />

@@ -4,6 +4,7 @@ import type React from "react"
 import { useState } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import SEOHead from "../components/SEOHead"
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("")
@@ -30,6 +31,13 @@ const ForgotPassword = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <SEOHead
+        title="Forgot Password - NovlNest"
+        description="Reset your NovlNest password. Enter your email address and we'll send you a link to create a new password for your account."
+        keywords="forgot password, reset password, NovlNest account, password recovery, account access"
+        url="https://novlnest.com/forgot-password"
+      />
+      
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="h-12 w-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">

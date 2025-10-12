@@ -1,0 +1,27 @@
+{
+  "name": "NovlNest - Free Online Novels & Stories",
+  "short_name": "NovlNest",
+  "description": "Discover thousands of free novels and stories. Read trending fiction, new releases, and share your own creative writing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["books", "entertainment", "education"],
+  "lang": "en",
+  "dir": "ltr"
+}

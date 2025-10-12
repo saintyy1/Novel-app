@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { collection, addDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
+import SEOHead from '../components/SEOHead'
 import { 
   HelpCircle, 
   Mail, 
@@ -153,6 +154,13 @@ const Support = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 py-12 px-4 sm:px-6 lg:px-8">
+      <SEOHead
+        title="Support & Help Center - NovlNest"
+        description="Get help and support for NovlNest. Find answers to common questions, troubleshooting guides, and contact our support team for assistance."
+        keywords="support, help center, NovlNest support, troubleshooting, FAQ, customer service, technical support"
+        url="https://novlnest.com/support"
+      />
+      
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">

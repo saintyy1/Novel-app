@@ -5,6 +5,7 @@ import { collection, query, where, orderBy, onSnapshot, doc, getDoc } from "fire
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import { useNotifications } from "../context/NotificationContext"
+import SEOHead from "../components/SEOHead"
 import {
   UserPlus,
   MessageSquare,
@@ -466,6 +467,13 @@ const NotificationsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 py-8">
+      <SEOHead
+        title="Notifications - NovlNest"
+        description="Stay updated with your latest notifications on NovlNest. View likes, comments, follows, and other activity on your novels and profile."
+        keywords="notifications, activity updates, novel interactions, comments, likes, follows, NovlNest"
+        url="https://novlnest.com/notifications"
+      />
+      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
           <h1 className="text-3xl font-bold text-white mb-4 sm:mb-0">Notifications</h1>

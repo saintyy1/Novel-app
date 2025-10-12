@@ -1,6 +1,26 @@
 User-agent: *
 Allow: /
 
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /settings
+Disallow: /notifications
+Disallow: /messages
+Disallow: /library
+
+# Allow important pages
+Allow: /novels
+Allow: /novel/
+Allow: /profile/
+Allow: /about
+Allow: /contact
+Allow: /support
+Allow: /terms-of-service
+Allow: /privacy
+
+# Crawl delay (optional)
+Crawl-delay: 1
+
 Sitemap: https://novlnest.com/sitemap.xml
 
 

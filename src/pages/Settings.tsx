@@ -13,6 +13,7 @@ import { auth, db, googleProvider } from "../firebase/config"
 import { doc, deleteDoc, collection, query, where, getDocs, writeBatch } from "firebase/firestore"
 import { useAuth } from "../context/AuthContext"
 import { showErrorToast, showSuccessToast } from "../utils/toast-utils"
+import SEOHead from "../components/SEOHead"
 
 const Settings: React.FC = () => {
   const { currentUser, logout, updateUserEmail } = useAuth()
@@ -158,6 +159,13 @@ const Settings: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 py-8">
+      <SEOHead
+        title="Account Settings - NovlNest"
+        description="Manage your NovlNest account settings. Update your profile, change password, manage privacy settings, and customize your reading experience."
+        keywords="account settings, profile settings, NovlNest settings, user preferences, account management"
+        url="https://novlnest.com/settings"
+      />
+      
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-2xl font-bold text-white text-center my-2">Settings</h1>
         <p className="text-sm text-gray-400 text-center mb-2">@{currentUser.displayName}</p>
