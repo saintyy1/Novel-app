@@ -303,7 +303,7 @@ const Messages: React.FC = () => {
         >
           {/* Desktop Header */}
           <div className="hidden md:block p-6 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-white">Messages</h2>
               <div className="flex items-center space-x-2">
                 <button
