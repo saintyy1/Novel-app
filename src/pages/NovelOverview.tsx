@@ -23,10 +23,12 @@ import { useAuth } from "../context/AuthContext"
 import type { Novel } from "../types/novel"
 import { FaShare, FaCopy, FaFacebook, FaWhatsapp, FaTimes, FaReply, FaTrash } from "react-icons/fa"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
-import { trackPageView, trackNovelView, trackNovelInteraction } from '../utils/Analytics-utils';
+import { trackPageView, trackNovelInteraction } from '../utils/Analytics-utils';
 import { FaXTwitter } from "react-icons/fa6" // Import FaXTwitter
 import { CheckCircle, Gift } from "lucide-react" // Import CheckCircle and Gift
 import { BookOpen } from "lucide-react"
+import SEOHead from "../components/SEOHead"
+import { generateNovelStructuredData, generateBreadcrumbStructuredData } from "../utils/structuredData"
 
 interface Comment {
   id: string
@@ -927,8 +929,27 @@ const NovelOverview = () => {
     }
   }
 
+  // Generate breadcrumb data
+  const breadcrumbItems = [
+    { name: "Home", url: "https://novlnest.com" },
+    { name: "Novels", url: "https://novlnest.com/novels" },
+    { name: novel?.title || "Novel", url: `https://novlnest.com/novel/${id}` }
+  ]
+
   return (
     <div className="min-h-screen py-4 sm:py-8">
+      {novel && (
+        <SEOHead
+          title={`${novel.title} by ${novel.authorName || 'Unknown Author'} - Free Online Novel | NovlNest`}
+          description={novel.description || `Read ${novel.title} by ${novel.authorName || 'Unknown Author'} for free on NovlNest. ${novel.genres?.join(', ')} novel with ${novel.chapters?.length || 0} chapters.`}
+          keywords={`${novel.title}, ${novel.authorName}, ${novel.genres?.join(', ')}, free novel, online reading, ${novel.genres?.map(g => `${g} novel`).join(', ')}, digital book`}
+          image={novel.coverImage ? `https://novlnest.com${novel.coverImage}` : "https://novlnest.com/images/logo.jpg"}
+          url={`https://novlnest.com/novel/${novel.id}`}
+          type="article"
+          structuredData={[generateNovelStructuredData(novel), generateBreadcrumbStructuredData(breadcrumbItems)]}
+        />
+      )}
+      
       <div className="max-w-7xl mx-auto px-2 lg:px-8 pt-3">
         {/* Header */}
         <div>

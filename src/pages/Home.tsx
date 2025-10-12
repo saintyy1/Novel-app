@@ -7,6 +7,8 @@ import type { Novel } from "../types/novel"
 import NovelCarousel from "../components/NovelCarousel"
 import PromotionSection from "../components/PromotionSection"
 import InviteFriendsSection from "../components/InviteFriendsSection"
+import SEOHead from "../components/SEOHead"
+import { generateWebsiteStructuredData, generateBreadcrumbStructuredData, generateCollectionStructuredData } from "../utils/structuredData"
 
 const Home = () => {
   const [promotionalNovels, setPromotionalNovels] = useState<Novel[]>([])
@@ -131,8 +133,22 @@ const Home = () => {
     return "from-gray-600 to-gray-800"
   }
 
+  // Combine all novels for structured data
+  const allNovels = [...promotionalNovels, ...trendingNovels, ...newReleaseNovels]
+  const uniqueNovels = allNovels.filter((novel, index, self) => 
+    index === self.findIndex(n => n.id === novel.id)
+  )
+
   return (
     <div className="min-h-screen">
+      <SEOHead
+        title="NovlNest - Free Online Novels & Stories | Read & Write Fiction"
+        description="Discover thousands of free novels and stories on NovlNest. Read trending fiction, new releases, and share your own creative writing. The best platform for readers and writers."
+        keywords="free novels, online stories, fiction reading, creative writing, novel platform, digital books, trending novels, new releases, wattpad alternative, storytelling community"
+        url="https://novlnest.com"
+        structuredData={[generateWebsiteStructuredData(), generateBreadcrumbStructuredData([{name: "Home", url: "https://novlnest.com"}]), generateCollectionStructuredData(uniqueNovels, "Free Online Novels & Stories | Read & Write Fiction"), generateCollectionStructuredData(uniqueNovels, "Promotional Novels"), generateCollectionStructuredData(uniqueNovels, "Trending Novels"), generateCollectionStructuredData(uniqueNovels, "New Releases")]}
+      />
+      
       <section className="relative bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white py-20 px-4 sm:px-6 lg:px-8 rounded-b-3xl shadow-xl">
         <div className="absolute inset-0 bg-black opacity-50 rounded-b-3xl"></div>
         <div className="relative max-w-7xl mx-auto">

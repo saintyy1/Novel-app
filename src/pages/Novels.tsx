@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { Link, useParams } from "react-router-dom" // Import useParams
 import type { Novel } from "../types/novel"
 import { fetchNovels } from "../services/novelService" // Import the service
+import SEOHead from "../components/SEOHead"
+import { generateCollectionStructuredData } from "../utils/structuredData"
 
 const Novels: React.FC = () => {
   const { type } = useParams() // Get the 'type' parameter from the URL (e.g., 'trending', 'new-releases', promotional)
@@ -115,8 +117,45 @@ const Novels: React.FC = () => {
     return "from-gray-600 to-gray-800" // Default
   }
 
+  // Generate page title and description based on type
+  const getPageTitle = () => {
+    switch (effectiveSortOrder) {
+      case "promotional": return "Promotional Novels - Free Online Stories | NovlNest"
+      case "trending": return "Trending Novels - Most Popular Stories | NovlNest"
+      case "new-releases": return "New Release Novels - Latest Stories | NovlNest"
+      default: return "Browse Novels - Free Online Stories & Fiction | NovlNest"
+    }
+  }
+
+  const getPageDescription = () => {
+    switch (effectiveSortOrder) {
+      case "promotional": return "Discover featured promotional novels on NovlNest. Read free online stories from talented authors and explore new genres."
+      case "trending": return "Explore the most popular and trending novels on NovlNest. Read free online stories that readers love most."
+      case "new-releases": return "Read the latest new release novels on NovlNest. Discover fresh stories and new chapters from your favorite authors."
+      default: return "Browse thousands of free novels and stories on NovlNest. Find your next favorite book from our collection of fiction, romance, fantasy, and more."
+    }
+  }
+
+  const getPageKeywords = () => {
+    const baseKeywords = "free novels, online stories, fiction reading, digital books, novel platform"
+    switch (effectiveSortOrder) {
+      case "promotional": return `${baseKeywords}, featured novels, promotional stories, highlighted books`
+      case "trending": return `${baseKeywords}, trending novels, popular stories, most read books, viral novels`
+      case "new-releases": return `${baseKeywords}, new novels, latest stories, recent releases, fresh content`
+      default: return `${baseKeywords}, browse novels, story collection, reading platform, wattpad alternative`
+    }
+  }
+
   return (
     <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 py-12">
+      <SEOHead
+        title={getPageTitle()}
+        description={getPageDescription()}
+        keywords={getPageKeywords()}
+        url={`https://novlnest.com/novels${type ? `/${type}` : ''}`}
+        structuredData={generateCollectionStructuredData(novels, effectiveSortOrder === "promotional" ? "Promotional Novels" : effectiveSortOrder === "trending" ? "Trending Novels" : effectiveSortOrder === "new-releases" ? "New Release Novels" : "Browse Novels")}
+      />
+      
       <div className="text-center mb-12">
         <h1 className="text-4xl font-extrabold text-[#E0E0E0] mb-4">
           {effectiveSortOrder === "promotional"
