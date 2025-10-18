@@ -48,6 +48,7 @@ const LoginPage = () => {
         description="Sign in to your NovlNest account to access your library, write novels, and connect with the community of readers and writers."
         keywords="login, sign in, account, NovlNest, novel platform, reading community"
         url="https://novlnest.com/login"
+        canonicalUrl="https://novlnest.com/login"
       />
       
       <div className="max-w-md w-full space-y-8">

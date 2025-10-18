@@ -337,6 +337,7 @@ const SubmitNovel = () => {
         description="Share your creative writing with the world on NovlNest. Submit your novel, story, or fiction work and connect with readers who love your genre."
         keywords="submit novel, publish story, creative writing, share fiction, writing platform, author tools, NovlNest"
         url="https://novlnest.com/submit"
+        canonicalUrl="https://novlnest.com/submit"
       />
       
       <h1 className="text-3xl font-bold mt-2 mb-8 text-[#E0E0E0]">Submit Your Novel</h1>

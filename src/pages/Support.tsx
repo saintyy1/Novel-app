@@ -159,6 +159,7 @@ const Support = () => {
         description="Get help and support for NovlNest. Find answers to common questions, troubleshooting guides, and contact our support team for assistance."
         keywords="support, help center, NovlNest support, troubleshooting, FAQ, customer service, technical support"
         url="https://novlnest.com/support"
+        canonicalUrl="https://novlnest.com/support"
       />
       
       <div className="max-w-7xl mx-auto">

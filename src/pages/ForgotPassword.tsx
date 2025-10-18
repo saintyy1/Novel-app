@@ -36,6 +36,7 @@ const ForgotPassword = () => {
         description="Reset your NovlNest password. Enter your email address and we'll send you a link to create a new password for your account."
         keywords="forgot password, reset password, NovlNest account, password recovery, account access"
         url="https://novlnest.com/forgot-password"
+        canonicalUrl="https://novlnest.com/forgot-password"
       />
       
       <div className="sm:mx-auto sm:w-full sm:max-w-md">

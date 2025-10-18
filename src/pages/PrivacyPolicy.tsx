@@ -8,6 +8,7 @@ const PrivacyPolicy = () => {
         description="Learn how NovlNest protects your privacy and handles your personal information. Read our comprehensive privacy policy to understand data collection and usage."
         keywords="privacy policy, data protection, NovlNest privacy, personal information, data collection, user privacy"
         url="https://novlnest.com/privacy"
+        canonicalUrl="https://novlnest.com/privacy"
       />
       
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

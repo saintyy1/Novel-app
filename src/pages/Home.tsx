@@ -146,6 +146,7 @@ const Home = () => {
         description="Discover thousands of free novels and stories on NovlNest. Read trending fiction, new releases, and share your own creative writing. The best platform for readers and writers."
         keywords="free novels, online stories, fiction reading, creative writing, novel platform, digital books, trending novels, new releases, wattpad alternative, storytelling community"
         url="https://novlnest.com"
+        canonicalUrl="https://novlnest.com"
         structuredData={[generateWebsiteStructuredData(), generateBreadcrumbStructuredData([{name: "Home", url: "https://novlnest.com"}]), generateCollectionStructuredData(uniqueNovels, "Free Online Novels & Stories | Read & Write Fiction"), generateCollectionStructuredData(uniqueNovels, "Promotional Novels"), generateCollectionStructuredData(uniqueNovels, "Trending Novels"), generateCollectionStructuredData(uniqueNovels, "New Releases")]}
       />
       

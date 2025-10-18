@@ -242,6 +242,7 @@ const LibraryPage = () => {
         description="Access your personal library on NovlNest. View your liked novels, reading history, and manage your book collection in one place."
         keywords="library, my books, reading list, liked novels, book collection, personal library, NovlNest"
         url="https://novlnest.com/library"
+        canonicalUrl="https://novlnest.com/library"
       />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">

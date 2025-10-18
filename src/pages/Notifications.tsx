@@ -472,6 +472,7 @@ const NotificationsPage = () => {
         description="Stay updated with your latest notifications on NovlNest. View likes, comments, follows, and other activity on your novels and profile."
         keywords="notifications, activity updates, novel interactions, comments, likes, follows, NovlNest"
         url="https://novlnest.com/notifications"
+        canonicalUrl="https://novlnest.com/notifications"
       />
       
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">

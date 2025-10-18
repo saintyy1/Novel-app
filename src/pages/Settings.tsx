@@ -164,6 +164,7 @@ const Settings: React.FC = () => {
         description="Manage your NovlNest account settings. Update your profile, change password, manage privacy settings, and customize your reading experience."
         keywords="account settings, profile settings, NovlNest settings, user preferences, account management"
         url="https://novlnest.com/settings"
+        canonicalUrl="https://novlnest.com/settings"
       />
       
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">

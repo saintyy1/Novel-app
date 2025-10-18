@@ -8,6 +8,8 @@ interface SEOHeadProps {
   url?: string
   type?: string
   structuredData?: object
+  canonicalUrl: string;
+
 }
 
 const SEOHead = ({ 
@@ -17,7 +19,8 @@ const SEOHead = ({
   image = "https://novlnest.com/images/logo.jpg",
   url = "https://novlnest.com",
   type = "website",
-  structuredData
+  structuredData,
+  canonicalUrl
 }: SEOHeadProps) => {
   useEffect(() => {
     // Update document title
@@ -89,11 +92,11 @@ const SEOHead = ({
     // Canonical URL
     const canonicalLink = document.querySelector('link[rel="canonical"]')
     if (canonicalLink) {
-      canonicalLink.setAttribute('href', url)
+      canonicalLink.setAttribute('href', canonicalUrl || url)
     } else {
       const link = document.createElement('link')
       link.rel = 'canonical'
-      link.href = url
+      link.href = canonicalUrl || url
       document.head.appendChild(link)
     }
 
@@ -110,7 +113,7 @@ const SEOHead = ({
       script.textContent = JSON.stringify(structuredData)
       document.head.appendChild(script)
     }
-  }, [title, description, keywords, image, url, type, structuredData])
+  }, [title, description, keywords, image, url, type, structuredData, canonicalUrl])
 
   return null
 }

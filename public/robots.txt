@@ -2,11 +2,12 @@ User-agent: *
 Allow: /
 
 # Disallow admin and private areas
-Disallow: /admin/
+Disallow: /admin
 Disallow: /settings
 Disallow: /notifications
 Disallow: /messages
 Disallow: /library
+Disallow: /support
 
 # Allow important pages
 Allow: /novels
@@ -14,7 +15,6 @@ Allow: /novel/
 Allow: /profile/
 Allow: /about
 Allow: /contact
-Allow: /support
 Allow: /terms-of-service
 Allow: /privacy
 

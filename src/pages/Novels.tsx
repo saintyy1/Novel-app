@@ -153,6 +153,7 @@ const Novels: React.FC = () => {
         description={getPageDescription()}
         keywords={getPageKeywords()}
         url={`https://novlnest.com/novels${type ? `/${type}` : ''}`}
+        canonicalUrl={`https://novlnest.com/novels${type ? `/${type}` : ''}`}
         structuredData={generateCollectionStructuredData(novels, effectiveSortOrder === "promotional" ? "Promotional Novels" : effectiveSortOrder === "trending" ? "Trending Novels" : effectiveSortOrder === "new-releases" ? "New Release Novels" : "Browse Novels")}
       />
       

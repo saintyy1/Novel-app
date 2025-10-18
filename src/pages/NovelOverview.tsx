@@ -942,6 +942,7 @@ const NovelOverview = () => {
         <SEOHead
           title={`${novel.title} by ${novel.authorName || 'Unknown Author'} - Free Online Novel | NovlNest`}
           description={novel.description || `Read ${novel.title} by ${novel.authorName || 'Unknown Author'} for free on NovlNest. ${novel.genres?.join(', ')} novel with ${novel.chapters?.length || 0} chapters.`}
+          canonicalUrl={`https://novlnest.com/novel/${novel.id}`}
           keywords={`${novel.title}, ${novel.authorName}, ${novel.genres?.join(', ')}, free novel, online reading, ${novel.genres?.map(g => `${g} novel`).join(', ')}, digital book`}
           image={novel.coverImage ? `https://novlnest.com${novel.coverImage}` : "https://novlnest.com/images/logo.jpg"}
           url={`https://novlnest.com/novel/${novel.id}`}

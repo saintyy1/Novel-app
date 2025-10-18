@@ -8,6 +8,7 @@ const Contact = () => {
         description="Get in touch with the NovlNest team. We're here to help with questions, feedback, or support. Contact us for any inquiries about our platform."
         keywords="contact NovlNest, support, help, feedback, customer service, get in touch, NovlNest team"
         url="https://novlnest.com/contact"
+        canonicalUrl="https://novlnest.com/contact"
       />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -73,6 +73,7 @@ const RegisterPage = () => {
         description="Join NovlNest today! Create your free account to start reading and writing novels, connect with authors, and be part of our creative community."
         keywords="sign up, register, create account, join NovlNest, free account, novel platform, writing community"
         url="https://novlnest.com/register"
+        canonicalUrl="https://novlnest.com/register"
       />
       
       <div className="max-w-md w-full space-y-8">
