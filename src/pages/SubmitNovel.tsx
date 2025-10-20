@@ -41,7 +41,7 @@ const SubmitNovel = () => {
     "Horror",
     "Adventure",
     "Thriller",
-    "Historical",
+    "Historical Fiction",
     "Comedy",
     "Drama",
     "Fiction",

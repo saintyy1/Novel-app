@@ -91,7 +91,7 @@ const LibraryPage = () => {
     if (genres.includes("Horror")) return "from-red-500 to-rose-800"
     if (genres.includes("Adventure")) return "from-green-500 to-emerald-600"
     if (genres.includes("Thriller")) return "from-orange-500 to-red-600"
-    if (genres.includes("Historical")) return "from-amber-500 to-yellow-600"
+    if (genres.includes("Historical Fiction")) return "from-amber-500 to-yellow-600"
     if (genres.includes("Comedy")) return "from-teal-500 to-green-600"
     if (genres.includes("Drama")) return "from-violet-500 to-purple-600"
     if (genres.includes("Dark Romance")) return "from-rose-700 to-purple-900"
