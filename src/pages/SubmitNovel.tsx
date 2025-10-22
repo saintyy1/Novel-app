@@ -10,9 +10,14 @@ import { db, storage } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import MDEditor from "@uiw/react-md-editor"
 import rehypeSanitize from "rehype-sanitize"
+import * as pdfjsLib from "pdfjs-dist/build/pdf";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import InlineChatEditor from "../components/InlineChatEditor"
 import type { ChatMessage } from "../types/novel"
 import SEOHead from "../components/SEOHead"
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const SubmitNovel = () => {
   const { currentUser } = useAuth()
@@ -32,6 +37,8 @@ const SubmitNovel = () => {
   const [error, setError] = useState("")
   const [showPreview, setShowPreview] = useState(true)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isParsing, setIsParsing] = useState(false)
+  const [parseError, setParseError] = useState("")
 
   const availableGenres = [
     "Fantasy",
@@ -91,10 +98,10 @@ const SubmitNovel = () => {
   const insertChatIntoChapter = (index: number, messages: ChatMessage[]) => {
     const newChapters = [...chapters]
     const currentContent = newChapters[index].content
-    
+
     // Create simple JSON marker for chat messages
     const chatData = `[CHAT_START]${JSON.stringify(messages)}[CHAT_END]`
-    
+
     // Insert at cursor position or at the end
     newChapters[index].content = currentContent + '\n\n' + chatData + '\n\n'
     setChapters(newChapters)
@@ -203,28 +210,335 @@ const SubmitNovel = () => {
       }
 
       try {
-      // Just create a preview and store the file
-      const reader = new FileReader()
-      reader.onload = () => {
-        setCoverPreview(reader.result as string)
+        // Just create a preview and store the file
+        const reader = new FileReader()
+        reader.onload = () => {
+          setCoverPreview(reader.result as string)
+        }
+        reader.readAsDataURL(file)
+        setSelectedFile(file)
+        setError("")
+      } catch (err) {
+        console.error("Image preview failed:", err)
+        setError("Failed to preview image")
       }
-      reader.readAsDataURL(file)
-      setSelectedFile(file)
-      setError("")
-    } catch (err) {
-      console.error("Image preview failed:", err)
-      setError("Failed to preview image")
-    }
     }
   }
-  
+
   const removeCoverImage = () => {
-  setCoverPreview(null)
-  setSelectedFile(null)
-  if (fileInputRef.current) {
-    fileInputRef.current.value = ""
+    setCoverPreview(null)
+    setSelectedFile(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
   }
-}
+
+  const handlePDFUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+
+      if (!file.type.includes("pdf")) {
+        setParseError("Please upload a valid PDF file.");
+        return;
+      }
+
+      try {
+        setIsParsing(true);
+        setParseError("");
+
+        // Read the PDF file
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf: PDFDocumentProxy = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        // Extract text from each page with better formatting
+        const numPages = pdf.numPages;
+        let fullText = '';
+        let structuredLines: { text: string; y: number; fontSize: number; pageNum: number }[] = [];
+
+        for (let i = 1; i <= numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          
+          // Collect all items with their positions and font sizes
+          textContent.items.forEach((item: any) => {
+            const text = item.str.trim();
+            if (!text) return;
+            
+            const y = item.transform[5];
+            const fontSize = item.transform[0]; // Font size/scale
+            
+            structuredLines.push({
+              text,
+              y,
+              fontSize,
+              pageNum: i
+            });
+          });
+        }
+
+        // Sort by page number and Y position (descending Y means top to bottom)
+        structuredLines.sort((a, b) => {
+          if (a.pageNum !== b.pageNum) return a.pageNum - b.pageNum;
+          return b.y - a.y;
+        });
+
+        // Build text with better paragraph detection and chapter identification
+        let currentPageText = '';
+        let lastY = 0;
+        let lastPageNum = 1;
+
+        structuredLines.forEach((line, index) => {
+          const { text, y, pageNum } = line;
+          
+          // Page break detection
+          if (pageNum !== lastPageNum) {
+            currentPageText += '\n\n';
+            lastPageNum = pageNum;
+            lastY = y;
+          }
+          
+          // Detect paragraph breaks based on Y position
+          if (index > 0 && pageNum === lastPageNum) {
+            const yDiff = Math.abs(y - lastY);
+            
+            // Get the last few characters to check for word boundaries
+            const lastChars = currentPageText.slice(-10).trim();
+            const endsWithPartialWord = lastChars.length > 0 && 
+              !/[\s\.\,\!\?\:\;\-\n]$/.test(lastChars);
+            
+            // Check if current text starts with lowercase (likely continuation)
+            const startsWithLowercase = /^[a-z]/.test(text);
+            
+            // Check if the previous text ended with sentence-ending punctuation
+            const endsWithSentence = /[.!?]["']?\s*$/.test(currentPageText.trimEnd());
+            
+            // Adjusted thresholds for better paragraph detection
+            // Large Y difference + sentence ended = paragraph break
+            // This ensures multiple sentences stay together unless there's a real gap
+            if (yDiff > 12 && endsWithSentence) {
+              currentPageText += '\n\n';
+            } 
+            // Medium Y difference = just a space (keep sentences together in paragraph)
+            else if (yDiff > 2) {
+              if (currentPageText && !currentPageText.endsWith(' ') && !currentPageText.endsWith('\n')) {
+                currentPageText += ' ';
+              }
+            } 
+            // Very small Y difference = same line, add space or join word
+            else if (yDiff <= 2) {
+              // Don't add space if the last text ends with partial word and this starts lowercase
+              // This handles cases like "C" + "hapter" becoming "Chapter" not "C hapter"
+              if (!(endsWithPartialWord && startsWithLowercase)) {
+                if (currentPageText && !currentPageText.endsWith(' ') && !currentPageText.endsWith('\n')) {
+                  currentPageText += ' ';
+                }
+              }
+            }
+          }
+          
+          currentPageText += text;
+          lastY = y;
+        });
+
+        fullText = currentPageText;
+
+        // First normalize excessive newlines but KEEP single/double newlines for chapter detection
+        fullText = fullText.replace(/\n{3,}/g, '\n\n');
+        
+        // Debug: Log a sample of the extracted text BEFORE normalization
+        console.log('PDF Text Sample BEFORE normalization (first 500 chars):', fullText.substring(0, 500));
+        console.log('PDF Text Sample BEFORE normalization (chars 500-1000):', fullText.substring(500, 1000));
+        
+        // Check for broken chapter patterns
+        const brokenChapterCheck = fullText.match(/C\s+hapter|CHAPT\s+ER/gi);
+        if (brokenChapterCheck) {
+          console.warn('Found broken chapter patterns:', brokenChapterCheck);
+        }
+
+        // Enhanced chapter detection with multiple strategies
+        let chapters: { title: string; content: string }[] = [];
+        
+        // Strategy 1: Look for explicit chapter markers in the text
+        // First, try to fix any broken "C hapter" patterns
+        fullText = fullText.replace(/C\s+hapter/gi, 'Chapter');
+        fullText = fullText.replace(/CHAPT\s+ER/gi, 'CHAPTER');
+        
+        // More flexible regex that handles various spacing and formats
+        // Match chapter headers - we'll clean up subtitle extraction in post-processing
+        const chapterRegex = /(?:^|\n\n)\s*((?:Chapter|CHAPTER|Ch\.?)\s+(?:\d+|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Eleven|Twelve|Thirteen|Fourteen|Fifteen|Sixteen|Seventeen|Eighteen|Nineteen|Twenty|[IVX]+)(?:\s*[:\-—–][^\n]+)?)/gi;
+        
+        const matches = Array.from(fullText.matchAll(chapterRegex));
+        
+        console.log(`Found ${matches.length} chapter markers in PDF`);
+        matches.forEach((match, i) => {
+          console.log(`Chapter ${i + 1} FULL MATCH: "${match[0]}"`);
+          console.log(`Chapter ${i + 1} captured group: "${match[1]}"`);
+          console.log(`Chapter ${i + 1} position: ${match.index}`);
+          // Show what comes after the match
+          const afterMatch = fullText.substring(match.index! + match[0].length, match.index! + match[0].length + 100);
+          console.log(`Chapter ${i + 1} text after: "${afterMatch}"`);
+        });
+        
+        if (matches.length > 0) {
+          matches.forEach((match, index) => {
+            const fullChapterTitle = match[1].trim();
+            
+            // Extract clean subtitle first (e.g., "Chapter One - The Beginning" -> "The Beginning")
+            let chapterTitle = fullChapterTitle;
+            let cleanChapterHeader = fullChapterTitle; // The actual chapter header without sentence content
+            console.log(`Processing full chapter title: "${fullChapterTitle}"`);
+            
+            // Match everything after the separator
+            const subtitleMatch = fullChapterTitle.match(/^((?:Chapter|CHAPTER|Ch\.?)\s+(?:\d+|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Eleven|Twelve|Thirteen|Fourteen|Fifteen|Sixteen|Seventeen|Eighteen|Nineteen|Twenty|[IVX]+)\s*[:\-—–])\s*(.+)$/i);
+            
+            if (subtitleMatch && subtitleMatch[2]) {
+              const chapterPrefix = subtitleMatch[1]; // "Chapter Two –"
+              let subtitle = subtitleMatch[2].trim();
+              
+              // Clean up: Remove any sentence content that might be attached
+              // Look for pattern: "Subtitle SentenceStart" where SentenceStart is Capital followed by lowercase word
+              // This detects when a sentence starts: "Reckoning The air" → subtitle is "Reckoning"
+              // Subtitles are usually title-case words, sentences have lowercase words after the first
+              const sentencePattern = /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,4}?)\s+([A-Z][a-z]+\s+[a-z])/;
+              const cleanMatch = subtitle.match(sentencePattern);
+              
+              if (cleanMatch) {
+                // Found sentence attached, use only the subtitle part
+                chapterTitle = cleanMatch[1].trim();
+                cleanChapterHeader = chapterPrefix + ' ' + chapterTitle;
+                console.log(`Cleaned subtitle: "${chapterTitle}" (removed sentence: "${cleanMatch[2].trim()}...")  from "${subtitle}"`);
+              } else {
+                // No sentence detected, use full subtitle
+                chapterTitle = subtitle;
+                cleanChapterHeader = fullChapterTitle;
+                console.log(`Extracted subtitle: "${chapterTitle}" from "${fullChapterTitle}"`);
+              }
+            } else if (!subtitleMatch) {
+              // No subtitle, use default "Chapter X" format
+              const chapterNumMatch = fullChapterTitle.match(/(?:Chapter|CHAPTER|Ch\.?)\s+(\d+|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Eleven|Twelve|Thirteen|Fourteen|Fifteen|Sixteen|Seventeen|Eighteen|Nineteen|Twenty|[IVX]+)/i);
+              if (chapterNumMatch) {
+                chapterTitle = `Chapter ${chapterNumMatch[1]}`;
+                cleanChapterHeader = chapterTitle;
+                console.log(`No subtitle found, using: "${chapterTitle}"`);
+              }
+            }
+            
+            // Calculate content start: find where the clean header ends in the original text
+            const chapterStartPos = match.index!;
+            const cleanHeaderInText = fullText.indexOf(cleanChapterHeader, chapterStartPos);
+            let contentStartPos;
+            
+            if (cleanHeaderInText !== -1) {
+              // Start after the clean header
+              contentStartPos = cleanHeaderInText + cleanChapterHeader.length;
+              // Skip any whitespace/newlines
+              while (contentStartPos < fullText.length && /[\s\n]/.test(fullText[contentStartPos])) {
+                contentStartPos++;
+              }
+            } else {
+              // Fallback: use position after the full match
+              contentStartPos = match.index! + match[0].length;
+            }
+            
+            const endPos = index < matches.length - 1 ? matches[index + 1].index! : fullText.length;
+            const chapterContent = fullText.substring(contentStartPos, endPos).trim();
+            
+            // Now normalize the chapter content (join single newlines, keep paragraph breaks)
+            let normalizedContent = chapterContent;
+            
+            // Remove any single newlines (join sentences in same paragraph)
+            // But preserve double newlines (actual paragraph breaks)
+            normalizedContent = normalizedContent.replace(/([^\n])\n([^\n])/g, '$1 $2');
+            
+            // Clean up multiple spaces
+            normalizedContent = normalizedContent.replace(/ {2,}/g, ' ');
+            
+            // Clean up any trailing/leading whitespace on each paragraph
+            normalizedContent = normalizedContent.split('\n\n').map(para => para.trim()).join('\n\n');
+            
+            console.log(`Chapter "${chapterTitle}" content preview: "${normalizedContent.substring(0, 100)}..."`);
+            console.log(`Chapter "${chapterTitle}" content length: ${normalizedContent.length} chars`);
+            
+            if (normalizedContent.length > 50) { // Only add if there's substantial content
+              chapters.push({
+                title: chapterTitle,
+                content: normalizedContent
+              });
+            } else {
+              console.warn(`Skipping "${chapterTitle}" - content too short (${normalizedContent.length} chars)`);
+            }
+          });
+        } 
+        
+        // Strategy 2: If few or no chapters found, try page breaks
+        if (chapters.length <= 1 && numPages > 1) {
+          console.log('Using page-based chapter detection');
+          const pageTexts = fullText.split(/\n{4,}/); // Split on large gaps
+          
+          if (pageTexts.length > 1) {
+            chapters = pageTexts
+              .filter(text => text.trim().length > 100)
+              .map((text, index) => {
+                // Try to extract a title from the first line
+                const lines = text.trim().split('\n');
+                const firstLine = lines[0].trim();
+                const isChapterTitle = /^(Chapter|CHAPTER)/i.test(firstLine) && firstLine.length < 50;
+                
+                let content = isChapterTitle ? lines.slice(1).join('\n').trim() : text.trim();
+                
+                // Normalize content
+                content = content.replace(/([^\n])\n([^\n])/g, '$1 $2');
+                content = content.replace(/ {2,}/g, ' ');
+                content = content.split('\n\n').map(para => para.trim()).join('\n\n');
+                
+                if (isChapterTitle) {
+                  return {
+                    title: firstLine,
+                    content: content
+                  };
+                } else {
+                  return {
+                    title: `Chapter ${index + 1}`,
+                    content: content
+                  };
+                }
+              });
+          }
+        }
+        
+        // Fallback: If still no chapters, treat as single chapter
+        if (chapters.length === 0) {
+          let content = fullText.trim();
+          
+          // Normalize content
+          content = content.replace(/([^\n])\n([^\n])/g, '$1 $2');
+          content = content.replace(/ {2,}/g, ' ');
+          content = content.split('\n\n').map(para => para.trim()).join('\n\n');
+          
+          chapters = [{
+            title: "Chapter 1",
+            content: content
+          }];
+        }
+        
+        console.log(`Final chapter count: ${chapters.length}`);
+        setChapters(chapters);
+        
+        // Show success message with chapter count
+        if (chapters.length > 1) {
+          setParseError("");
+        } else {
+          setParseError(`Note: Only 1 chapter detected. If your PDF has multiple chapters, ensure they're clearly marked with "Chapter X" headers.`);
+        }
+        
+      } catch (error) {
+        console.error("PDF parsing failed:", error);
+        setParseError("Failed to parse PDF file.");
+      } finally {
+        setIsParsing(false);
+      }
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -242,7 +556,7 @@ const SubmitNovel = () => {
     const hasChapters = chapters.length > 0 && chapters.some((chapter) => chapter.content.trim())
     const hasAuthorsNote = authorsNote.trim().length > 0
     const hasPrologue = prologue.trim().length > 0
-    
+
     if (!hasChapters && !hasAuthorsNote && !hasPrologue) {
       return setError("Please add at least one chapter, author's note, or prologue before submitting")
     }
@@ -253,35 +567,35 @@ const SubmitNovel = () => {
     }
 
     try {
-    setLoading(true)
-    setError("")
+      setLoading(true)
+      setError("")
 
-    let coverUrl = null
-    let coverSmallUrl = null
-    const docRef = doc(collection(db, "novels"))
+      let coverUrl = null
+      let coverSmallUrl = null
+      const docRef = doc(collection(db, "novels"))
 
-    // Only process image if one was selected
-    if (selectedFile) {
-      try {
-        const resizedBlob = await resizeUnder1MB(selectedFile)
-        const smallBlob = await generateSmallBlob(selectedFile)
+      // Only process image if one was selected
+      if (selectedFile) {
+        try {
+          const resizedBlob = await resizeUnder1MB(selectedFile)
+          const smallBlob = await generateSmallBlob(selectedFile)
 
-        // Upload to Firebase Storage with the document ID
-        const coverRef = ref(storage, `covers-large/${docRef.id}.jpg`)
-        const coverSmallRef = ref(storage, `covers-small/${docRef.id}.jpg`)
+          // Upload to Firebase Storage with the document ID
+          const coverRef = ref(storage, `covers-large/${docRef.id}.jpg`)
+          const coverSmallRef = ref(storage, `covers-small/${docRef.id}.jpg`)
 
-        await uploadBytes(coverRef, resizedBlob)
-        await uploadBytes(coverSmallRef, smallBlob)
+          await uploadBytes(coverRef, resizedBlob)
+          await uploadBytes(coverSmallRef, smallBlob)
 
-        coverUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-large/${docRef.id}.jpg`
-        coverSmallUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-small/${docRef.id}.jpg`
-      } catch (err) {
-        console.error("Image processing failed:", err)
-        setError("Failed to process image")
-        setLoading(false)
-        return
+          coverUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-large/${docRef.id}.jpg`
+          coverSmallUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/covers-small/${docRef.id}.jpg`
+        } catch (err) {
+          console.error("Image processing failed:", err)
+          setError("Failed to process image")
+          setLoading(false)
+          return
+        }
       }
-    }
 
       await setDoc(docRef, {
         title,
@@ -339,7 +653,7 @@ const SubmitNovel = () => {
         url="https://novlnest.com/submit"
         canonicalUrl="https://novlnest.com/submit"
       />
-      
+
       <h1 className="text-3xl font-bold mt-2 mb-8 text-[#E0E0E0]">Submit Your Novel</h1>
 
       {error && (
@@ -470,11 +784,10 @@ const SubmitNovel = () => {
               {availableGenres.map((genre) => (
                 <label
                   key={genre}
-                  className={`flex items-center justify-center px-3 py-2 rounded-lg border ${
-                    genres.includes(genre)
+                  className={`flex items-center justify-center px-3 py-2 rounded-lg border ${genres.includes(genre)
                       ? "bg-purple-900/40 border-purple-700 text-purple-300"
                       : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                  } cursor-pointer transition-colors text-sm`}
+                    } cursor-pointer transition-colors text-sm`}
                 >
                   <input
                     type="checkbox"
@@ -519,6 +832,50 @@ const SubmitNovel = () => {
           </div>
         </div>
 
+        <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-8">
+          <h2 className="text-xl font-bold mb-6 text-gray-300 border-b border-gray-700 pb-2">
+            Import Chapters from PDF
+          </h2>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Upload PDF (Optional)
+            </label>
+            <div className="mt-1">
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={handlePDFUpload}
+                className="block w-full text-sm text-gray-400
+                 file:mr-4 file:py-2 file:px-4
+                 file:rounded-md file:border-0
+                 file:text-sm file:font-medium
+                 file:bg-purple-900 file:text-purple-200
+                 hover:file:bg-purple-800
+                 cursor-pointer"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Upload a PDF file to automatically extract chapters with proper formatting. Supports various chapter formats: "Chapter 1", "CHAPTER 1", "Ch. 1", "Chapter One", etc.
+              </p>
+              {isParsing && (
+                <div className="mt-2 text-purple-400 flex items-center">
+                  <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Parsing PDF...
+                </div>
+              )}
+              {parseError && (
+                <div className="mt-2 text-red-400">
+                  {parseError}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+
         <div className="mb-8">
           <div className="flex justify-between items-center mb-6">
             <div>
@@ -556,77 +913,77 @@ const SubmitNovel = () => {
             </div>
           ) : (
             chapters.map((chapter, index) => (
-            <div key={index} className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-white">Chapter {index + 1}</h3>
-                <button
-                  type="button"
-                  className="inline-flex items-center text-red-400 hover:text-red-300 transition-colors"
-                  onClick={() => removeChapter(index)}
-                >
-                  <svg
-                    className="w-4 h-4 mr-1"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                  Remove
-                </button>
-              </div>
-
-              <div className="mb-4">
-                <label htmlFor={`chapter-title-${index}`} className="block text-sm font-medium text-gray-300 mb-1">
-                  Chapter Title
-                </label>
-                <input
-                  id={`chapter-title-${index}`}
-                  type="text"
-                  className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-                  value={chapter.title}
-                  onChange={(e) => handleChapterTitleChange(index, e.target.value)}
-                  required
-                  placeholder={`Enter Chapter ${index + 1} title`}
-                />
-              </div>
-
-              <div>
-                <label htmlFor={`chapter-content-${index}`} className="block text-sm font-medium text-gray-300 mb-1">
-                  Chapter Content
-                </label>
-                <div className="flex space-x-2 mb-2">
+              <div key={index} className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-white">Chapter {index + 1}</h3>
                   <button
                     type="button"
-                    className="px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    onClick={() => setShowPreview((prev) => !prev)}
+                    className="inline-flex items-center text-red-400 hover:text-red-300 transition-colors"
+                    onClick={() => removeChapter(index)}
                   >
-                    {showPreview ? "Show Preview" : "Hide Preview"}
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                    Remove
                   </button>
-                  <InlineChatEditor onAddChat={(messages) => insertChatIntoChapter(index, messages)} />
                 </div>
-                <MDEditor
-                  value={chapter.content}
-                  onChange={(val) => handleChapterContentChange(index, val || "")}
-                  height={250}
-                  textareaProps={{
-                    id: `chapter-content-${index}`,
-                    required: true,
-                    placeholder: "Write your chapter content here...",
-                  }}
-                  previewOptions={{
-                    rehypePlugins: [[rehypeSanitize]],
-                  }}
-                  preview={showPreview ? "edit" : "preview"}
-                />
+
+                <div className="mb-4">
+                  <label htmlFor={`chapter-title-${index}`} className="block text-sm font-medium text-gray-300 mb-1">
+                    Chapter Title
+                  </label>
+                  <input
+                    id={`chapter-title-${index}`}
+                    type="text"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                    value={chapter.title}
+                    onChange={(e) => handleChapterTitleChange(index, e.target.value)}
+                    required
+                    placeholder={`Enter Chapter ${index + 1} title`}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor={`chapter-content-${index}`} className="block text-sm font-medium text-gray-300 mb-1">
+                    Chapter Content
+                  </label>
+                  <div className="flex space-x-2 mb-2">
+                    <button
+                      type="button"
+                      className="px-3 py-1 rounded bg-gray-700 text-gray-200 text-xs hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      onClick={() => setShowPreview((prev) => !prev)}
+                    >
+                      {showPreview ? "Show Preview" : "Hide Preview"}
+                    </button>
+                    <InlineChatEditor onAddChat={(messages) => insertChatIntoChapter(index, messages)} />
+                  </div>
+                  <MDEditor
+                    value={chapter.content}
+                    onChange={(val) => handleChapterContentChange(index, val || "")}
+                    height={250}
+                    textareaProps={{
+                      id: `chapter-content-${index}`,
+                      required: true,
+                      placeholder: "Write your chapter content here...",
+                    }}
+                    previewOptions={{
+                      rehypePlugins: [[rehypeSanitize]],
+                    }}
+                    preview={showPreview ? "edit" : "preview"}
+                  />
+                </div>
               </div>
-            </div>
             ))
           )}
         </div>
