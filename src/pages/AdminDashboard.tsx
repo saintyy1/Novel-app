@@ -421,53 +421,55 @@ const AdminDashboard = () => {
         )}
 
         {/* Navigation Tabs */}
-        <div className="flex space-x-1 mb-8 bg-gray-800 p-1 rounded-lg">
-          <button
-            onClick={() => setActiveSection("overview")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeSection === "overview"
-                ? "bg-gray-700 text-white shadow-sm"
-                : "text-gray-300 hover:text-white hover:bg-gray-700/50"
-            }`}
-          >
-            <FaChartBar className="h-4 w-4" />
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveSection("novels")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeSection === "novels"
-                ? "bg-gray-700 text-white shadow-sm"
-                : "text-gray-300 hover:text-white hover:bg-gray-700/50"
-            }`}
-          >
-            <FaBook className="h-4 w-4" />
-            Novels
-          </button>
-          <button
-            onClick={() => setActiveSection("poems")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeSection === "poems"
-                ? "bg-gray-700 text-white shadow-sm"
-                : "text-gray-300 hover:text-white hover:bg-gray-700/50"
-            }`}
-          >
-            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-            </svg>
-            Poems
-          </button>
-          <button
-            onClick={() => setActiveSection("users")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeSection === "users"
-                ? "bg-gray-700 text-white shadow-sm"
-                : "text-gray-300 hover:text-white hover:bg-gray-700/50"
-            }`}
-          >
-            <FaUsers className="h-4 w-4" />
-            Users
-          </button>
+        <div className="overflow-x-auto mb-8">
+          <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg min-w-max">
+            <button
+              onClick={() => setActiveSection("overview")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                activeSection === "overview"
+                  ? "bg-gray-700 text-white shadow-sm"
+                  : "text-gray-300 hover:text-white hover:bg-gray-700/50"
+              }`}
+            >
+              <FaChartBar className="h-4 w-4" />
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveSection("novels")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                activeSection === "novels"
+                  ? "bg-gray-700 text-white shadow-sm"
+                  : "text-gray-300 hover:text-white hover:bg-gray-700/50"
+              }`}
+            >
+              <FaBook className="h-4 w-4" />
+              Novels
+            </button>
+            <button
+              onClick={() => setActiveSection("poems")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                activeSection === "poems"
+                  ? "bg-gray-700 text-white shadow-sm"
+                  : "text-gray-300 hover:text-white hover:bg-gray-700/50"
+              }`}
+            >
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
+              Poems
+            </button>
+            <button
+              onClick={() => setActiveSection("users")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                activeSection === "users"
+                  ? "bg-gray-700 text-white shadow-sm"
+                  : "text-gray-300 hover:text-white hover:bg-gray-700/50"
+              }`}
+            >
+              <FaUsers className="h-4 w-4" />
+              Users
+            </button>
+          </div>
         </div>
 
         {/* Overview Section */}
