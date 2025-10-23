@@ -20,6 +20,7 @@ import { ref, uploadBytes, deleteObject } from "firebase/storage"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 import type { Novel } from "../types/novel"
+import type { Poem } from "../types/poem"
 import type { ExtendedUser } from "../context/AuthContext"
 import EditProfileModal from "../components/EditProfileModal" // Import the new modal component
 import UserListDrawer from "../components/UserListDrawer" // Import the new UserListDrawer
@@ -57,9 +58,11 @@ const Profile = () => {
   const navigate = useNavigate()
   const [profileUser, setProfileUser] = useState<ExtendedUser | null>(null)
   const [userNovels, setUserNovels] = useState<Novel[]>([])
+  const [userPoems, setUserPoems] = useState<Poem[]>([])
   const [loading, setLoading] = useState(true) // Initialize loading to true
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState<"published" | "pending" | "all">("all")
+  const [contentType, setContentType] = useState<"novels" | "poems">("novels")
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoError, setPhotoError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -88,6 +91,7 @@ const Profile = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedNovel, setSelectedNovel] = useState<any>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showDeletePoemConfirm, setShowDeletePoemConfirm] = useState(false)
   const [isTipModalOpen, setIsTipModalOpen] = useState(false)
   
   
@@ -100,6 +104,15 @@ const Profile = () => {
   const [savingNovel, setSavingNovel] = useState(false)
   const [saveNovelError, setSaveNovelError] = useState("")
   const [showEndPromotionConfirm, setShowEndPromotionConfirm] = useState(false)
+  
+  // Poem edit modal states
+  const [showEditPoemModal, setShowEditPoemModal] = useState(false)
+  const [selectedPoem, setSelectedPoem] = useState<any>(null)
+  const [editPoemTitle, setEditPoemTitle] = useState("")
+  const [editPoemDescription, setEditPoemDescription] = useState("")
+  const [editPoemContent, setEditPoemContent] = useState("")
+  const [savingPoem, setSavingPoem] = useState(false)
+  const [savePoemError, setSavePoemError] = useState("")
 
   const isOwnProfile = !userId || userId === currentUser?.uid
   const displayName = profileUser?.displayName || currentUser?.displayName || "User"
@@ -136,23 +149,40 @@ const Profile = () => {
           setIsFollowing(false)
         }
 
-        // Fetch novels for the profile user
+        // Fetch novels and poems for the profile user
         const targetUserId = userId || currentUser?.uid
         if (targetUserId) {
+          // Fetch novels
           const novelsQuery = query(
             collection(db, "novels"),
             where("authorId", "==", targetUserId),
             orderBy("createdAt", "desc"),
           )
-          const querySnapshot = await getDocs(novelsQuery)
+          const novelsSnapshot = await getDocs(novelsQuery)
           const novels: Novel[] = []
-          querySnapshot.forEach((doc) => {
+          novelsSnapshot.forEach((doc) => {
             novels.push({
               id: doc.id,
               ...doc.data(),
             } as Novel)
           })
           setUserNovels(novels)
+
+          // Fetch poems
+          const poemsQuery = query(
+            collection(db, "poems"),
+            where("poetId", "==", targetUserId),
+            orderBy("createdAt", "desc"),
+          )
+          const poemsSnapshot = await getDocs(poemsQuery)
+          const poems: Poem[] = []
+          poemsSnapshot.forEach((doc) => {
+            poems.push({
+              id: doc.id,
+              ...doc.data(),
+            } as Poem)
+          })
+          setUserPoems(poems)
         }
       } catch (err) {
         console.error("Error fetching user data:", err)
@@ -203,6 +233,24 @@ const Profile = () => {
     }
   }, [showEditModal])
 
+  // Prevent background scrolling when edit poem modal is open
+  useEffect(() => {
+    if (showEditPoemModal) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = "unset"
+    }
+  }, [showEditPoemModal])
+  
+  // Prevent background scrolling when delete poem modal is open
+  useEffect(() => {
+    if (showDeletePoemConfirm) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = "unset"
+    }
+  }, [showDeletePoemConfirm])
+  
   // Prevent background scrolling when edit profile modal is open
   useEffect(() => {
     if (showEditProfileModal) {
@@ -434,6 +482,11 @@ const Profile = () => {
   const novelEditCoverFileInputRef = useRef<HTMLInputElement>(null)
   const [uploadingEditCover, setUploadingEditCover] = useState(false)
   const [editCoverError, setEditCoverError] = useState("")
+  
+  // Poem edit modal: cover management state
+  const poemEditCoverFileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingEditPoemCover, setUploadingEditPoemCover] = useState(false)
+  const [editPoemCoverError, setEditPoemCoverError] = useState("")
 
   const handleEditCoverUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -497,6 +550,70 @@ const Profile = () => {
       setUploadingEditCover(false)
     }
   }, [selectedNovel])
+
+  // Poem cover upload handler
+  const handleEditPoemCoverUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !selectedPoem) return
+    if (!file.type.match("image/(jpeg|jpg|png|webp)")) {
+      setEditPoemCoverError("Cover image must be JPEG, PNG, or WebP format")
+      return
+    }
+    try {
+      setUploadingEditPoemCover(true)
+      setEditPoemCoverError("")
+      const resizedBlob = await resizeUnder1MB(file)
+      const smallBlob = await generateSmallBlob(file)
+      const coverRef = ref(storage, `poem-covers-large/${selectedPoem.id}.jpg`)
+      const coverSmallRef = ref(storage, `poem-covers-small/${selectedPoem.id}.jpg`)
+      await uploadBytes(coverRef, resizedBlob, { contentType: file.type || "image/jpeg" })
+      await uploadBytes(coverSmallRef, smallBlob, { contentType: "image/jpeg" })
+      const coverUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/poem-covers-large/${selectedPoem.id}.jpg`
+      const coverSmallUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/poem-covers-small/${selectedPoem.id}.jpg`
+      const poemRef = doc(db, "poems", selectedPoem.id)
+      await updateDoc(poemRef, { coverImage: coverUrl, coverSmallImage: coverSmallUrl })
+      setUserPoems((prevPoems) =>
+        prevPoems.map((poem) => (poem.id === selectedPoem.id ? { ...poem, coverImage: coverUrl, coverSmallImage: coverSmallUrl } : poem)),
+      )
+      setSelectedPoem((prev: any) => (prev ? { ...prev, coverImage: coverUrl, coverSmallImage: coverSmallUrl } : prev))
+      setEditPoemCoverError("Poem cover updated successfully!")
+      setTimeout(() => setEditPoemCoverError(""), 3000)
+    } catch (err) {
+      console.error("Error uploading poem cover:", err)
+      setEditPoemCoverError("Failed to upload poem cover. Please try again.")
+    } finally {
+      setUploadingEditPoemCover(false)
+      if (poemEditCoverFileInputRef.current) poemEditCoverFileInputRef.current.value = ""
+    }
+  }, [selectedPoem])
+
+  const removeEditPoemCover = useCallback(async () => {
+    if (!selectedPoem) return
+    try {
+      setUploadingEditPoemCover(true)
+      setEditPoemCoverError("")
+      const coverRef = ref(storage, `poem-covers-large/${selectedPoem.id}.jpg`)
+      const coverSmallRef = ref(storage, `poem-covers-small/${selectedPoem.id}.jpg`)
+      try {
+        await Promise.all([deleteObject(coverRef), deleteObject(coverSmallRef)])
+      } catch (error) {
+        console.log("Files may not exist in storage:", error)
+      }
+      const poemRef = doc(db, "poems", selectedPoem.id)
+      await updateDoc(poemRef, { coverImage: null, coverSmallImage: null })
+      setUserPoems((prevPoems) =>
+        prevPoems.map((poem) => (poem.id === selectedPoem.id ? { ...poem, coverImage: null, coverSmallImage: null } : poem)),
+      )
+      setSelectedPoem((prev: any) => (prev ? { ...prev, coverImage: null, coverSmallImage: null } : prev))
+      setEditPoemCoverError("Cover removed successfully!")
+      setTimeout(() => setEditPoemCoverError(""), 3000)
+    } catch (error) {
+      console.error("Error removing cover:", error)
+      setEditPoemCoverError("Failed to remove cover. Please try again.")
+    } finally {
+      setUploadingEditPoemCover(false)
+    }
+  }, [selectedPoem])
 
   const handleCopyLink = async () => {
     const novelUrl = `${window.location.origin}/profile/${userId}`
@@ -588,6 +705,17 @@ const Profile = () => {
         return novel.published === true
       case "pending":
         return novel.published === false
+      default:
+        return true
+    }
+  })
+
+  const filteredPoems = userPoems.filter((poem) => {
+    switch (activeTab) {
+      case "published":
+        return poem.published === true
+      case "pending":
+        return poem.published === false
       default:
         return true
     }
@@ -753,6 +881,23 @@ const Profile = () => {
     return "from-gray-600 to-gray-800" // Default
   }
 
+  // Get poetry genre-based color gradients
+  const getPoemGenreColorClass = (genres: string[]) => {
+    if (genres.includes("Romantic")) return "from-rose-500 to-pink-600"
+    if (genres.includes("Nature")) return "from-emerald-500 to-teal-600"
+    if (genres.includes("Free Verse")) return "from-purple-500 to-fuchsia-600"
+    if (genres.includes("Haiku")) return "from-cyan-500 to-blue-600"
+    if (genres.includes("Sonnet")) return "from-amber-500 to-orange-600"
+    if (genres.includes("Epic")) return "from-red-600 to-rose-800"
+    if (genres.includes("Lyric")) return "from-pink-400 to-rose-500"
+    if (genres.includes("Narrative")) return "from-indigo-500 to-purple-600"
+    if (genres.includes("Limerick")) return "from-yellow-400 to-amber-500"
+    if (genres.includes("Ballad")) return "from-violet-500 to-purple-600"
+    if (genres.includes("Elegy")) return "from-slate-600 to-gray-700"
+    if (genres.includes("Ode")) return "from-orange-500 to-red-600"
+    return "from-rose-600 to-pink-600" // Default poetry gradient
+  }
+
   const handleEditNovel = (novel: any) => {
     setSelectedNovel(novel)
     setShowEditModal(true)
@@ -763,6 +908,16 @@ const Profile = () => {
     setEditAuthorsNote(novel.authorsNote || "")
     setEditPrologue(novel.prologue || "")
     setSaveNovelError("")
+  }
+  
+  const handleEditPoem = (poem: any) => {
+    setSelectedPoem(poem)
+    setShowEditPoemModal(true)
+    setOpenKebabMenu(null)
+    setEditPoemTitle(poem.title || "")
+    setEditPoemDescription(poem.description || "")
+    setEditPoemContent(poem.content || "")
+    setSavePoemError("")
   }
   
   const handleDeleteNovel = (novel: any) => {
@@ -782,6 +937,29 @@ const Profile = () => {
       setSelectedNovel(null)
     } catch (error) {
       console.error("Error deleting novel:", error)
+    }
+  }
+
+  const handleDeletePoem = (poem: any) => {
+    setSelectedPoem(poem)
+    setShowDeletePoemConfirm(true)
+    setOpenKebabMenu(null)
+  }
+
+  const confirmDeletePoem = async () => {
+    if (!selectedPoem) return
+
+    try {
+      // Add your delete logic here
+      console.log("Deleting poem:", selectedPoem.id)
+      // After successful deletion, refresh the poems list
+      setUserPoems((prevPoems) => prevPoems.filter((p) => p.id !== selectedPoem.id))
+      setShowDeletePoemConfirm(false)
+      setSelectedPoem(null)
+      showSuccessToast("Poem deleted successfully")
+    } catch (error) {
+      console.error("Error deleting poem:", error)
+      showErrorToast("Failed to delete poem. Please try again.")
     }
   }
 
@@ -1288,8 +1466,38 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Novels Section */}
+        {/* Content Section (Novels & Poems) */}
         <div className="bg-gray-800 rounded-xl shadow-md">
+          {/* Content Type Selector */}
+          <div className="px-6 pt-4 pb-2 border-b border-gray-700">
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setContentType("novels")}
+                className={`flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  contentType === "novels"
+                    ? "bg-purple-600 text-white shadow-lg"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                }`}
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                Novels ({userNovels.length})
+              </button>
+              <button
+                onClick={() => setContentType("poems")}
+                className={`flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                  contentType === "poems"
+                    ? "bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                }`}
+              >
+                <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+                </svg>
+                Poems ({userPoems.length})
+              </button>
+            </div>
+          </div>
+
           {/* Tab Navigation */}
           <div className="border-b border-gray-700">
             <nav className="flex space-x-4 px-6" aria-label="Tabs">
@@ -1297,31 +1505,37 @@ const Profile = () => {
                 onClick={() => setActiveTab("all")}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === "all"
-                    ? "border-purple-500 text-purple-400"
+                    ? contentType === "poems"
+                      ? "border-rose-500 text-rose-400"
+                      : "border-purple-500 text-purple-400"
                     : "border-transparent text-gray-400 hover:text-gray-300"
                 }`}
               >
-                All Novels ({userNovels.length})
+                All {contentType === "novels" ? `Novels (${userNovels.length})` : `Poems (${userPoems.length})`}
               </button>
               <button
                 onClick={() => setActiveTab("published")}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === "published"
-                    ? "border-purple-500 text-purple-400"
+                    ? contentType === "poems"
+                      ? "border-rose-500 text-rose-400"
+                      : "border-purple-500 text-purple-400"
                     : "border-transparent text-gray-400 hover:text-gray-300"
                 }`}
               >
-                Published ({userNovels.filter((novel) => novel.published).length})
+                Published ({contentType === "novels" ? userNovels.filter((novel) => novel.published).length : userPoems.filter((poem) => poem.published).length})
               </button>
               <button
                 onClick={() => setActiveTab("pending")}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === "pending"
-                    ? "border-purple-500 text-purple-400"
+                    ? contentType === "poems"
+                      ? "border-rose-500 text-rose-400"
+                      : "border-purple-500 text-purple-400"
                     : "border-transparent text-gray-400 hover:text-gray-300"
                 }`}
               >
-                Pending ({userNovels.filter((novel) => !novel.published).length})
+                Pending ({contentType === "novels" ? userNovels.filter((novel) => !novel.published).length : userPoems.filter((poem) => !poem.published).length})
               </button>
             </nav>
           </div>
@@ -1331,7 +1545,8 @@ const Profile = () => {
               <div className="text-center py-12">
                 <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg">{error}</div>
               </div>
-            ) : filteredNovels.length === 0 ? (
+            ) : contentType === "novels" ? (
+              filteredNovels.length === 0 ? (
               <div className="text-center py-12">
                 <svg
                   className="mx-auto h-12 w-12 text-gray-400"
@@ -1472,6 +1687,114 @@ const Profile = () => {
                   </div>
                 ))}
               </div>
+            )
+            ) : (
+              // Poems Display
+              filteredPoems.length === 0 ? (
+                <div className="text-center py-12">
+                  <svg className="mx-auto h-12 w-12 text-rose-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+                  </svg>
+                  <h3 className="mt-2 text-sm font-medium text-white">
+                    {activeTab === "all"
+                      ? "No poems yet"
+                      : activeTab === "published"
+                        ? "No published poems"
+                        : "No pending poems"}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-400">
+                    {activeTab === "all"
+                      ? "Get started by submitting your first poem."
+                      : activeTab === "published"
+                        ? "Your published poems will appear here."
+                        : "Poems awaiting review will appear here."}
+                  </p>
+                  {activeTab === "all" && isOwnProfile && (
+                    <div className="mt-6">
+                      <Link
+                        to="/submit-poem"
+                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Submit Your First Poem
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                  {filteredPoems.map((poem) => (
+                    <div key={poem.id} className="group flex flex-col">
+                      {/* Poem Cover */}
+                      <div className="relative aspect-[3/4] mb-3">
+                        <Link to={poem.published ? `/poem/${poem.id}` : "#"}>
+                          <div className="w-full h-full rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                            {poem.coverImage ? (
+                              <img
+                                src={getFirebaseDownloadUrl(poem.coverImage) || "/placeholder.svg"}
+                                alt={poem.title}
+                                loading="lazy"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className={`w-full h-full bg-gradient-to-br ${getPoemGenreColorClass(poem.genres || [])} relative overflow-hidden`}>
+                                <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-rose-300 to-pink-400"></div>
+                                <div className="absolute inset-0 opacity-10">
+                                  <div className="absolute top-2 left-2 w-4 h-4 border border-white rounded-full"></div>
+                                  <div className="absolute top-6 right-3 w-2 h-2 bg-white rounded-full"></div>
+                                  <div className="absolute bottom-3 left-3 w-3 h-3 border border-white"></div>
+                                </div>
+                                <div className="absolute inset-0 flex flex-col justify-center items-center p-3 text-center">
+                                  <svg className="w-8 h-8 text-white/40 mb-2" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+                                  </svg>
+                                  <h3 className="text-white text-sm font-bold leading-tight line-clamp-2 mb-1 font-serif">{poem.title}</h3>
+                                  <div className="w-8 h-px bg-white opacity-50 mb-1"></div>
+                                  <p className="text-white text-xs opacity-75 truncate w-full font-serif italic">{poem.poetName}</p>
+                                </div>
+                                <div className="absolute right-0 top-1 w-px h-full bg-white opacity-20"></div>
+                                <div className="absolute right-1 top-1 w-px h-full bg-white opacity-15"></div>
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                      </div>
+
+                      {/* Kebab Menu for Poems */}
+                      {isOwnProfile && (
+                        <div className="relative flex justify-end">
+                          <button
+                            onClick={() => setOpenKebabMenu(openKebabMenu === poem.id ? null : poem.id)}
+                            className="p-1 text-gray-400 hover:text-white transition-colors"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+
+                          {/* Dropdown Menu */}
+                          {openKebabMenu === poem.id && (
+                            <div className="absolute top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-10 min-w-[140px]">
+                              <button
+                                onClick={() => handleEditPoem(poem)}
+                                className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2 rounded-t-lg"
+                              >
+                                <Edit className="h-3 w-3" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeletePoem(poem)}
+                                className="w-full px-3 py-2 text-left text-sm text-red-400 hover:text-red-300 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
             )}
           </div>
         </div>
@@ -1659,6 +1982,171 @@ const Profile = () => {
         </div>
       )}
 
+      {/* Edit Poem Modal */}
+      {showEditPoemModal && selectedPoem && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-2xl p-6 max-w-2xl w-full mx-4 border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white font-serif">Edit Poem</h3>
+              <button
+                onClick={() => setShowEditPoemModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Poem Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
+                <input
+                  type="text"
+                  value={editPoemTitle}
+                  onChange={(e) => setEditPoemTitle(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent font-serif"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                <textarea
+                  rows={3}
+                  value={editPoemDescription}
+                  onChange={(e) => setEditPoemDescription(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent resize-none font-serif"
+                />
+              </div>
+
+              {/* Content */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Content</label>
+                <textarea
+                  rows={12}
+                  value={editPoemContent}
+                  onChange={(e) => setEditPoemContent(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent resize-none font-serif"
+                  placeholder="Write your poem here..."
+                />
+              </div>
+
+              {/* Cover Image */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Cover Image</label>
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-16 h-20 rounded-lg overflow-hidden bg-gray-700 flex items-center justify-center cursor-pointer group"
+                    onClick={() => poemEditCoverFileInputRef.current?.click()}
+                    title="Click to change cover"
+                  >
+                    {selectedPoem.coverImage ? (
+                      <img
+                        src={getFirebaseDownloadUrl(selectedPoem.coverImage) || "/placeholder.svg"}
+                        alt="Cover"
+                        className="w-full h-full object-cover group-hover:opacity-90"
+                      />
+                    ) : (
+                      <svg className="h-6 w-6 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => poemEditCoverFileInputRef.current?.click()}
+                      disabled={uploadingEditPoemCover}
+                      className="px-4 py-2 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingEditPoemCover ? "Uploading..." : "Change"}
+                    </button>
+                    {selectedPoem.coverImage && (
+                      <button
+                        type="button"
+                        onClick={removeEditPoemCover}
+                        disabled={uploadingEditPoemCover}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {editPoemCoverError && (
+                  <div className={`mt-2 text-xs ${editPoemCoverError.includes("successfully") ? "text-green-400" : "text-red-400"}`}>
+                    {editPoemCoverError}
+                  </div>
+                )}
+                <input
+                  ref={poemEditCoverFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleEditPoemCoverUpload}
+                  className="hidden"
+                />
+              </div>
+
+              {savePoemError && (
+                <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg text-sm">
+                  {savePoemError}
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowEditPoemModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!selectedPoem) return
+                    try {
+                      setSavingPoem(true)
+                      setSavePoemError("")
+                      await updateDoc(doc(db, "poems", selectedPoem.id), {
+                        title: editPoemTitle,
+                        description: editPoemDescription,
+                        content: editPoemContent,
+                        updatedAt: new Date().toISOString(),
+                      })
+                      setUserPoems((prev) =>
+                        prev.map((p) =>
+                          p.id === selectedPoem.id
+                            ? { ...p, title: editPoemTitle, description: editPoemDescription, content: editPoemContent, updatedAt: new Date().toISOString() }
+                            : p,
+                        ),
+                      )
+                      setSelectedPoem((prev: any) =>
+                        prev
+                          ? { ...prev, title: editPoemTitle, description: editPoemDescription, content: editPoemContent, updatedAt: new Date().toISOString() }
+                          : prev,
+                      )
+                      setShowEditPoemModal(false)
+                      showSuccessToast("Poem updated successfully!")
+                    } catch (e) {
+                      console.error("Error saving poem:", e)
+                      setSavePoemError("Failed to save changes. Please try again.")
+                    } finally {
+                      setSavingPoem(false)
+                    }
+                  }}
+                  disabled={savingPoem || !editPoemTitle.trim()}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors text-white ${
+                    savingPoem ? "bg-rose-700 opacity-70 cursor-not-allowed" : "bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700"
+                  }`}
+                >
+                  {savingPoem ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDeleteConfirm && selectedNovel && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-gray-700 shadow-2xl">
@@ -1692,6 +2180,45 @@ const Profile = () => {
                 className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
               >
                 Delete Novel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Poem Confirmation Modal */}
+      {showDeletePoemConfirm && selectedPoem && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-rose-700/50 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white font-serif">Delete Poem</h3>
+              <button
+                onClick={() => setShowDeletePoemConfirm(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-300 mb-2 font-serif">Are you sure you want to delete "{selectedPoem.title}"?</p>
+              <p className="text-sm text-gray-400 font-serif italic">
+                This action cannot be undone. All data associated with this poem will be permanently deleted.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeletePoemConfirm(false)}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-serif"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeletePoem}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-lg transition-colors font-serif"
+              >
+                Delete Poem
               </button>
             </div>
           </div>

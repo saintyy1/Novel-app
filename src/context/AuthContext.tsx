@@ -50,6 +50,7 @@ export interface ExtendedUser extends User {
   supportLink?: string
   location?: string // Nigerian or International
   library?: string[]
+  poemLibrary?: string[]
   finishedReads?: string[]
   pendingEmail?: string | null // New property for pending email change
 }
@@ -70,6 +71,7 @@ interface AuthContextType {
   toggleFollow: (targetUserId: string, isFollowing: boolean) => Promise<void>
   signInWithGoogle: () => Promise<void>
   updateUserLibrary: (novelId: string, add: boolean, novelTitle: string, novelAuthorId: string) => Promise<void>
+  updatePoemLibrary: (poemId: string, add: boolean, poemTitle: string, poetId: string) => Promise<void>
   markNovelAsFinished: (novelId: string, novelTitle: string, novelAuthorId: string) => Promise<void>
   markAllNotificationsAsRead: () => Promise<void>
   clearAllNotifications: () => Promise<void>
@@ -140,6 +142,51 @@ const checkNovelAddedToLibraryCooldown = (userId: string, novelId: string): bool
   return now - Number(lastAddedTimestamp) < TWENTY_FOUR_HOURS_IN_MS
 }
 
+// Poem cooldown functions
+const getPoemLikeCooldownKey = (userId: string, poemId: string) => `poem_like_cooldown_${userId}_${poemId}`
+const getPoemAddedToLibraryCooldownKey = (userId: string, poemId: string) =>
+  `poem_added_to_library_cooldown_${userId}_${poemId}`
+
+const setPoemLikeCooldown = (userId: string, poemId: string) => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(getPoemLikeCooldownKey(userId, poemId), Date.now().toString())
+  }
+}
+
+const clearPoemLikeCooldown = (userId: string, poemId: string) => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(getPoemLikeCooldownKey(userId, poemId))
+  }
+}
+
+const checkPoemLikeCooldown = (userId: string, poemId: string): boolean => {
+  if (typeof window === "undefined") return false
+  const lastLikeTimestamp = localStorage.getItem(getPoemLikeCooldownKey(userId, poemId))
+  if (!lastLikeTimestamp) return false
+  const now = Date.now()
+  return now - Number(lastLikeTimestamp) < TWENTY_FOUR_HOURS_IN_MS
+}
+
+const setPoemAddedToLibraryCooldown = (userId: string, poemId: string) => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(getPoemAddedToLibraryCooldownKey(userId, poemId), Date.now().toString())
+  }
+}
+
+const clearPoemAddedToLibraryCooldown = (userId: string, poemId: string) => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(getPoemAddedToLibraryCooldownKey(userId, poemId))
+  }
+}
+
+const checkPoemAddedToLibraryCooldown = (userId: string, poemId: string): boolean => {
+  if (typeof window === "undefined") return false
+  const lastAddedTimestamp = localStorage.getItem(getPoemAddedToLibraryCooldownKey(userId, poemId))
+  if (!lastAddedTimestamp) return false
+  const now = Date.now()
+  return now - Number(lastAddedTimestamp) < TWENTY_FOUR_HOURS_IN_MS
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<ExtendedUser | null>(null)
   const [loading, setLoading] = useState(true)
@@ -169,6 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           supportLink: data.supportLink || "", // New
           location: data.location || "", // New
           library: data.library || [], // New: Initialize library
+          poemLibrary: data.poemLibrary || [], // Initialize poem library
           finishedReads: data.finishedReads || [], // Add this line
           pendingEmail: data.pendingEmail, // New property for pending email change
         } as ExtendedUser
@@ -579,6 +627,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  // New function to update user's poem library
+  const updatePoemLibrary = async (poemId: string, add: boolean, poemTitle: string, poetId: string) => {
+    if (!currentUser) throw new Error("No user logged in")
+    const userRef = doc(db, "users", currentUser.uid)
+    try {
+      await updateDoc(userRef, {
+        poemLibrary: add ? arrayUnion(poemId) : arrayRemove(poemId),
+        updatedAt: new Date().toISOString(),
+      })
+      // Update local state
+      setCurrentUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              poemLibrary: add ? [...(prev.poemLibrary || []), poemId] : (prev.poemLibrary || []).filter((id) => id !== poemId),
+            }
+          : null,
+      )
+
+      // Handle poem_like notification and cooldown
+      if (add && poetId !== currentUser.uid) {
+        if (!checkPoemLikeCooldown(currentUser.uid, poemId)) {
+          await addDoc(collection(db, "notifications"), {
+            toUserId: poetId,
+            fromUserId: currentUser.uid,
+            fromUserName: currentUser.displayName || "Anonymous User",
+            type: "poem_like",
+            poemId: poemId,
+            poemTitle: poemTitle,
+            createdAt: new Date().toISOString(),
+            read: false,
+          })
+          setPoemLikeCooldown(currentUser.uid, poemId)
+        } else {
+          console.log(`Poem like notification suppressed for ${currentUser.uid} on poem ${poemId} due to cooldown.`)
+        }
+
+        // Handle poem_added_to_library notification and cooldown
+        if (!checkPoemAddedToLibraryCooldown(currentUser.uid, poemId)) {
+          await addDoc(collection(db, "notifications"), {
+            toUserId: poetId,
+            fromUserId: currentUser.uid,
+            fromUserName: currentUser.displayName || "Anonymous User",
+            type: "poem_added_to_library",
+            poemId: poemId,
+            poemTitle: poemTitle,
+            createdAt: new Date().toISOString(),
+            read: false,
+          })
+          setPoemAddedToLibraryCooldown(currentUser.uid, poemId)
+        } else {
+          console.log(
+            `Poem added to library notification suppressed for ${currentUser.uid} on poem ${poemId} due to cooldown.`,
+          )
+        }
+      } else if (!add) {
+        // If unliking, clear the cooldown to allow a new notification on re-like
+        clearPoemLikeCooldown(currentUser.uid, poemId)
+        clearPoemAddedToLibraryCooldown(currentUser.uid, poemId)
+      }
+    } catch (error) {
+      console.error("Error updating poem library:", error)
+      throw error
+    }
+  }
+
   const register = async (email: string, password: string, displayName: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
@@ -795,6 +909,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toggleFollow,
     signInWithGoogle,
     updateUserLibrary,
+    updatePoemLibrary,
     markNovelAsFinished,
     markAllNotificationsAsRead,
     clearAllNotifications,

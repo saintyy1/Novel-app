@@ -345,10 +345,6 @@ const SubmitNovel = () => {
         // First normalize excessive newlines but KEEP single/double newlines for chapter detection
         fullText = fullText.replace(/\n{3,}/g, '\n\n');
         
-        // Debug: Log a sample of the extracted text BEFORE normalization
-        console.log('PDF Text Sample BEFORE normalization (first 500 chars):', fullText.substring(0, 500));
-        console.log('PDF Text Sample BEFORE normalization (chars 500-1000):', fullText.substring(500, 1000));
-        
         // Check for broken chapter patterns
         const brokenChapterCheck = fullText.match(/C\s+hapter|CHAPT\s+ER/gi);
         if (brokenChapterCheck) {
@@ -369,16 +365,6 @@ const SubmitNovel = () => {
         
         const matches = Array.from(fullText.matchAll(chapterRegex));
         
-        console.log(`Found ${matches.length} chapter markers in PDF`);
-        matches.forEach((match, i) => {
-          console.log(`Chapter ${i + 1} FULL MATCH: "${match[0]}"`);
-          console.log(`Chapter ${i + 1} captured group: "${match[1]}"`);
-          console.log(`Chapter ${i + 1} position: ${match.index}`);
-          // Show what comes after the match
-          const afterMatch = fullText.substring(match.index! + match[0].length, match.index! + match[0].length + 100);
-          console.log(`Chapter ${i + 1} text after: "${afterMatch}"`);
-        });
-        
         if (matches.length > 0) {
           matches.forEach((match, index) => {
             const fullChapterTitle = match[1].trim();
@@ -386,7 +372,6 @@ const SubmitNovel = () => {
             // Extract clean subtitle first (e.g., "Chapter One - The Beginning" -> "The Beginning")
             let chapterTitle = fullChapterTitle;
             let cleanChapterHeader = fullChapterTitle; // The actual chapter header without sentence content
-            console.log(`Processing full chapter title: "${fullChapterTitle}"`);
             
             // Match everything after the separator
             const subtitleMatch = fullChapterTitle.match(/^((?:Chapter|CHAPTER|Ch\.?)\s+(?:\d+|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Eleven|Twelve|Thirteen|Fourteen|Fifteen|Sixteen|Seventeen|Eighteen|Nineteen|Twenty|[IVX]+)\s*[:\-—–])\s*(.+)$/i);
@@ -406,12 +391,10 @@ const SubmitNovel = () => {
                 // Found sentence attached, use only the subtitle part
                 chapterTitle = cleanMatch[1].trim();
                 cleanChapterHeader = chapterPrefix + ' ' + chapterTitle;
-                console.log(`Cleaned subtitle: "${chapterTitle}" (removed sentence: "${cleanMatch[2].trim()}...")  from "${subtitle}"`);
               } else {
                 // No sentence detected, use full subtitle
                 chapterTitle = subtitle;
                 cleanChapterHeader = fullChapterTitle;
-                console.log(`Extracted subtitle: "${chapterTitle}" from "${fullChapterTitle}"`);
               }
             } else if (!subtitleMatch) {
               // No subtitle, use default "Chapter X" format
@@ -419,7 +402,6 @@ const SubmitNovel = () => {
               if (chapterNumMatch) {
                 chapterTitle = `Chapter ${chapterNumMatch[1]}`;
                 cleanChapterHeader = chapterTitle;
-                console.log(`No subtitle found, using: "${chapterTitle}"`);
               }
             }
             
@@ -456,23 +438,18 @@ const SubmitNovel = () => {
             // Clean up any trailing/leading whitespace on each paragraph
             normalizedContent = normalizedContent.split('\n\n').map(para => para.trim()).join('\n\n');
             
-            console.log(`Chapter "${chapterTitle}" content preview: "${normalizedContent.substring(0, 100)}..."`);
-            console.log(`Chapter "${chapterTitle}" content length: ${normalizedContent.length} chars`);
-            
             if (normalizedContent.length > 50) { // Only add if there's substantial content
               chapters.push({
                 title: chapterTitle,
                 content: normalizedContent
               });
             } else {
-              console.warn(`Skipping "${chapterTitle}" - content too short (${normalizedContent.length} chars)`);
             }
           });
         } 
         
         // Strategy 2: If few or no chapters found, try page breaks
         if (chapters.length <= 1 && numPages > 1) {
-          console.log('Using page-based chapter detection');
           const pageTexts = fullText.split(/\n{4,}/); // Split on large gaps
           
           if (pageTexts.length > 1) {
@@ -521,7 +498,6 @@ const SubmitNovel = () => {
           }];
         }
         
-        console.log(`Final chapter count: ${chapters.length}`);
         setChapters(chapters);
         
         // Show success message with chapter count

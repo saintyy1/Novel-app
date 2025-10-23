@@ -210,6 +210,60 @@ const Home = () => {
         getGenreColorClass={getGenreColorClass}
       />
 
+      {/* Poetry Feature Announcement */}
+      <section className="py-8 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+        <div className="relative bg-gradient-to-r from-rose-600 via-pink-600 to-rose-700 rounded-2xl shadow-2xl overflow-hidden">
+          {/* Decorative Elements */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-4 left-4 w-16 h-16 border-2 border-white rounded-full"></div>
+            <div className="absolute top-12 right-8 w-8 h-8 bg-white rounded-full"></div>
+            <div className="absolute bottom-6 left-12 w-12 h-12 border-2 border-white"></div>
+            <div className="absolute bottom-12 right-16 w-6 h-6 bg-white/50 rounded-full"></div>
+          </div>
+          
+          <div className="relative px-6 py-10 md:py-12 md:px-12 flex flex-col md:flex-row items-center gap-6">
+            {/* Icon */}
+            <div className="flex-shrink-0">
+              <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white/30">
+                <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+                </svg>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="flex-1 text-center md:text-left text-white">
+              <h3 className="text-2xl md:text-3xl font-serif font-bold mb-2">
+                Discover Poetry
+              </h3>
+              <p className="text-base md:text-lg text-rose-50 font-serif italic mb-4 max-w-2xl">
+                "Words that dance, emotions that resonate. Explore our new poetry collection and let verses touch your soul."
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  to="/poems"
+                  className="inline-flex items-center justify-center px-6 py-3 bg-white text-rose-600 rounded-full font-serif font-bold text-base hover:bg-rose-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+                  </svg>
+                  Browse Poetry
+                </Link>
+                <Link
+                  to="/submit-poem"
+                  className="inline-flex items-center justify-center px-6 py-3 bg-rose-700/50 backdrop-blur-sm text-white rounded-full font-serif font-bold text-base hover:bg-rose-700 transition-all duration-300 shadow-lg hover:shadow-xl border-2 border-white/30 hover:border-white/50"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Submit Your Poem
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Invite Friends Section */}
       <section className="py-8 sm:px-6 lg:px-8 max-w-5xl mx-auto">
         <InviteFriendsSection />

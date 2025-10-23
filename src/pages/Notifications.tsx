@@ -33,11 +33,17 @@ interface Notification {
     | "novel_finished"
     | "followed_author_announcement"
     | "new_chapter"
+    | "poem_like"
+    | "poem_comment"
+    | "poem_reply"
+    | "poem_added_to_library"
   fromUserId?: string
   fromUserName?: string
   toUserId: string
   novelId?: string
   novelTitle?: string
+  poemId?: string
+  poemTitle?: string
   commentContent?: string
   commentId?: string // For comment likes
   parentId?: string // For replies
@@ -147,7 +153,11 @@ const NotificationsPage = () => {
 
   const handleNotificationClick = useCallback(
     (notification: Notification) => {
-      markAsRead(notification.id)
+      // Mark as read asynchronously without blocking navigation
+      markAsRead(notification.id).catch((err) => {
+        console.error("Failed to mark notification as read:", err)
+      })
+      // Navigate immediately without waiting
       navigate(getNotificationLink(notification))
     },
     [markAsRead, navigate],
@@ -175,6 +185,7 @@ const NotificationsPage = () => {
         case "follow":
           return <UserPlus className="h-5 w-5 text-purple-400" />
         case "novel_like":
+        case "poem_like":
           return <Heart className="h-5 w-5 text-red-400" />
         case "comment_like":
           return <Heart className="h-5 w-5 text-red-400" />
@@ -183,10 +194,13 @@ const NotificationsPage = () => {
         case "novel_comment":
         case "novel_reply":
         case "comment_reply":
+        case "poem_comment":
+        case "poem_reply":
           return <MessageSquare className="h-5 w-5 text-blue-400" />
         case "followed_author_announcement":
           return <Megaphone className="h-5 w-5 text-yellow-400" />
         case "novel_added_to_library":
+        case "poem_added_to_library":
           return <BookOpen className="h-5 w-5 text-green-400" />
         case "novel_finished":
           return <CheckCircle className="h-5 w-5 text-green-400" />
@@ -371,6 +385,62 @@ const NotificationsPage = () => {
             )}
           </>
         )
+      case "poem_like":
+        return (
+          <>
+            {fromUserLink} liked your poem{" "}
+            <Link
+              to={`/poem/${notification.poemId}`}
+              className="text-rose-400 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              "{notification.poemTitle}"
+            </Link>
+            .
+          </>
+        )
+      case "poem_comment":
+        return (
+          <>
+            {fromUserLink} commented on your poem{" "}
+            <Link
+              to={`/poem/${notification.poemId}`}
+              className="text-rose-400 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              "{notification.poemTitle}"
+            </Link>
+            : "{notification.commentContent}"
+          </>
+        )
+      case "poem_reply":
+        return (
+          <>
+            {fromUserLink} replied to a comment on your poem{" "}
+            <Link
+              to={`/poem/${notification.poemId}`}
+              className="text-rose-400 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              "{notification.poemTitle}"
+            </Link>
+            : "{notification.commentContent}"
+          </>
+        )
+      case "poem_added_to_library":
+        return (
+          <>
+            {fromUserLink} added your poem{" "}
+            <Link
+              to={`/poem/${notification.poemId}`}
+              className="text-rose-400 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              "{notification.poemTitle}"
+            </Link>{" "}
+            to their library.
+          </>
+        )
       default:
         return "You have a new message."
     }
@@ -394,6 +464,11 @@ const NotificationsPage = () => {
         return notification.chapterNumber 
           ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}`
           : `/novel/${notification.novelId}`
+      case "poem_like":
+      case "poem_added_to_library":
+      case "poem_comment":
+      case "poem_reply":
+        return `/poem/${notification.poemId}`
       case "followed_author_announcement":
         return `/profile/${notification.fromUserId}`
       default:

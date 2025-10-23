@@ -20,15 +20,12 @@ import {
 } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
-import type { Novel } from "../types/novel"
+import type { Poem } from "../types/poem"
 import { FaShare, FaCopy, FaFacebook, FaWhatsapp, FaTimes, FaReply, FaTrash } from "react-icons/fa"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
-import { trackPageView, trackNovelInteraction } from '../utils/Analytics-utils';
-import { FaXTwitter } from "react-icons/fa6" // Import FaXTwitter
-import { CheckCircle, Gift } from "lucide-react" // Import CheckCircle and Gift
-import { BookOpen } from "lucide-react"
+import { FaXTwitter } from "react-icons/fa6"
+import { Gift } from "lucide-react"
 import SEOHead from "../components/SEOHead"
-import { generateNovelStructuredData, generateBreadcrumbStructuredData } from "../utils/structuredData"
 import SkeletonLoader from "../components/SkeletonLoader"
 
 interface Comment {
@@ -40,13 +37,30 @@ interface Comment {
   createdAt: string
   likes: number
   likedBy: string[]
-  parentId?: string // For replies
+  parentId?: string
   replies?: Comment[]
 }
 
-const NovelOverview = () => {
+// Get poetry genre-based color gradients
+const getPoemGenreColorClass = (genres: string[]) => {
+  if (genres.includes("Romantic")) return "from-rose-500 to-pink-600"
+  if (genres.includes("Nature")) return "from-emerald-500 to-teal-600"
+  if (genres.includes("Free Verse")) return "from-purple-500 to-fuchsia-600"
+  if (genres.includes("Haiku")) return "from-cyan-500 to-blue-600"
+  if (genres.includes("Sonnet")) return "from-amber-500 to-orange-600"
+  if (genres.includes("Epic")) return "from-red-600 to-rose-800"
+  if (genres.includes("Lyric")) return "from-pink-400 to-rose-500"
+  if (genres.includes("Narrative")) return "from-indigo-500 to-purple-600"
+  if (genres.includes("Limerick")) return "from-yellow-400 to-amber-500"
+  if (genres.includes("Ballad")) return "from-violet-500 to-purple-600"
+  if (genres.includes("Elegy")) return "from-slate-600 to-gray-700"
+  if (genres.includes("Ode")) return "from-orange-500 to-red-600"
+  return "from-rose-600 to-pink-600" // Default poetry gradient
+}
+
+const PoemOverview = () => {
   const { id } = useParams<{ id: string }>()
-  const [novel, setNovel] = useState<Novel | null>(null)
+  const [poem, setPoem] = useState<Poem | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [commentsLoading, setCommentsLoading] = useState<boolean>(true)
@@ -59,12 +73,10 @@ const NovelOverview = () => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState<string>("")
   const [submittingReply, setSubmittingReply] = useState<boolean>(false)
-  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false)
-  const [isFinished, setIsFinished] = useState<boolean>(false)
   const [deletingComment, setDeletingComment] = useState<string | null>(null)
   const [isTipModalOpen, setIsTipModalOpen] = useState(false)
-  const [authorData, setAuthorData] = useState<any>(null)
-  const { currentUser, updateUserLibrary, markNovelAsFinished } = useAuth() // Destructure updateUserLibrary
+  const [poetData, setPoetData] = useState<any>(null)
+  const { currentUser, updatePoemLibrary } = useAuth()
   const commentTextareaRef = useRef<HTMLTextAreaElement>(null)
   const replyInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -76,109 +88,81 @@ const NovelOverview = () => {
         children.push({ ...comment, replies: nestedReplies })
       }
     })
-    // Sort replies chronologically (oldest first)
     return children.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
   }, [])
 
+  // Fetch poet data for tip functionality
   useEffect(() => {
-    if (novel) {
-      // Consolidated tracking - single event with all novel overview data
-      trackPageView('novel_overview', {
-        novel_id: novel.id,
-        novel_title: novel.title,
-        novel_author: novel.authorName,
-        novel_genres: novel.genres,
-        novel_views: novel.views || 0,
-        novel_likes: novel.likes || 0,
-        is_anonymous: !currentUser,
-        reader_id: currentUser?.uid || 'anonymous',
-        session_id: localStorage.getItem('anonymous_session_id') || 'unknown'
-      });
-    }
-  }, [novel, currentUser]);
-
-  // Fetch author data for tip functionality
-  useEffect(() => {
-    const fetchAuthorData = async () => {
-      if (novel?.authorId) {
+    const fetchPoetData = async () => {
+      if (poem?.poetId) {
         try {
-          const authorDoc = await getDoc(doc(db, "users", novel.authorId))
-          if (authorDoc.exists()) {
-            setAuthorData(authorDoc.data())
+          const poetDoc = await getDoc(doc(db, "users", poem.poetId))
+          if (poetDoc.exists()) {
+            setPoetData(poetDoc.data())
           }
         } catch (error) {
-          console.error("Error fetching author data:", error)
+          console.error("Error fetching poet data:", error)
         }
       }
     }
 
-    fetchAuthorData()
-  }, [novel?.authorId])
+    fetchPoetData()
+  }, [poem?.poetId])
 
   useEffect(() => {
-    const fetchNovel = async () => {
+    const fetchPoem = async () => {
       if (!id) return
       try {
         setLoading(true)
         setError("")
-        const novelDocRef = doc(db, "novels", id)
-        const novelDoc = await getDoc(novelDocRef)
-        if (novelDoc.exists()) {
-          const novelData = novelDoc.data() as Novel
-          setNovel({
-            ...novelData,
-            id: novelDoc.id,
-          } as Novel)
-          if (currentUser && novelData.likedBy?.includes(currentUser.uid)) {
+        const poemDocRef = doc(db, "poems", id)
+        const poemDoc = await getDoc(poemDocRef)
+        if (poemDoc.exists()) {
+          const poemData = poemDoc.data() as Poem
+          setPoem({
+            ...poemData,
+            id: poemDoc.id,
+          } as Poem)
+          if (currentUser && poemData.likedBy?.includes(currentUser.uid)) {
             setLiked(true)
           } else {
             setLiked(false)
           }
-          // Set finished status based on fetched data and user's finishedReads
-          if (currentUser && currentUser.finishedReads?.includes(novelDoc.id)) {
-            setIsFinished(true)
-          } else {
-            setIsFinished(false)
-          }
           // Handle view count increment for unique users
           if (currentUser) {
-            const viewKey = `novel_view_${id}_${currentUser.uid}`
+            const viewKey = `poem_view_${id}_${currentUser.uid}`
             const lastViewTimestamp = localStorage.getItem(viewKey)
             const now = Date.now()
-            const twentyFourHours = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+            const twentyFourHours = 24 * 60 * 60 * 1000
             if (!lastViewTimestamp || now - Number(lastViewTimestamp) > twentyFourHours) {
-              // Increment view count in Firestore
-              await updateDoc(novelDocRef, {
+              await updateDoc(poemDocRef, {
                 views: increment(1),
               })
-              // Update local storage timestamp
               localStorage.setItem(viewKey, now.toString())
-              // Update local novel state to reflect new view count
-              setNovel((prev) => (prev ? { ...prev, views: (prev.views || 0) + 1 } : null))
+              setPoem((prev) => (prev ? { ...prev, views: (prev.views || 0) + 1 } : null))
             }
           }
         } else {
-          setError("Novel not found")
+          setError("Poem not found")
         }
       } catch (error) {
-        console.error("Error fetching novel:", error)
-        setError("Failed to load novel")
+        console.error("Error fetching poem:", error)
+        setError("Failed to load poem")
       } finally {
         setLoading(false)
       }
     }
-    fetchNovel()
-  }, [id, currentUser]) // Re-run when ID or currentUser changes
+    fetchPoem()
+  }, [id, currentUser])
 
   useEffect(() => {
     if (!id) return
     
     // Delay comment fetching to prioritize main content loading
     const commentLoadDelay = setTimeout(() => {
-      // Fetch all comments for the novel, ordered by creation date descending for top-level comments
-      const commentsQuery = query(collection(db, "comments"), where("novelId", "==", id), orderBy("createdAt", "desc"))
+      const commentsQuery = query(collection(db, "poemComments"), where("poemId", "==", id), orderBy("createdAt", "desc"))
       const unsubscribe = onSnapshot(commentsQuery, async (snapshot) => {
-        setCommentsLoading(true) // Set loading for comments
+        setCommentsLoading(true)
       const commentsData: Comment[] = []
       const uniqueUserIds = new Set<string>()
       snapshot.forEach((doc) => {
@@ -186,7 +170,6 @@ const NovelOverview = () => {
         commentsData.push(comment)
         uniqueUserIds.add(comment.userId)
       })
-      // Fetch user data for all unique user IDs
       const usersMap = new Map<string, { displayName: string; photoURL?: string }>()
       const userPromises = Array.from(uniqueUserIds).map(async (uid) => {
         const userDoc = await getDoc(doc(db, "users", uid))
@@ -197,21 +180,18 @@ const NovelOverview = () => {
             photoURL: userData.photoURL || undefined,
           })
         } else {
-          // Handle case where user might have been deleted
           usersMap.set(uid, { displayName: "Deleted User", photoURL: undefined })
         }
       })
       await Promise.all(userPromises)
-      // Enrich comments with latest user data
       const enrichedComments = commentsData.map((comment) => {
         const userData = usersMap.get(comment.userId)
         return {
           ...comment,
-          userName: userData?.displayName || comment.userName, // Fallback to stored if not found
-          userPhoto: userData?.photoURL || comment.userPhoto, // Fallback to stored if not found
+          userName: userData?.displayName || comment.userName,
+          userPhoto: userData?.photoURL || comment.userPhoto,
         }
       })
-      // Filter for top-level comments and then build the nested tree
       const topLevelComments = enrichedComments.filter((comment) => !comment.parentId)
       const organizedComments = topLevelComments.map((comment) => ({
         ...comment,
@@ -232,40 +212,35 @@ const NovelOverview = () => {
   }, [id, buildCommentTree])
 
   const handleLike = async () => {
-    // Add early returns and error checks
-    if (!novel?.id) {
-      console.error("Novel ID is missing")
-      showErrorToast("Unable to like - novel ID is missing")
+    if (!poem?.id) {
+      console.error("Poem ID is missing")
+      showErrorToast("Unable to like - poem ID is missing")
       return
     }
     if (!currentUser) {
       console.error("User is not logged in")
-      showErrorToast("Please login to like novels")
+      showErrorToast("Please login to like poems")
       return
     }
     try {
-      const novelRef = doc(db, "novels", novel.id)
-      trackNovelInteraction('like', {
-          novelId: novel.id,
-          userId: currentUser?.uid
-        });
+      const poemRef = doc(db, "poems", poem.id)
       const newLikeStatus = !liked
       setLiked(newLikeStatus) // Optimistic update
-      // Update novel's likes and likedBy array
-      await updateDoc(novelRef, {
+      // Update poem's likes and likedBy array
+      await updateDoc(poemRef, {
         likes: increment(newLikeStatus ? 1 : -1),
         likedBy: newLikeStatus ? arrayUnion(currentUser.uid) : arrayRemove(currentUser.uid),
       })
-      // Update user's library
-      await updateUserLibrary(novel.id, newLikeStatus, novel.title, novel.authorId)
-      // Re-fetch novel data to ensure consistency
-      const updatedNovelDoc = await getDoc(novelRef)
-      if (updatedNovelDoc.exists()) {
-        const updatedNovelData = updatedNovelDoc.data() as Novel
-        setNovel({
-          ...updatedNovelData,
-          id: novel.id, // Preserve the ID
-        } as Novel)
+      // Update user's poem library
+      await updatePoemLibrary(poem.id, newLikeStatus, poem.title, poem.poetId)
+      // Re-fetch poem data to ensure consistency
+      const updatedPoemDoc = await getDoc(poemRef)
+      if (updatedPoemDoc.exists()) {
+        const updatedPoemData = updatedPoemDoc.data() as Poem
+        setPoem({
+          ...updatedPoemData,
+          id: poem.id,
+        } as Poem)
       }
     } catch (error) {
       console.error("Error updating likes:", error)
@@ -276,11 +251,11 @@ const NovelOverview = () => {
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newComment.trim() || !currentUser || !novel) return
+    if (!newComment.trim() || !currentUser || !poem) return
     try {
       setSubmittingComment(true)
-      const commentRef = await addDoc(collection(db, "comments"), {
-        novelId: novel.id,
+      await addDoc(collection(db, "poemComments"), {
+        poemId: poem.id,
         userId: currentUser.uid,
         userName: currentUser.displayName || "Anonymous",
         userPhoto: currentUser.photoURL || null,
@@ -290,29 +265,19 @@ const NovelOverview = () => {
         likedBy: [],
       })
 
-      // Add notification for the novel's author if different from current user
-      if (novel.authorId !== currentUser.uid) {
+      if (poem.poetId !== currentUser.uid) {
         await addDoc(collection(db, "notifications"), {
-          toUserId: novel.authorId,
+          toUserId: poem.poetId,
           fromUserId: currentUser.uid,
           fromUserName: currentUser.displayName || "Anonymous User",
-          type: "novel_comment",
-          novelId: novel.id,
-          novelTitle: novel.title,
+          type: "poem_comment",
+          poemId: poem.id,
+          poemTitle: poem.title,
           commentContent: newComment.trim(),
           createdAt: new Date().toISOString(),
           read: false,
         })
       }
-
-      // Track the comment interaction
-      trackNovelInteraction('comment', {
-        novelId: novel.id,
-        userId: currentUser.uid,
-        novelTitle: novel.title,
-        commentId: commentRef.id,
-        commentText: newComment
-      });
 
       setNewComment("")
       showSuccessToast("Comment posted successfully!")
@@ -325,11 +290,11 @@ const NovelOverview = () => {
   }
 
   const handleReplySubmit = async (parentId: string) => {
-    if (!replyContent.trim() || !currentUser || !novel) return
+    if (!replyContent.trim() || !currentUser || !poem) return
     try {
       setSubmittingReply(true)
-      const replyRef = await addDoc(collection(db, "comments"), {
-        novelId: novel.id,
+      await addDoc(collection(db, "poemComments"), {
+        poemId: poem.id,
         userId: currentUser.uid,
         userName: currentUser.displayName || "Anonymous",
         userPhoto: currentUser.photoURL || null,
@@ -340,56 +305,43 @@ const NovelOverview = () => {
         parentId: parentId,
       })
 
-      // Fetch the parent comment to get its author's ID and content for notification
-      const parentCommentDoc = await getDoc(doc(db, "comments", parentId))
+      const parentCommentDoc = await getDoc(doc(db, "poemComments", parentId))
       const parentCommentData = parentCommentDoc.exists() ? parentCommentDoc.data() : null
       const parentCommentAuthorId = parentCommentData?.userId
-      const parentCommentContent = parentCommentData?.content
 
-      // Add notification for the novel's author (if different from current user)
-      if (novel.authorId !== currentUser.uid) {
+      if (poem.poetId !== currentUser.uid) {
         await addDoc(collection(db, "notifications"), {
-          toUserId: novel.authorId,
+          toUserId: poem.poetId,
           fromUserId: currentUser.uid,
           fromUserName: currentUser.displayName || "Anonymous User",
-          type: "novel_reply", // Type for reply to novel's comment
-          novelId: novel.id,
-          novelTitle: novel.title,
-          commentContent: replyContent.trim(), // The content of the reply
+          type: "poem_reply",
+          poemId: poem.id,
+          poemTitle: poem.title,
+          commentContent: replyContent.trim(),
           parentId: parentId,
           createdAt: new Date().toISOString(),
           read: false,
         })
       }
 
-      // Also notify the parent comment's author if they are not the novel author and not the current user
       if (
         parentCommentAuthorId &&
-        parentCommentAuthorId !== novel.authorId &&
+        parentCommentAuthorId !== poem.poetId &&
         parentCommentAuthorId !== currentUser.uid
       ) {
         await addDoc(collection(db, "notifications"), {
           toUserId: parentCommentAuthorId,
           fromUserId: currentUser.uid,
           fromUserName: currentUser.displayName || "Anonymous User",
-          type: "comment_reply", // Type for reply to another user's comment
-          novelId: novel.id,
-          novelTitle: novel.title,
-          commentContent: replyContent.trim(), // The content of the reply
+          type: "comment_reply",
+          poemId: poem.id,
+          poemTitle: poem.title,
+          commentContent: replyContent.trim(),
           parentId: parentId,
           createdAt: new Date().toISOString(),
           read: false,
         })
       }
-
-      // Track the reply interaction
-      trackNovelInteraction('comment', {
-        novelId: novel.id,
-        userId: currentUser.uid,
-        novelTitle: novel.title,
-        commentId: replyRef.id,
-        commentText: replyContent
-      });
 
       setReplyContent("")
       setReplyingTo(null)
@@ -408,7 +360,7 @@ const NovelOverview = () => {
     if (!confirmDelete) return
     try {
       setDeletingComment(commentId)
-      await deleteDoc(doc(db, "comments", commentId))
+      await deleteDoc(doc(db, "poemComments", commentId))
       showSuccessToast("Comment deleted successfully!")
     } catch (error) {
       console.error("Error deleting comment:", error)
@@ -421,7 +373,7 @@ const NovelOverview = () => {
   const handleCommentLike = async (commentId: string, isLiked: boolean) => {
     if (!currentUser) return
     try {
-      const commentRef = doc(db, "comments", commentId)
+      const commentRef = doc(db, "poemComments", commentId)
       const commentDoc = await getDoc(commentRef)
       
       if (!commentDoc.exists()) return
@@ -440,9 +392,7 @@ const NovelOverview = () => {
           likedBy: arrayUnion(currentUser.uid),
         })
         
-        // Send notification only when liking (not unliking) and only to comment author if different from current user
         if (commentAuthorId !== currentUser.uid) {
-          // Check if notification already exists to prevent spam (check both read and unread)
           const notificationQuery = query(
             collection(db, "notifications"),
             where("toUserId", "==", commentAuthorId),
@@ -453,15 +403,14 @@ const NovelOverview = () => {
           
           const existingNotifications = await getDocs(notificationQuery)
           
-          // Only send notification if none exists (regardless of read status)
           if (existingNotifications.empty) {
             await addDoc(collection(db, "notifications"), {
               toUserId: commentAuthorId,
               fromUserId: currentUser.uid,
               fromUserName: currentUser.displayName || "Anonymous User",
               type: "comment_like",
-              novelId: novel?.id,
-              novelTitle: novel?.title,
+              poemId: poem?.id,
+              poemTitle: poem?.title,
               commentId: commentId,
               commentContent: commentData.content,
               createdAt: new Date().toISOString(),
@@ -480,16 +429,15 @@ const NovelOverview = () => {
   }
 
   const handleCopyLink = async () => {
-    const novelUrl = `${window.location.origin}/novel/${novel?.id}`
+    const poemUrl = `${window.location.origin}/poem/${poem?.id}`
     try {
-      await navigator.clipboard.writeText(novelUrl)
+      await navigator.clipboard.writeText(poemUrl)
       setCopySuccess(true)
       setTimeout(() => setCopySuccess(false), 2000)
     } catch (error) {
       console.error("Failed to copy link:", error)
-      // Fallback for older browsers
       const textArea = document.createElement("textarea")
-      textArea.value = novelUrl
+      textArea.value = poemUrl
       document.body.appendChild(textArea)
       textArea.select()
       document.execCommand("copy")
@@ -500,48 +448,44 @@ const NovelOverview = () => {
   }
 
   const handleSocialShare = (platform: string) => {
-    if (!novel) return
-    const novelUrl = `${window.location.origin}/novel/${novel.id}`
-    const shareText = `Check out "${novel.title}" by ${novel.authorName} on NovlNest!`
+    if (!poem) return
+    const poemUrl = `${window.location.origin}/poem/${poem.id}`
+    const shareText = `Check out "${poem.title}" by ${poem.poetName} on NovlNest!`
     let shareUrl = ""
     switch (platform) {
       case "facebook":
-        // Use the Facebook app URL scheme for mobile
         if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-          shareUrl = `fb://share?link=${encodeURIComponent(novelUrl)}`
+          shareUrl = `fb://share?link=${encodeURIComponent(poemUrl)}`
         } else {
-          shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(novelUrl)}`
+          shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(poemUrl)}`
         }
         break
       case "twitter":
         shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(
-          novelUrl,
+          poemUrl,
         )}`
         break
       case "whatsapp":
-        // Use the WhatsApp app URL scheme for mobile
         if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-          shareUrl = `whatsapp://send?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`
+          shareUrl = `whatsapp://send?text=${encodeURIComponent(`${shareText} ${poemUrl}`)}`
         } else {
-          shareUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`
+          shareUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${poemUrl}`)}`
         }
         break
       default:
         return
     }
-    // For mobile apps, try to open the app first, fallback to web if it fails
     if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
       const appWindow = window.open(shareUrl, "_blank")
-      // If app window failed to open (app not installed), fallback to web version
       if (!appWindow || appWindow.closed || typeof appWindow.closed === "undefined") {
         setTimeout(() => {
           switch (platform) {
             case "facebook":
-              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(novelUrl)}`, "_blank")
+              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(poemUrl)}`, "_blank")
               break
             case "whatsapp":
               window.open(
-                `https://web.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${novelUrl}`)}`,
+                `https://web.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${poemUrl}`)}`,
                 "_blank",
               )
               break
@@ -549,7 +493,6 @@ const NovelOverview = () => {
         }, 1000)
       }
     } else {
-      // For desktop, open in a popup window
       window.open(shareUrl, "_blank", "width=600,height=400")
     }
   }
@@ -575,33 +518,12 @@ const NovelOverview = () => {
 
   const canDeleteComment = (comment: Comment) => {
     if (!currentUser) return false
-    // User can delete their own comments or novel author can delete any comment
-    return comment.userId === currentUser.uid || (novel && novel.authorId === currentUser.uid)
+    return comment.userId === currentUser.uid || (poem && poem.poetId === currentUser.uid)
   }
 
-  const handleMarkAsFinished = async () => {
-    if (!novel?.id || !currentUser) {
-      showErrorToast("Unable to mark as finished - novel or user data missing.")
-      return
-    }
-    try {
-      const currentlyFinished = currentUser.finishedReads?.includes(novel.id) || false
-      await markNovelAsFinished(novel.id, novel.title, novel.authorId)
-      setIsFinished(!currentlyFinished)
-      showSuccessToast(!currentlyFinished ? "Novel marked as finished!" : "Novel unmarked as finished.")
-    } catch (error) {
-      console.error("Error marking novel as finished:", error)
-      showErrorToast("Failed to update finished status.")
-      const currentlyFinished = currentUser.finishedReads?.includes(novel.id) || false
-      setIsFinished(currentlyFinished)
-    }
-  }
-
-  // Memoized handlers to prevent unnecessary re-renders
   const handleNewCommentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const cursorPosition = e.target.selectionStart
     setNewComment(e.target.value)
-    // Restore cursor position after state update
     requestAnimationFrame(() => {
       if (commentTextareaRef.current) {
         commentTextareaRef.current.setSelectionRange(cursorPosition, cursorPosition)
@@ -636,7 +558,7 @@ const NovelOverview = () => {
     handleReplySubmit: (parentId: string) => Promise<void>
     handleCancelReply: () => void
     currentUser: typeof currentUser
-    novel: typeof novel
+    poem: typeof poem
     replyInputRef: React.RefObject<HTMLInputElement | null>
     handleReplyContentChange: (e: React.ChangeEvent<HTMLInputElement>) => void
     handleDeleteComment: (commentId: string) => Promise<void>
@@ -654,7 +576,7 @@ const NovelOverview = () => {
     handleReplySubmit,
     handleCancelReply,
     currentUser,
-    novel,
+    poem,
     replyInputRef,
     handleReplyContentChange,
     handleDeleteComment,
@@ -695,7 +617,7 @@ const NovelOverview = () => {
                 className="h-8 w-8 rounded-full object-cover"
               />
             ) : (
-              <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+              <div className="h-8 w-8 bg-gradient-to-br from-rose-500 to-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
                 {getUserInitials(comment.userName)}
               </div>
             )}
@@ -725,9 +647,9 @@ const NovelOverview = () => {
                 )}
               </h4>
               <span className="text-gray-400 text-xs">{formatDate(comment.createdAt)}</span>
-              {comment.userId === novel?.authorId && (
-                <span className="px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
-                  Author
+              {comment.userId === poem?.poetId && (
+                <span className="px-2 py-1 text-xs rounded-full bg-rose-900/50 text-rose-300 border border-rose-700">
+                  Poet
                 </span>
               )}
             </div>
@@ -757,17 +679,15 @@ const NovelOverview = () => {
                 </svg>
                 {comment.likes || 0}
               </button>
-              {/* Reply Button - Now for any comment */}
               {currentUser && (
                 <button
                   onClick={() => handleReplyToggle(comment.id)}
-                  className="inline-flex items-center text-xs text-gray-400 hover:text-purple-400 transition-colors"
+                  className="inline-flex items-center text-xs text-gray-400 hover:text-rose-400 transition-colors"
                 >
                   <FaReply className="h-3 w-3 mr-1" />
                   Reply
                 </button>
               )}
-              {/* Delete Button */}
               {canDeleteComment(comment) && (
                 <button
                   onClick={() => handleDeleteComment(comment.id)}
@@ -797,7 +717,6 @@ const NovelOverview = () => {
                 </button>
               )}
             </div>
-            {/* Reply Form */}
             {replyingTo === comment.id && (
               <div className="mt-3 p-2">
                 <div className="flex items-start space-x-2">
@@ -809,7 +728,7 @@ const NovelOverview = () => {
                         className="h-6 w-6 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="h-6 w-6 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      <div className="h-6 w-6 bg-gradient-to-br from-rose-500 to-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
                         {getUserInitials(currentUser?.displayName || "User")}
                       </div>
                     )}
@@ -821,7 +740,7 @@ const NovelOverview = () => {
                       value={replyContent}
                       onChange={handleReplyContentChange}
                       placeholder={`Reply to ${comment.userName}...`}
-                      className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 w-full"
+                      className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 w-full"
                       autoComplete="off"
                       autoFocus
                     />
@@ -835,7 +754,7 @@ const NovelOverview = () => {
                       <button
                         onClick={() => handleReplySubmit(comment.id)}
                         disabled={!replyContent.trim() || submittingReply}
-                        className="px-3 py-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
+                        className="px-3 py-1 bg-rose-600 hover:bg-rose-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
                       >
                         {submittingReply ? "Posting..." : "Reply"}
                       </button>
@@ -860,7 +779,7 @@ const NovelOverview = () => {
                 handleReplySubmit={handleReplySubmit}
                 handleCancelReply={handleCancelReply}
                 currentUser={currentUser}
-                novel={novel}
+                poem={poem}
                 replyInputRef={replyInputRef}
                 handleReplyContentChange={handleReplyContentChange}
                 handleDeleteComment={handleDeleteComment}
@@ -877,12 +796,12 @@ const NovelOverview = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900">
-        <SkeletonLoader type="novel" />
+        <SkeletonLoader type="poem" />
       </div>
     )
   }
 
-  if (error || !novel) {
+  if (error || !poem) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-900">
         <div className="bg-gray-800 rounded-xl shadow-md p-8 max-w-md text-center">
@@ -894,32 +813,14 @@ const NovelOverview = () => {
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             />
           </svg>
-          <h3 className="mt-4 text-xl font-medium text-white">Novel Not Found</h3>
-          <p className="mt-2 text-gray-400">{error || "The novel you're looking for doesn't exist."}</p>
-          <Link to="/novels" className="mt-6 inline-flex items-center text-sm text-purple-400 hover:text-purple-300">
+          <h3 className="mt-4 text-xl font-medium text-white">Poem Not Found</h3>
+          <p className="mt-2 text-gray-400">{error || "The poem you're looking for doesn't exist."}</p>
+          <Link to="/poems" className="mt-6 inline-flex items-center text-sm text-rose-400 hover:text-rose-300">
             ← Go Back to Browse
           </Link>
         </div>
       </div>
     )
-  }
-
-  const isAuthor = currentUser && novel.authorId === currentUser.uid
-  const truncateToTwoSentences = (text: string) => {
-    // Early return if text is empty or short
-    if (!text || text.length <= 100) return text
-    // Split into sentences
-    const sentences = text.match(/[^.!?]+[.!?]+/g) || []
-    // If no complete sentences found, truncate by character
-    if (sentences.length === 0) {
-      return text.slice(0, 100) + "..."
-    }
-    // If only one sentence and it's long, return just that sentence
-    if (sentences.length === 1) {
-      return sentences[0]
-    }
-    // Return the first two sentences
-    return sentences.slice(0, 2).join(" ") + (sentences.length > 2 ? "..." : "")
   }
 
   const getFirebaseDownloadUrl = (url: string) => {
@@ -928,12 +829,9 @@ const NovelOverview = () => {
     }
 
     try {
-      // Convert Firebase Storage URL to download URL format that bypasses CORS
       const urlParts = url.split("/")
-      const bucketName = urlParts[3] // Extract bucket name
-      const filePath = urlParts.slice(4).join("/") // Extract file path
-
-      // Create download URL format that doesn't require CORS
+      const bucketName = urlParts[3]
+      const filePath = urlParts.slice(4).join("/")
       return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media`
     } catch (error) {
       console.log(`Error converting Firebase URL: ${error}`)
@@ -941,25 +839,17 @@ const NovelOverview = () => {
     }
   }
 
-  // Generate breadcrumb data
-  const breadcrumbItems = [
-    { name: "Home", url: "https://novlnest.com" },
-    { name: "Novels", url: "https://novlnest.com/novels" },
-    { name: novel?.title || "Novel", url: `https://novlnest.com/novel/${id}` }
-  ]
-
   return (
     <div className="min-h-screen py-4 sm:py-8">
-      {novel && (
+      {poem && (
         <SEOHead
-          title={`${novel.title} by ${novel.authorName || 'Unknown Author'} - Free Online Novel | NovlNest`}
-          description={novel.description || `Read ${novel.title} by ${novel.authorName || 'Unknown Author'} for free on NovlNest. ${novel.genres?.join(', ')} novel with ${novel.chapters?.length || 0} chapters.`}
-          canonicalUrl={`https://novlnest.com/novel/${novel.id}`}
-          keywords={`${novel.title}, ${novel.authorName}, ${novel.genres?.join(', ')}, free novel, online reading, ${novel.genres?.map(g => `${g} novel`).join(', ')}, digital book`}
-          image={novel.coverImage ? `https://novlnest.com${novel.coverImage}` : "https://novlnest.com/images/logo.jpg"}
-          url={`https://novlnest.com/novel/${novel.id}`}
+          title={`${poem.title} by ${poem.poetName || 'Unknown Poet'} - Free Poetry | NovlNest`}
+          description={poem.description || `Read ${poem.title} by ${poem.poetName || 'Unknown Poet'} for free on NovlNest. ${poem.genres?.join(', ')} poetry.`}
+          canonicalUrl={`https://novlnest.com/poem/${poem.id}`}
+          keywords={`${poem.title}, ${poem.poetName}, ${poem.genres?.join(', ')}, poetry, free poem, online reading`}
+          image={poem.coverImage ? `https://novlnest.com${poem.coverImage}` : "https://novlnest.com/images/logo.jpg"}
+          url={`https://novlnest.com/poem/${poem.id}`}
           type="article"
-          structuredData={[generateNovelStructuredData(novel), generateBreadcrumbStructuredData(breadcrumbItems)]}
         />
       )}
       
@@ -967,8 +857,8 @@ const NovelOverview = () => {
         {/* Header */}
         <div>
           <Link
-            to="/novels"
-            className="inline-flex items-center text-purple-400 hover:text-purple-300 my-4 transition-colors text-sm sm:text-base"
+            to="/poems"
+            className="inline-flex items-center text-rose-400 hover:text-rose-300 my-4 transition-colors text-sm sm:text-base"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -977,50 +867,50 @@ const NovelOverview = () => {
           </Link>
         </div>
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-8">
-          {/* Left Side - Novel Details */}
+          {/* Left Side - Poem Details */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-8">
-            {/* Novel Header */}
+            {/* Poem Header */}
             <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
               <div className="flex flex-col md:flex-row">
                 {/* Cover Image */}
                 <div className="w-full md:w-1/3 md:h-auto relative bg-[#070707] sm:h-[400px]">
-                  {novel.coverImage ? (
+                  {poem.coverImage ? (
                     <img
-                      src={getFirebaseDownloadUrl(novel.coverImage || "/placeholder.svg")}
-                      alt={novel.title}
+                      src={getFirebaseDownloadUrl(poem.coverImage || "/placeholder.svg")}
+                      alt={poem.title}
                       className="w-full h-full object-contain"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center">
-                      <svg className="h-16 w-16 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                        />
+                    <div className={`w-full h-full bg-gradient-to-br ${getPoemGenreColorClass(poem.genres || [])} flex items-center justify-center relative overflow-hidden`}>
+                      <div className="absolute inset-0 opacity-10">
+                        <div className="absolute top-4 left-4 w-8 h-8 border border-white rounded-full"></div>
+                        <div className="absolute top-12 right-6 w-4 h-4 bg-white rounded-full"></div>
+                        <div className="absolute bottom-6 left-6 w-6 h-6 border border-white"></div>
+                      </div>
+                      <svg className="h-16 w-16 text-white/60 relative z-10" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
                       </svg>
                     </div>
                   )}
                 </div>
-                {/* Novel Info */}
+                {/* Poem Info */}
                 <div className="w-full md:w-2/3 p-4 sm:p-6 md:p-8">
-                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-4">{novel.title}</h1>
-                  <p className="text-sm sm:text-lg text-gray-300 mb-3 sm:mb-4">
-                    {truncateToTwoSentences(novel.description)}
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-white mb-2 sm:mb-4">{poem.title}</h1>
+                  <p className="text-sm sm:text-lg text-gray-300 mb-3 sm:mb-4 font-serif italic">
+                    "{poem.description}"
                   </p>
                   <Link
-                    to={`/profile/${novel.authorId}`}
-                    className="block mb-3 sm:mb-4 text-sm text-purple-400 hover:text-purple-300"
+                    to={`/profile/${poem.poetId}`}
+                    className="block mb-3 sm:mb-4 text-sm text-rose-400 hover:text-rose-300 font-serif"
                   >
-                    By {novel.authorName}
+                    By {poem.poetName}
                   </Link>
                   {/* Genres */}
                   <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
-                    {novel.genres.map((genre) => (
+                    {poem.genres.map((genre) => (
                       <span
                         key={genre}
-                        className="px-3 py-1 bg-purple-500/20 text-purple-300 text-sm rounded-full border border-purple-500/30"
+                        className="px-3 py-1 bg-rose-500/20 text-rose-300 text-sm rounded-full border border-rose-500/30 font-serif"
                       >
                         {genre}
                       </span>
@@ -1047,7 +937,7 @@ const NovelOverview = () => {
                           clipRule="evenodd"
                         />
                       </svg>
-                      {novel.likes || 0}
+                      {poem.likes || 0}
                     </button>
                     <div className="flex items-center text-gray-300">
                       <svg className="h-5 w-5 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
@@ -1058,40 +948,19 @@ const NovelOverview = () => {
                           clipRule="evenodd"
                         />
                       </svg>
-                      {novel.views || 0}
-                    </div>
-                    <div className="flex items-center text-gray-300">
-                      <svg
-                        className="h-5 w-5 mr-2 text-green-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                      {novel.chapters?.length || 0}
+                      {poem.views || 0}
                     </div>
                   </div>
                   {/* Action Buttons */}
                   <div className="flex flex-wrap gap-2 sm:gap-3">
                     <Link
-                      to={`/novel/${novel.id}/read`}
-                      className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                      to={`/poem/${poem.id}/read`}
+                      className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
                     >
-                      <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                        />
+                      <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
                       </svg>
-                      Start Reading
+                      Read Poem
                     </Link>
                     <button
                       onClick={handleShare}
@@ -1100,246 +969,18 @@ const NovelOverview = () => {
                       <FaShare className="h-4 w-4 mr-2" />
                       Share
                     </button>
-                    {authorData?.supportLink && (
+                    {poetData?.supportLink && (
                       <button
                         onClick={() => setIsTipModalOpen(true)}
                         className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base bg-green-600/20 hover:bg-green-600/30 text-green-400 font-semibold rounded-xl transition-all duration-200 border border-green-600/30 hover:border-green-600/50 transform hover:scale-105"
-                        title="Support this author"
+                        title="Support this poet"
                       >
                         <Gift className="h-4 w-4 mr-2" />
                         Gift
                       </button>
                     )}
-                    {currentUser && ( // Only show if logged in
-                      <button
-                        onClick={handleMarkAsFinished}
-                        disabled={!currentUser}
-                        className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold rounded-xl transition-all duration-200 border transform hover:scale-105 ${
-                          isFinished
-                            ? "bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30"
-                            : "bg-white/10 hover:bg-white/20 text-white border-white/20 hover:border-white/30"
-                        }`}
-                      >
-                        {isFinished ? (
-                          <>
-                            <CheckCircle className="h-5 w-5 mr-2" />
-                            Finished
-                          </>
-                        ) : (
-                          <>
-                            <BookOpen className="h-5 w-5 mr-2" />
-                            Mark as Finished
-                          </>
-                        )}
-                      </button>
-                    )}
-                    {isAuthor && (
-                      <>
-                        <Link
-                          to={`/novel/${novel.id}/add-chapters`}
-                          className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all duration-200 border border-white/20 hover:border-white/30"
-                        >
-                          <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                            />
-                          </svg>
-                          Add Chapters
-                        </Link>
-                      </>
-                    )}
                   </div>
                 </div>
-              </div>
-            </div>
-            {/* Summary Section */}
-            <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-8">
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4 flex items-center">
-                <svg className="h-6 w-6 mr-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                Summary
-              </h2>
-              <div className="relative">
-                <p
-                  className={`text-gray-300 leading-relaxed text-base sm:text-lg ${
-                    !isSummaryExpanded ? "line-clamp-5" : ""
-                  }`}
-                >
-                  {novel.summary}
-                </p>
-                {/* Only show button if summary is long enough */}
-                {novel.summary.length > 300 && (
-                  <button
-                    onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
-                    className="mt-2 text-purple-400 hover:text-purple-300 text-sm font-medium transition-colors flex items-center cursor-pointer"
-                  >
-                    {isSummaryExpanded ? (
-                      <>
-                        Show Less
-                        <svg className="h-4 w-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
-                        </svg>
-                      </>
-                    ) : (
-                      <>
-                        Show More
-                        <svg className="h-4 w-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-            {/* Chapters List */}
-            <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-8">
-              <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-                <svg className="h-6 w-6 mr-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 6h16M4 10h16M4 14h16M4 18h16"
-                  />
-                </svg>
-                Chapters ({(novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + (novel.chapters?.length || 0)})
-              </h2>
-              <div className="space-y-3 max-h-[50vh] overflow-y-auto">
-                {/* Author's Note */}
-                {novel.authorsNote && (
-                  <div className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group">
-                    <Link
-                      to={`/novel/${novel.id}/read?chapter=0`}
-                      className="flex-1 flex items-center justify-between"
-                    >
-                      <div>
-                        <h3 className="text-white font-semibold group-hover:text-purple-300 transition-colors">
-                          Author's Note
-                        </h3>
-                      </div>
-                      <svg
-                        className="h-5 w-5 text-gray-400 group-hover:text-purple-300 transition-colors"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                  </div>
-                )}
-
-                {/* Prologue */}
-                {novel.prologue && (
-                  <div className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group">
-                    <Link
-                      to={`/novel/${novel.id}/read?chapter=${novel.authorsNote ? 1 : 0}`}
-                      className="flex-1 flex items-center justify-between"
-                    >
-                      <div>
-                        <h3 className="text-white font-semibold group-hover:text-purple-300 transition-colors">
-                          Prologue
-                        </h3>
-                      </div>
-                      <svg
-                        className="h-5 w-5 text-gray-400 group-hover:text-purple-300 transition-colors"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                  </div>
-                )}
-
-                {/* Chapters */}
-                {novel.chapters?.map((chapter, index) => {
-                  // Calculate the reading order index for this chapter
-                  const readingOrderIndex = (novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + index
-                  return (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group"
-                    >
-                      <Link
-                        to={`/novel/${novel.id}/read?chapter=${readingOrderIndex}`}
-                        className="flex-1 flex items-center justify-between"
-                      >
-                        <div>
-                          <h3 className="text-white font-semibold group-hover:text-purple-300 transition-colors">
-                            Chapter {index + 1}: {chapter.title}
-                          </h3>
-                        </div>
-                        <svg
-                          className="h-5 w-5 text-gray-400 group-hover:text-purple-300 transition-colors"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Link>
-                      {/* Edit Button for Author */}
-                      {isAuthor && (
-                        <>
-                          <Link
-                            to={`/novel/${novel.id}/edit-chapter/${index}`}
-                            className="inline-flex items-center px-1 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 hover:bg-purple-900/20 rounded-md transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                              />
-                            </svg>
-                          </Link>
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              if (!window.confirm("Are you sure you want to delete this chapter?")) return
-                              try {
-                                const updatedChapters = [...novel.chapters]
-                                updatedChapters.splice(index, 1)
-                                await updateDoc(doc(db, "novels", novel.id), { chapters: updatedChapters })
-                                setNovel({ ...novel, chapters: updatedChapters })
-                              } catch (err) {
-                                alert("Failed to delete chapter.")
-                              }
-                            }}
-                            className="inline-flex items-center px-1 py-1 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-md transition-colors"
-                          >
-                            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                            </svg>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )
-                }) || (
-                  <div className="text-center py-8">
-                    <p className="text-gray-400">No chapters available yet.</p>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -1347,7 +988,7 @@ const NovelOverview = () => {
           <div className="lg:col-span-1">
             <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-6 lg:sticky lg:top-8">
               <h2 className="text-lg sm:text-xl font-bold text-white mb-4 sm:mb-6 flex items-center">
-                <svg className="h-5 w-5 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5 mr-2 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -1369,7 +1010,7 @@ const NovelOverview = () => {
                           className="h-8 w-8 rounded-full object-cover"
                         />
                       ) : (
-                        <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        <div className="h-8 w-8 bg-gradient-to-br from-rose-500 to-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
                           {getUserInitials(currentUser.displayName || "User")}
                         </div>
                       )}
@@ -1379,14 +1020,14 @@ const NovelOverview = () => {
                         ref={commentTextareaRef}
                         value={newComment}
                         onChange={handleNewCommentChange}
-                        placeholder="Share your thoughts about this novel..."
-                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                        placeholder="Share your thoughts about this poem..."
+                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-rose-500 focus:border-transparent resize-none"
                         rows={3}
                       />
                       <button
                         type="submit"
                         disabled={!newComment.trim() || submittingComment}
-                        className="mt-2 inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                        className="mt-2 inline-flex items-center px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
                       >
                         {submittingComment ? (
                           <>
@@ -1417,7 +1058,7 @@ const NovelOverview = () => {
               ) : (
                 <div className="mb-6 p-4 bg-white/5 rounded-lg border border-white/10">
                   <p className="text-gray-400 text-sm mb-2">Sign in to leave a comment</p>
-                  <Link to="/login" className="inline-flex items-center text-purple-400 hover:text-purple-300 text-sm">
+                  <Link to="/login" className="inline-flex items-center text-rose-400 hover:text-rose-300 text-sm">
                     Sign In →
                   </Link>
                 </div>
@@ -1426,7 +1067,7 @@ const NovelOverview = () => {
               <div className="space-y-3 sm:space-y-4 max-h-[50vh] lg:max-h-96 overflow-y-auto">
                 {commentsLoading ? (
                   <div className="flex justify-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-rose-600"></div>
                   </div>
                 ) : comments.length === 0 ? (
                   <div className="text-center py-8">
@@ -1458,7 +1099,7 @@ const NovelOverview = () => {
                       handleReplySubmit={handleReplySubmit}
                       handleCancelReply={handleCancelReply}
                       currentUser={currentUser}
-                      novel={novel}
+                      poem={poem}
                       replyInputRef={replyInputRef}
                       handleReplyContentChange={handleReplyContentChange}
                       handleDeleteComment={handleDeleteComment}
@@ -1477,7 +1118,7 @@ const NovelOverview = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-gray-800 rounded-2xl p-4 sm:p-6 max-w-md w-full mx-2 sm:mx-0 border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">Share Novel</h3>
+              <h3 className="text-xl font-bold text-white">Share Poem</h3>
               <button
                 onClick={() => setShowShareModal(false)}
                 className="text-gray-400 hover:text-white transition-colors"
@@ -1491,12 +1132,12 @@ const NovelOverview = () => {
                 <div className="flex items-center justify-between">
                   <div className="inline-grid mr-3">
                     <p className="text-sm text-gray-300 mb-1">Share Link</p>
-                    <p className="text-xs text-gray-400 truncate">{`${window.location.origin}/novel/${novel.id}`}</p>
+                    <p className="text-xs text-gray-400 truncate">{`${window.location.origin}/poem/${poem.id}`}</p>
                   </div>
                   <button
                     onClick={handleCopyLink}
                     className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
+                      copySuccess ? "bg-green-600 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"
                     }`}
                   >
                     <FaCopy className="h-4 w-4 mr-2" />
@@ -1534,7 +1175,7 @@ const NovelOverview = () => {
       )}
 
       {/* Tip Modal */}
-      {isTipModalOpen && authorData && (
+      {isTipModalOpen && poetData && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-xl shadow-lg p-6 max-w-md w-full relative border border-gray-700">
             <button
@@ -1547,7 +1188,7 @@ const NovelOverview = () => {
             
             <div className="text-center mb-6">
               <Gift className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-white mb-2">Want to tip this author?</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Want to tip this poet?</h2>
               <p className="text-gray-300">Here are the payment details:</p>
             </div>
 
@@ -1555,11 +1196,10 @@ const NovelOverview = () => {
               <div className="text-center">
                 <h3 className="text-lg font-semibold text-white mb-3">Payment Information</h3>
                 {(() => {
-                  const supportLink = authorData.supportLink
+                  const supportLink = poetData.supportLink
                   const isUrl = supportLink?.startsWith('http')
                   
                   if (isUrl) {
-                    // For international users with URLs
                     return (
                       <div className="space-y-2">
                         <div className="flex flex-col justify-between">
@@ -1576,7 +1216,6 @@ const NovelOverview = () => {
                       </div>
                     )
                   } else {
-                    // For Nigerian users with bank details
                     return (
                       <div className="space-y-2 text-left">
                         <div className="flex flex-col justify-between">
@@ -1607,7 +1246,7 @@ const NovelOverview = () => {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => {
-                  const supportText = authorData.supportLink
+                  const supportText = poetData.supportLink
                   if (supportText) {
                     navigator.clipboard.writeText(supportText)
                     const isUrl = supportText.startsWith('http')
@@ -1618,19 +1257,19 @@ const NovelOverview = () => {
               >
                 <FaCopy className="h-4 w-4 mr-2" />
                 {(() => {
-                  const supportText = authorData.supportLink
+                  const supportText = poetData.supportLink
                   const isUrl = supportText?.startsWith('http')
                   return isUrl ? "Copy Link" : "Copy Details"
                 })()}
               </button>
               <button
                 onClick={() => {
-                  const supportText = authorData.supportLink
+                  const supportText = poetData.supportLink
                   if (supportText) {
                     const isUrl = supportText.startsWith('http')
                     const shareText = isUrl 
-                      ? `Support this author: ${supportText}`
-                      : `Support this author: ${supportText}`
+                      ? `Support this poet: ${supportText}`
+                      : `Support this poet: ${supportText}`
                     
                     if (navigator.share) {
                       navigator.share({ text: shareText })
@@ -1653,4 +1292,4 @@ const NovelOverview = () => {
   )
 }
 
-export default NovelOverview
+export default PoemOverview
