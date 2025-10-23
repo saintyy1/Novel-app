@@ -21,6 +21,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://novlnest.com/poems</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://novlnest.com/promote</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>

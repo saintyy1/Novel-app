@@ -24,6 +24,7 @@ import type { Poem } from "../types/poem"
 import type { ExtendedUser } from "../context/AuthContext"
 import EditProfileModal from "../components/EditProfileModal" // Import the new modal component
 import UserListDrawer from "../components/UserListDrawer" // Import the new UserListDrawer
+import SEOHead from "../components/SEOHead"
 import { FaInstagram, FaTimes, FaFacebook, FaWhatsapp, FaCopy, FaShare } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
@@ -1061,6 +1062,26 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 py-8">
+      <SEOHead
+        title={`${profileUser?.displayName || 'User'} - Profile | NovlNest`}
+        description={`View ${profileUser?.displayName || 'user'}'s profile on NovlNest. ${profileUser?.bio || 'Discover their novels, poems, and creative works.'}`}
+        keywords={`${profileUser?.displayName}, profile, author, novelist, poet, NovlNest, user profile`}
+        image={profileUser?.photoURL || "https://novlnest.com/images/logo.jpg"}
+        url={`https://novlnest.com/profile/${userId}`}
+        canonicalUrl={`https://novlnest.com/profile/${userId}`}
+        type="profile"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "ProfilePage",
+          "mainEntity": {
+            "@type": "Person",
+            "name": profileUser?.displayName || "User",
+            "image": profileUser?.photoURL || "https://novlnest.com/images/logo.jpg",
+            "description": profileUser?.bio || "NovlNest user profile",
+            "url": `https://novlnest.com/profile/${userId}`
+          }
+        }}
+      />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">
         {/* Profile Header */}
         <div className="bg-gray-800 rounded-xl shadow-md p-4 sm:p-6 mb-8">

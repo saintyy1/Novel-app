@@ -12,6 +12,8 @@ Disallow: /support
 # Allow important pages
 Allow: /novels
 Allow: /novel/
+Allow: /poems
+Allow: /poem/
 Allow: /profile/
 Allow: /about
 Allow: /contact
