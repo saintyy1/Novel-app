@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useRef } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { collection, doc, setDoc } from "firebase/firestore"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
+import { ref, uploadBytes } from "firebase/storage"
 import { db, storage } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import SEOHead from "../components/SEOHead"
@@ -225,9 +225,8 @@ const SubmitPoem = () => {
           await uploadBytes(coverRef, resizedBlob)
           await uploadBytes(coverSmallRef, smallBlob)
 
-          // Get download URLs
-          coverUrl = await getDownloadURL(coverRef)
-          coverSmallUrl = await getDownloadURL(coverSmallRef)
+          coverUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/poem-covers-large/${docRef.id}.jpg`
+          coverSmallUrl = `https://storage.googleapis.com/novelnest-50ab1.firebasestorage.app/poem-covers-small/${docRef.id}.jpg`
         } catch (err) {
           console.error("Image processing failed:", err)
           setError("Failed to process image")
