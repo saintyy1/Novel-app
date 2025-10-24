@@ -25,6 +25,8 @@ const Navbar = () => {
   const mobileDropdownRef = useRef<HTMLDivElement>(null)
   const browseDropdownRef = useRef<HTMLDivElement>(null)
   const submitDropdownRef = useRef<HTMLDivElement>(null)
+  const browseTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const submitTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleLogout = async () => {
     try {
@@ -42,6 +44,36 @@ const Navbar = () => {
 
   const isActive = (path: string) => {
     return location.pathname === path
+  }
+
+  // Browse dropdown handlers with delay
+  const handleBrowseMouseEnter = () => {
+    if (browseTimerRef.current) {
+      clearTimeout(browseTimerRef.current)
+      browseTimerRef.current = null
+    }
+    setIsBrowseDropdownOpen(true)
+  }
+
+  const handleBrowseMouseLeave = () => {
+    browseTimerRef.current = setTimeout(() => {
+      setIsBrowseDropdownOpen(false)
+    }, 300) // 300ms delay
+  }
+
+  // Submit dropdown handlers with delay
+  const handleSubmitMouseEnter = () => {
+    if (submitTimerRef.current) {
+      clearTimeout(submitTimerRef.current)
+      submitTimerRef.current = null
+    }
+    setIsSubmitDropdownOpen(true)
+  }
+
+  const handleSubmitMouseLeave = () => {
+    submitTimerRef.current = setTimeout(() => {
+      setIsSubmitDropdownOpen(false)
+    }, 300) // 300ms delay
   }
 
   // Close dropdown when clicking outside
@@ -75,6 +107,18 @@ const Navbar = () => {
       document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [isUserDropdownOpen, isBrowseDropdownOpen, isSubmitDropdownOpen])
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (browseTimerRef.current) {
+        clearTimeout(browseTimerRef.current)
+      }
+      if (submitTimerRef.current) {
+        clearTimeout(submitTimerRef.current)
+      }
+    }
+  }, [])
 
   // Get user initials for avatar fallback
   const getUserInitials = (name: string | null | undefined) => {
@@ -157,7 +201,12 @@ const Navbar = () => {
               </div>
             </Link>
             {/* Browse Dropdown */}
-            <div className="relative" ref={browseDropdownRef}>
+            <div 
+              className="relative" 
+              ref={browseDropdownRef}
+              onMouseEnter={handleBrowseMouseEnter}
+              onMouseLeave={handleBrowseMouseLeave}
+            >
               <button
                 onClick={() => setIsBrowseDropdownOpen(!isBrowseDropdownOpen)}
                 className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors flex items-center ${
@@ -185,7 +234,11 @@ const Navbar = () => {
                 </svg>
               </button>
               {isBrowseDropdownOpen && (
-                <div className="absolute left-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                <div 
+                  className="absolute left-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
+                  onMouseEnter={handleBrowseMouseEnter}
+                  onMouseLeave={handleBrowseMouseLeave}
+                >
                   <div className="py-1">
                     <Link
                       to="/novels"
@@ -258,7 +311,12 @@ const Navbar = () => {
                   </div>
                 </Link>
                 {/* Submit Dropdown */}
-                <div className="relative" ref={submitDropdownRef}>
+                <div 
+                  className="relative" 
+                  ref={submitDropdownRef}
+                  onMouseEnter={handleSubmitMouseEnter}
+                  onMouseLeave={handleSubmitMouseLeave}
+                >
                   <button
                     onClick={() => setIsSubmitDropdownOpen(!isSubmitDropdownOpen)}
                     className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors flex items-center ${
@@ -286,7 +344,11 @@ const Navbar = () => {
                     </svg>
                   </button>
                   {isSubmitDropdownOpen && (
-                    <div className="absolute left-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                    <div 
+                      className="absolute left-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
+                      onMouseEnter={handleSubmitMouseEnter}
+                      onMouseLeave={handleSubmitMouseLeave}
+                    >
                       <div className="py-1">
                         <Link
                           to="/submit"

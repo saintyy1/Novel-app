@@ -621,7 +621,7 @@ const SubmitNovel = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
+    <div className="max-w-6xl mx-auto py-8">
       <SEOHead
         title="Submit Your Novel - NovlNest"
         description="Share your creative writing with the world on NovlNest. Submit your novel, story, or fiction work and connect with readers who love your genre."
@@ -630,24 +630,48 @@ const SubmitNovel = () => {
         canonicalUrl="https://novlnest.com/submit"
       />
 
-      <h1 className="text-3xl font-bold mt-2 mb-8 text-[#E0E0E0]">Submit Your Novel</h1>
+      {/* Header with beautiful styling */}
+      <div className="text-center mb-8">
+        <div className="inline-block">
+          <h1 className="text-4xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-300 to-blue-400 mb-3">
+            Share Your Story
+          </h1>
+          <div className="flex items-center justify-center gap-2 text-gray-400 text-sm italic">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+            <span>Every story deserves to be told</span>
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+          </div>
+        </div>
+      </div>
 
       {error && (
         <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-lg mb-6">{error}</div>
       )}
 
       <form onSubmit={handleSubmit}>
-        <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-8">
-          <h2 className="text-xl font-bold mb-6 text-gray-300 border-b border-gray-700 pb-2">Novel Details</h2>
+        <div className="bg-gradient-to-br from-gray-800 via-gray-800 to-gray-900 rounded-2xl shadow-xl p-6 mb-8 border border-purple-900/20">
+          <div className="flex items-center gap-2 mb-6 pb-3 border-b border-purple-900/30">
+            <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            <h2 className="text-xl font-serif font-bold text-purple-300">Novel Details</h2>
+          </div>
 
           <div className="mb-6">
-            <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="title" className="block text-sm font-medium text-purple-200/90 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+              </svg>
               Title
             </label>
             <input
               id="title"
               type="text"
-              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+              className="w-full px-4 py-3 rounded-lg border border-purple-900/30 bg-gray-900/50 text-white font-serif text-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -656,93 +680,109 @@ const SubmitNovel = () => {
           </div>
 
           <div className="mb-6">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
-              Description (max 1 sentence)
+            <label htmlFor="description" className="block text-sm font-medium text-purple-200/90 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              Description (one sentence)
             </label>
             <input
               id="description"
               type="text"
-              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+              className="w-full px-4 py-3 rounded-lg border border-purple-900/30 bg-gray-900/50 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
               value={description}
               onChange={handleDescriptionChange}
               required
-              placeholder="Write a brief description of your novel"
+              placeholder="Capture the essence in one line..."
             />
-            <p className="mt-1 text-xs text-gray-400">{`${countSentences(description)} of 1 sentences used`}</p>
+            <p className="mt-1 text-xs text-purple-300/60">{`${countSentences(description)} of 1 sentences used`}</p>
           </div>
 
           <div className="mb-6">
-            <label htmlFor="summary" className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="summary" className="block text-sm font-medium text-purple-200/90 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clipRule="evenodd" />
+              </svg>
               Summary
             </label>
             <textarea
               id="summary"
-              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[120px]"
+              className="w-full px-4 py-3 rounded-lg border border-purple-900/30 bg-gray-900/50 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all min-h-[120px] leading-relaxed"
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               required
-              placeholder="Write a compelling summary of your novel"
+              placeholder="Write a compelling summary of your novel..."
             />
           </div>
 
           <div className="mb-6">
-            <label htmlFor="authorsNote" className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="authorsNote" className="block text-sm font-medium text-purple-200/90 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
+                <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+              </svg>
               Author's Note (Optional)
             </label>
             <textarea
               id="authorsNote"
-              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[120px]"
+              className="w-full px-4 py-3 rounded-lg border border-purple-900/30 bg-gray-900/50 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all min-h-[120px] leading-relaxed"
               value={authorsNote}
               onChange={(e) => setAuthorsNote(e.target.value)}
-              placeholder="Write a personal note to your readers (optional)"
+              placeholder="Share your thoughts with your readers..."
             />
-            <p className="mt-1 text-xs text-gray-400">This will appear before the prologue and chapters</p>
+            <p className="mt-1 text-xs text-purple-300/60">This will appear before the prologue and chapters</p>
           </div>
 
           <div className="mb-6">
-            <label htmlFor="prologue" className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="prologue" className="block text-sm font-medium text-purple-200/90 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
               Prologue (Optional)
             </label>
             <textarea
               id="prologue"
-              className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors min-h-[120px]"
+              className="w-full px-4 py-3 rounded-lg border border-purple-900/30 bg-gray-900/50 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all min-h-[120px] leading-relaxed font-serif"
               value={prologue}
               onChange={(e) => setPrologue(e.target.value)}
-              placeholder="Write your prologue (optional)"
+              placeholder="Begin your story with an intriguing prologue..."
             />
-            <p className="mt-1 text-xs text-gray-400">This will appear after the author's note and before Chapter 1</p>
+            <p className="mt-1 text-xs text-purple-300/60">This will appear after the author's note and before Chapter 1</p>
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-300 mb-2">Cover Image (Optional)</label>
-            <div className="mt-1 flex items-start space-x-4">
-              <div className="flex-1">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/jpeg, image/png, image/webp"
-                  onChange={handleCoverImageChange}
-                  className="block w-full text-sm text-gray-400
-                           file:mr-4 file:py-2 file:px-4
-                           file:rounded-md file:border-0
-                           file:text-sm file:font-medium
-                           file:bg-purple-900 file:text-purple-200
-                           hover:file:bg-purple-800
-                           cursor-pointer"
-                />
-                <p className="mt-1 text-xs text-gray-400">JPEG, PNG or WebP. Max 1MB. Recommended size: 800x600px.</p>
-              </div>
+            <label className="block text-sm font-medium text-purple-200/90 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+              </svg>
+              Cover Image (Optional)
+            </label>
+            <div className="mt-1 flex flex-col gap-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/jpeg, image/png, image/webp"
+                onChange={handleCoverImageChange}
+                className="block w-full text-sm text-purple-200/70
+                         file:mr-4 file:py-2 file:px-4
+                         file:rounded-lg file:border-0
+                         file:text-sm file:font-medium
+                         file:bg-purple-900/40 file:text-purple-200
+                         hover:file:bg-purple-800/60
+                         cursor-pointer transition-all"
+              />
+              <p className="mt-1 text-xs text-purple-300/60">JPEG, PNG or WebP. Max 1MB. Recommended size: 800x600px.</p>
               {coverPreview && (
-                <div className="relative">
+                <div className="relative inline-block">
                   <img
                     src={coverPreview || "/placeholder.svg"}
                     alt="Cover preview"
-                    className="h-32 w-24 object-cover rounded-md shadow-md border border-gray-700"
+                    className="h-32 w-full object-cover rounded-lg shadow-lg border border-purple-900/30"
                   />
                   <button
                     type="button"
                     onClick={removeCoverImage}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition-colors"
+                    className="absolute -top-2 -right-2 bg-purple-500 text-white rounded-full p-1.5 shadow-lg hover:bg-purple-600 transition-colors"
                     aria-label="Remove cover image"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -755,15 +795,20 @@ const SubmitNovel = () => {
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-300 mb-2">Genres (select at least one)</label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mt-2">
+            <label className="block text-sm font-medium text-purple-200/90 mb-3 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
+              </svg>
+              Genres (select at least one)
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {availableGenres.map((genre) => (
                 <label
                   key={genre}
-                  className={`flex items-center justify-center px-3 py-2 rounded-lg border ${genres.includes(genre)
-                      ? "bg-purple-900/40 border-purple-700 text-purple-300"
-                      : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                    } cursor-pointer transition-colors text-sm`}
+                  className={`flex items-center justify-center px-3 py-2.5 rounded-lg border-2 ${genres.includes(genre)
+                      ? "bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border-purple-500/50 text-purple-200 shadow-lg shadow-purple-900/20"
+                      : "bg-gray-900/30 border-purple-900/20 text-gray-400 hover:bg-gray-900/50 hover:border-purple-800/30"
+                    } cursor-pointer transition-all text-sm font-medium`}
                 >
                   <input
                     type="checkbox"
@@ -777,44 +822,59 @@ const SubmitNovel = () => {
             </div>
           </div>
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+          <div>
+            <label className="block text-sm font-medium text-purple-200/90 mb-3 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
               Does your novel contain graphic or gory content?
             </label>
             <div className="flex gap-4">
-              <label className="flex items-center cursor-pointer">
+              <label className={`flex items-center px-4 py-2.5 rounded-lg border-2 cursor-pointer transition-all ${hasGraphicContent === true
+                  ? "bg-gradient-to-br from-red-900/30 to-orange-900/30 border-red-500/50 text-red-200"
+                  : "bg-gray-900/30 border-purple-900/20 text-gray-400 hover:bg-gray-900/50"
+                }`}>
                 <input
                   type="radio"
                   name="graphicContent"
                   value="yes"
                   checked={hasGraphicContent === true}
                   onChange={() => setHasGraphicContent(true)}
-                  className="mr-2 text-purple-600 focus:ring-purple-500"
+                  className="sr-only"
                 />
-                <span className="text-gray-300">Yes</span>
+                <span className="font-medium">Yes</span>
               </label>
-              <label className="flex items-center cursor-pointer">
+              <label className={`flex items-center px-4 py-2.5 rounded-lg border-2 cursor-pointer transition-all ${hasGraphicContent === false
+                  ? "bg-gradient-to-br from-green-900/30 to-emerald-900/30 border-green-500/50 text-green-200"
+                  : "bg-gray-900/30 border-purple-900/20 text-gray-400 hover:bg-gray-900/50"
+                }`}>
                 <input
                   type="radio"
                   name="graphicContent"
                   value="no"
                   checked={hasGraphicContent === false}
                   onChange={() => setHasGraphicContent(false)}
-                  className="mr-2 text-purple-600 focus:ring-purple-500"
+                  className="sr-only"
                 />
-                <span className="text-gray-300">No</span>
+                <span className="font-medium">No</span>
               </label>
             </div>
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-8">
-          <h2 className="text-xl font-bold mb-6 text-gray-300 border-b border-gray-700 pb-2">
-            Import Chapters from PDF
-          </h2>
+        <div className="bg-gradient-to-br from-gray-800 via-gray-800 to-gray-900 rounded-2xl shadow-xl p-6 mb-8 border border-indigo-900/20">
+          <div className="flex items-center gap-2 mb-6 pb-3 border-b border-indigo-900/30">
+            <svg className="w-5 h-5 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clipRule="evenodd" />
+            </svg>
+            <h2 className="text-xl font-serif font-bold text-indigo-300">Import Chapters from PDF</h2>
+          </div>
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+          <div>
+            <label className="block text-sm font-medium text-indigo-200/90 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd" />
+              </svg>
               Upload PDF (Optional)
             </label>
             <div className="mt-1">
@@ -822,28 +882,28 @@ const SubmitNovel = () => {
                 type="file"
                 accept=".pdf"
                 onChange={handlePDFUpload}
-                className="block w-full text-sm text-gray-400
+                className="block w-full text-sm text-indigo-200/70
                  file:mr-4 file:py-2 file:px-4
-                 file:rounded-md file:border-0
+                 file:rounded-lg file:border-0
                  file:text-sm file:font-medium
-                 file:bg-purple-900 file:text-purple-200
-                 hover:file:bg-purple-800
-                 cursor-pointer"
+                 file:bg-indigo-900/40 file:text-indigo-200
+                 hover:file:bg-indigo-800/60
+                 cursor-pointer transition-all"
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-2 text-xs text-indigo-300/60">
                 Upload a PDF file to automatically extract chapters with proper formatting. Supports various chapter formats: "Chapter 1", "CHAPTER 1", "Ch. 1", "Chapter One", etc.
               </p>
               {isParsing && (
-                <div className="mt-2 text-purple-400 flex items-center">
+                <div className="mt-3 text-indigo-300 flex items-center bg-indigo-900/20 px-4 py-2 rounded-lg">
                   <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                   Parsing PDF...
                 </div>
               )}
               {parseError && (
-                <div className="mt-2 text-red-400">
+                <div className="mt-3 text-yellow-300 bg-yellow-900/20 px-4 py-2 rounded-lg border border-yellow-800/30">
                   {parseError}
                 </div>
               )}
@@ -855,15 +915,15 @@ const SubmitNovel = () => {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-xl font-bold text-white">Chapters</h2>
+              <h2 className="text-2xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Chapters</h2>
             </div>
             <button
               type="button"
               onClick={addChapter}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+              className="group inline-flex items-center px-4 py-2.5 border-2 border-purple-500/50 text-sm font-medium rounded-lg shadow-sm text-purple-200 bg-gradient-to-r from-purple-900/40 to-indigo-900/40 hover:from-purple-800/60 hover:to-indigo-800/60 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all transform hover:scale-105"
             >
               <svg
-                className="w-4 h-4 mr-2"
+                className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -876,20 +936,20 @@ const SubmitNovel = () => {
           </div>
 
           {chapters.length === 0 ? (
-            <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-8 text-center">
+            <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-purple-900/30 rounded-2xl p-8 text-center">
               <div className="text-gray-400 mb-4">
-                <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                <svg className="mx-auto h-16 w-16 mb-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
-                <h3 className="text-lg font-medium text-gray-300 mb-2">No chapters added yet</h3>
-                <p className="text-sm text-gray-400">
+                <h3 className="text-lg font-serif font-medium text-gray-300 mb-2">No chapters added yet</h3>
+                <p className="text-sm text-gray-400 max-w-md mx-auto">
                   You can submit your novel with just the author's note and prologue, then add chapters later from your profile.
                 </p>
               </div>
             </div>
           ) : (
             chapters.map((chapter, index) => (
-              <div key={index} className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500">
+              <div key={index} className="bg-gradient-to-br from-gray-800 via-gray-800 to-gray-900 rounded-2xl shadow-xl p-6 mb-6 border-l-4 border-purple-500">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-bold text-white">Chapter {index + 1}</h3>
                   <button
@@ -964,10 +1024,10 @@ const SubmitNovel = () => {
           )}
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-center">
           <button
             type="submit"
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group inline-flex items-center px-8 py-4 border-2 border-transparent text-lg font-serif font-medium rounded-xl shadow-lg text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:via-indigo-500 hover:to-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
             disabled={loading}
           >
             {loading ? (
@@ -982,15 +1042,15 @@ const SubmitNovel = () => {
                   <path
                     className="opacity-75"
                     fill="currentColor"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                Submitting...
+                Publishing Your Story...
               </>
             ) : (
               <>
                 <svg
-                  className="w-5 h-5 mr-2"
+                  className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1000,10 +1060,10 @@ const SubmitNovel = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
                   ></path>
                 </svg>
-                Submit Novel
+                Publish Your Novel
               </>
             )}
           </button>
