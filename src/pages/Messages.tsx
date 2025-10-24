@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react"
 import { useChat, type ChatConversation } from "../context/ChatContext"
 import { useAuth } from "../context/AuthContext"
 import UserSearch from "../components/UserSearch"
+import SEOHead from "../components/SEOHead"
 import { MessageCircle, Search, Send, MoreVertical, ArrowLeft, UserPlus, Trash2 } from "lucide-react"
 import { useNavigate, useSearchParams, Link } from "react-router-dom"
 
@@ -229,8 +230,17 @@ const Messages: React.FC = () => {
   }
 
   return (
-    <div className="h-screen bg-gray-900 flex flex-col pt-8" style={{ paddingTop: 'calc(2rem + env(safe-area-inset-top))' }}>
-      {/* Mobile Header */}
+    <>
+      <SEOHead
+        title="Messages - NovlNest"
+        description="Connect with fellow readers and writers. Send messages, share your thoughts, and build meaningful connections within the NovlNest community."
+        keywords="messages, chat, direct messages, communication, community, readers, writers, conversations"
+        url="https://novlnest.com/messages"
+        canonicalUrl="https://novlnest.com/messages"
+        type="website"
+      />
+      <div className="h-screen bg-gray-900 flex flex-col pt-8" style={{ paddingTop: 'calc(2rem + env(safe-area-inset-top))' }}>
+        {/* Mobile Header */}
       <div className="md:hidden bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between flex-shrink-0 shadow-sm">
         {state.currentConversation ? (
           <>
@@ -657,7 +667,8 @@ const Messages: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
 
