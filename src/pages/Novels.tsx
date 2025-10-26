@@ -157,71 +157,68 @@ const Novels: React.FC = () => {
         structuredData={generateCollectionStructuredData(novels, effectiveSortOrder === "promotional" ? "Promotional Novels" : effectiveSortOrder === "trending" ? "Trending Novels" : effectiveSortOrder === "new-releases" ? "New Release Novels" : "Browse Novels")}
       />
       
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-extrabold text-[#E0E0E0] mb-4">
+      {/* Beautiful Header */}
+      <div className="text-center mb-10">
+        <div className="inline-block">
+          <h1 className="text-5xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-300 to-blue-400 mb-3">
           {effectiveSortOrder === "promotional"
             ? "Promotional Novels"
             : effectiveSortOrder === "trending"
               ? "Trending Novels"
               : effectiveSortOrder === "new-releases"
                 ? "New Releases"
-                : "Browse Novels"}
+                  : "Story Collection"}
         </h1>
-        <p className="text-xl text-[#B0B0B0] max-w-3xl mx-auto">
-          From new voices to hidden gems, explore novels created and shared by real storytellers.
-        </p>
+          <div className="flex items-center justify-center gap-3 text-gray-400 text-sm italic mb-2">
+            <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+            <span>Where stories come alive and imaginations soar</span>
+            <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+            </svg>
+          </div>
+          <p className="text-gray-500 text-sm font-serif">Explore {novels.length} {novels.length === 1 ? 'story' : 'stories'} from passionate storytellers</p>
+        </div>
       </div>
-      {/* Search and Filters */}
-      <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-10">
+      {/* Search and Filters - Artistic Design */}
+      <div className="bg-gradient-to-br from-gray-800/90 via-gray-800/80 to-gray-900/90 rounded-2xl shadow-xl p-6 mb-10 border border-purple-900/20 backdrop-blur-sm">
         <form onSubmit={handleSearch} className="mb-6">
           <div className="relative">
-            <input
-              type="text"
-              placeholder="Search by title, author, or keywords..."
-              className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
-                         bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
-                         focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                className="h-5 w-5 text-gray-400"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                  fillRule="evenodd"
-                  clipRule="evenodd"
-                />
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
+            <input
+              type="text"
+              placeholder="Search for stories, authors, or themes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-32 py-4 rounded-xl border-2 border-purple-900/30 bg-gray-900/50 text-white font-serif placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+            />
             <button
               type="submit"
-              className="absolute inset-y-0 right-0 px-4 text-white bg-purple-600 rounded-r-lg hover:bg-purple-700 focus:outline-none"
+              className="absolute inset-y-2 right-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-500 hover:to-indigo-500 transition-all font-medium shadow-lg shadow-purple-900/30"
             >
               Search
             </button>
           </div>
         </form>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
-          <div className="flex flex-wrap gap-2">
-            <span className="text-sm font-medium text-[#B0B0B0] mr-2">Filter by:</span>
-            <button
-              className={`text-sm cursor-pointer text-[#E0E0E0] ${activeFilter === "all" ? "font-bold" : ""}`}
-              onClick={() => handleFilterChange("all")}
-            >
-              All Novels
-            </button>
-          </div>
-          <div className="flex items-center">
-            <span className="text-sm font-medium text-[#B0B0B0] mr-2">Genre:</span>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-serif font-medium text-purple-200/90 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
+              </svg>
+              Story Genre
+            </label>
+            <div className="relative">
             <select
-              className="rounded-md cursor-pointer border-gray-600 py-1 pl-3 pr-10 text-base focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm bg-white text-gray-900"
               value={activeGenre}
               onChange={handleGenreChange}
+                className="w-full px-4 py-3 rounded-lg border-2 border-purple-900/30 bg-gray-900/50 text-white font-serif focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer transition-all"
             >
               <option value="all">All Genres</option>
               {genres.map((genre) => (
@@ -230,36 +227,48 @@ const Novels: React.FC = () => {
                 </option>
               ))}
             </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg className="h-5 w-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-serif font-medium text-purple-200/90 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h7a1 1 0 100-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" />
+              </svg>
+              Display Order
+            </label>
+            <div className="relative">
+              <select
+                value={activeFilter}
+                onChange={(e) => handleFilterChange(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border-2 border-purple-900/30 bg-gray-900/50 text-white font-serif focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer transition-all"
+              >
+                <option value="all">All Stories</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg className="h-5 w-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
           </div>
         </div>
       </div>
-      {/* Results Count */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-[#E0E0E0]">
-          {loading ? "Loading novels..." : `${totalNovels} novels found`}
-        </h2>
-        <div className="text-sm text-[#B0B0B0]">
-          Showing {novels.length} of {totalNovels} novels
         </div>
       </div>
-      {/* Novels Grid */}
+      {/* Novels Collection */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden animate-pulse">
-              <div className="h-32 bg-gray-300 dark:bg-gray-700"></div>
-              <div className="p-3">
-                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
-                <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-5/6 mb-2"></div>
-                <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-4/6 mb-2"></div>
-                <div className="flex justify-between items-center mt-2">
-                  <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-1/4"></div>
-                  <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-1/4"></div>
+        <div className="flex flex-col justify-center items-center py-20">
+          <div className="relative">
+            <div className="animate-spin h-16 w-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full"></div>
+            <svg className="absolute inset-0 m-auto w-8 h-8 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+            </svg>
                 </div>
-              </div>
-            </div>
-          ))}
+          <p className="mt-4 text-gray-400 font-serif italic">Loading stories...</p>
         </div>
       ) : novels.length > 0 ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4 justify-center">
@@ -351,7 +360,13 @@ const Novels: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center text-[#B0B0B0]">No novels found.</div>
+        <div className="text-center py-20">
+          <svg className="mx-auto h-20 w-20 text-gray-600 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          <p className="text-gray-400 text-lg font-serif mb-2">No novels found in this collection</p>
+          <p className="text-gray-500 text-sm">Try adjusting your search or filters</p>
+        </div>
       )}
     </div>
   )
