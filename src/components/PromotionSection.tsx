@@ -21,7 +21,7 @@ const PromotionSection = () => {
 
   return (
     <>
-      <section className="py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <section className="py-8 sm:px-6 lg:px-8 max-w-6xl mx-auto">
         <div className="bg-gradient-to-r from-purple-600 to-violet-700 rounded-2xl shadow-xl overflow-hidden mx-4 sm:mx-0">
           <div className="px-6 py-8 md:py-12 md:px-12 text-center text-white relative">
             <div className="absolute inset-0 bg-black opacity-10 rounded-2xl"></div>

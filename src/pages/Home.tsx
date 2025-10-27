@@ -292,23 +292,6 @@ const Home = () => {
       <section className="py-8 sm:px-6 lg:px-8 max-w-5xl mx-auto">
         <InviteFriendsSection />
       </section>
-
-      <section className="py-8 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl shadow-xl overflow-hidden">
-          <div className="px-6 py-12 md:py-16 md:px-12 text-center text-white">
-            <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl mb-4">Ready to share your story?</h2>
-            <p className="text-lg max-w-3xl mx-auto mb-8">
-              Join our community of writers and readers. Submit your novel today and let your imagination shine.
-            </p>
-            <Link
-              to="/submit"
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-purple-700 bg-white hover:bg-purple-50 transition duration-300 shadow-lg"
-            >
-              Start Writing
-            </Link>
-          </div>
-        </div>
-      </section>
     </div>
   )
 }

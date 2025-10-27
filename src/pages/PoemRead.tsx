@@ -1,15 +1,23 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, Link } from "react-router-dom"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Poem } from "../types/poem"
 import SEOHead from "../components/SEOHead"
+import { useAuth } from "../context/AuthContext"
 
 const PoemRead = () => {
   const { id } = useParams<{ id: string }>()
   const [poem, setPoem] = useState<Poem | null>(null)
   const [loading, setLoading] = useState(true)
   const [fontSize, setFontSize] = useState(18)
+  const { currentUser, isAdmin } = useAuth()
+  const poemContentRef = useRef<HTMLDivElement>(null)
+
+  // Determine permission to copy/paste: allowed if admin or the poem's author
+  const canCopyContent = !!(
+    isAdmin || (currentUser && poem && currentUser.uid === poem.poetId)
+  )
 
   useEffect(() => {
     const fetchPoem = async () => {
@@ -30,6 +38,73 @@ const PoemRead = () => {
 
     fetchPoem()
   }, [id])
+
+  // Prevent copy/paste and selection within the reading area for unauthorized users
+  useEffect(() => {
+    const container = poemContentRef.current
+    if (canCopyContent) return
+
+    const prevent = (e: Event) => {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    const keydownHandler = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      if ((e.ctrlKey || e.metaKey) && (key === "c" || key === "x" || key === "v" || key === "a")) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+
+    // Strengthen by listening on document as well
+    document.addEventListener("copy", prevent, true)
+    document.addEventListener("cut", prevent, true)
+    document.addEventListener("paste", prevent, true)
+    document.addEventListener("contextmenu", prevent, true)
+    document.addEventListener("selectstart", prevent, true)
+    document.addEventListener("dragstart", prevent, true)
+    document.addEventListener("keydown", keydownHandler, true)
+
+    // Also try scoping to container if present
+    if (container) {
+      container.addEventListener("copy", prevent)
+      container.addEventListener("cut", prevent)
+      container.addEventListener("paste", prevent)
+      container.addEventListener("contextmenu", prevent)
+      container.addEventListener("selectstart", prevent)
+      container.addEventListener("dragstart", prevent)
+      container.addEventListener("keydown", keydownHandler)
+    }
+
+    // Temporarily disable selection on body
+    const previousUserSelect = document.body.style.userSelect
+    const previousWebkitUserSelect = (document.body.style as any).webkitUserSelect
+    document.body.style.userSelect = "none"
+    ;(document.body.style as any).webkitUserSelect = "none"
+
+    return () => {
+      document.removeEventListener("copy", prevent, true)
+      document.removeEventListener("cut", prevent, true)
+      document.removeEventListener("paste", prevent, true)
+      document.removeEventListener("contextmenu", prevent, true)
+      document.removeEventListener("selectstart", prevent, true)
+      document.removeEventListener("dragstart", prevent, true)
+      document.removeEventListener("keydown", keydownHandler, true)
+
+      if (container) {
+        container.removeEventListener("copy", prevent)
+        container.removeEventListener("cut", prevent)
+        container.removeEventListener("paste", prevent)
+        container.removeEventListener("contextmenu", prevent)
+        container.removeEventListener("selectstart", prevent)
+        container.removeEventListener("dragstart", prevent)
+        container.removeEventListener("keydown", keydownHandler)
+      }
+
+      document.body.style.userSelect = previousUserSelect
+      ;(document.body.style as any).webkitUserSelect = previousWebkitUserSelect
+    }
+  }, [poemContentRef, canCopyContent])
 
   const increaseFontSize = () => {
     setFontSize((prev) => Math.min(prev + 2, 32))
@@ -105,14 +180,55 @@ const PoemRead = () => {
 
       {/* Poem Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-gray-800/50 rounded-xl p-8 md:p-12">
+        <div className="bg-gray-800/50 rounded-xl p-8 md:p-12 relative">
+          {/* Watermark */}
+          <div className="absolute top-4 left-4 text-xs text-gray-400 italic">
+            Written by {poem.poetName}
+          </div>
+
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-4 text-center">
             {poem.title}
           </h1>
 
           <div
-            className="text-gray-200 whitespace-pre-wrap leading-relaxed text-center font-serif"
-            style={{ fontSize: `${fontSize}px` }}
+            ref={poemContentRef}
+            className={`text-gray-200 whitespace-pre-wrap leading-relaxed text-center font-serif ${canCopyContent ? "" : "select-none"}`}
+            style={{ 
+              fontSize: `${fontSize}px`,
+              ...(canCopyContent ? {} : { userSelect: "none", WebkitUserSelect: "none" as any })
+            }}
+            draggable={false}
+            tabIndex={canCopyContent ? -1 : 0}
+            onCopy={(e) => {
+              if (!canCopyContent) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+            onCut={(e) => {
+              if (!canCopyContent) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+            onPaste={(e) => {
+              if (!canCopyContent) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+            onContextMenu={(e) => {
+              if (!canCopyContent) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+            onMouseDown={(e) => {
+              if (!canCopyContent) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
           >
             {poem.content}
           </div>
