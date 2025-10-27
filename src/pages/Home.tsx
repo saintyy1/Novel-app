@@ -9,6 +9,7 @@ import PromotionSection from "../components/PromotionSection"
 import InviteFriendsSection from "../components/InviteFriendsSection"
 import SEOHead from "../components/SEOHead"
 import { generateWebsiteStructuredData, generateBreadcrumbStructuredData, generateCollectionStructuredData } from "../utils/structuredData"
+import { sendPromotionEndedNotification } from "../services/notificationService"
 
 const Home = () => {
   const [promotionalNovels, setPromotionalNovels] = useState<Novel[]>([])
@@ -40,8 +41,31 @@ const Home = () => {
         const endDate = data.promotionEndDate?.toDate?.() || data.promotionEndDate
 
         if (endDate && endDate < now) {
+          // Send notification to the author that their promotion has ended
+          // Only send once - check if notification hasn't been sent yet
+          if (!data.promotionEndNotificationSent) {
+            try {
+              await sendPromotionEndedNotification(
+                data.authorId,
+                docSnap.id,
+                data.title
+              )
+              console.log(`Promotion ended notification sent for novel: ${data.title}`)
+            } catch (error) {
+              console.error("Error sending promotion ended notification:", error)
+            }
+          }
+          
           // expired — update Firestore to set isPromoted back to false
-          await updateDoc(docSnap.ref, { isPromoted: false, promotionStartDate: null, promotionEndDate: null, reference: null, promotionPlan: null })
+          // Mark that notification has been sent
+          await updateDoc(docSnap.ref, { 
+            isPromoted: false, 
+            promotionStartDate: null, 
+            promotionEndDate: null, 
+            reference: null, 
+            promotionPlan: null,
+            promotionEndNotificationSent: true
+          })
         } else {
           promotionalData.push({ id: docSnap.id, ...data } as Novel)
         }

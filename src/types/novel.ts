@@ -23,6 +23,7 @@ export interface Novel {
   isPromoted: boolean
   promotionStartDate?: string
   promotionEndDate?: string
+  promotionEndNotificationSent?: boolean
   published: boolean
   createdAt: string
   updatedAt: string

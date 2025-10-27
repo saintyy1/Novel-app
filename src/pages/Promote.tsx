@@ -150,9 +150,19 @@ const Promote = () => {
 
     try {
       const selectedPlanData = plans.find((p) => p.id === selectedPlan)
-      const callbackUrl = "http://localhost:5173/PaymentCallback"
+      const callbackUrl = `${window.location.origin}/PaymentCallback`
       const bookId = selectedBook.id
       console.log(bookId)
+
+      // Store payment details in localStorage for notification fallback
+      localStorage.setItem('pendingPromotionPayment', JSON.stringify({
+        bookId: bookId,
+        novelTitle: selectedBook.title,
+        userId: currentUser.uid,
+        planId: selectedPlan,
+        planName: selectedPlanData?.name,
+        planDuration: selectedPlanData?.duration,
+      }))
 
       // Initialize payment with Paystack
       const response = await fetch("https://paystack-backend-six.vercel.app/api/index?route=initialize-transaction", {
@@ -178,10 +188,14 @@ const Promote = () => {
         window.location.href = data.authorization_url
       } else {
         alert("Failed to initialize payment. Please try again.")
+        // Clear localStorage if payment initialization fails
+        localStorage.removeItem('pendingPromotionPayment')
       }
     } catch (error) {
       console.error("Payment error:", error)
       alert("An error occurred. Please try again.")
+      // Clear localStorage on error
+      localStorage.removeItem('pendingPromotionPayment')
     } finally {
       setProcessingPayment(false)
     }

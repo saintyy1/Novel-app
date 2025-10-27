@@ -17,6 +17,8 @@ import {
   FileText,
   Check,
   Trash2,
+  TrendingUp,
+  Clock,
 } from "lucide-react" // Import Lucide icons
 
 interface Notification {
@@ -37,6 +39,8 @@ interface Notification {
     | "poem_comment"
     | "poem_reply"
     | "poem_added_to_library"
+    | "promotion_approved"
+    | "promotion_ended"
   fromUserId?: string
   fromUserName?: string
   toUserId: string
@@ -52,6 +56,8 @@ interface Notification {
   chapterTitles?: string[] // Add chapter titles for new chapter notifications
   chapterNumber?: number // For chapter-specific notifications
   chapterTitle?: string // For chapter-specific notifications
+  promotionPlan?: string // For promotion notifications
+  promotionDuration?: string // For promotion notifications
   createdAt: string
   read: boolean
   fromUserPhotoURL?: string
@@ -206,6 +212,10 @@ const NotificationsPage = () => {
           return <CheckCircle className="h-5 w-5 text-green-400" />
         case "new_chapter":
           return <FileText className="h-5 w-5 text-blue-400" />
+        case "promotion_approved":
+          return <TrendingUp className="h-5 w-5 text-green-400" />
+        case "promotion_ended":
+          return <Clock className="h-5 w-5 text-orange-400" />
         default:
           return <Mail className="h-5 w-5 text-gray-400" />
       }
@@ -441,6 +451,44 @@ const NotificationsPage = () => {
             to their library.
           </>
         )
+      case "promotion_approved":
+        return (
+          <>
+            🎉 Your novel{" "}
+            <Link
+              to={`/novel/${notification.novelId}`}
+              className="text-purple-400 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              "{notification.novelTitle}"
+            </Link>{" "}
+            promotion has been approved and is now featured!
+            {notification.promotionDuration && (
+              <span className="text-gray-300"> Duration: {notification.promotionDuration}</span>
+            )}
+          </>
+        )
+      case "promotion_ended":
+        return (
+          <>
+            Your novel{" "}
+            <Link
+              to={`/novel/${notification.novelId}`}
+              className="text-purple-400 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              "{notification.novelTitle}"
+            </Link>{" "}
+            promotion has ended. Want to promote it again?{" "}
+            <Link
+              to="/promote"
+              className="text-green-400 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Promote Now
+            </Link>
+          </>
+        )
       default:
         return "You have a new message."
     }
@@ -471,6 +519,9 @@ const NotificationsPage = () => {
         return `/poem/${notification.poemId}`
       case "followed_author_announcement":
         return `/profile/${notification.fromUserId}`
+      case "promotion_approved":
+      case "promotion_ended":
+        return `/novel/${notification.novelId}`
       default:
         return "#"
     }

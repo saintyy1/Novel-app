@@ -1,6 +1,9 @@
 "use client"
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
+import { doc, getDoc } from "firebase/firestore"
+import { db } from "../firebase/config"
+import { sendPromotionApprovedNotification } from "../services/notificationService"
 
 const PaymentCallback = () => {
   const [status, setStatus] = useState<"loading" | "success" | "failed">("loading")
@@ -31,9 +34,67 @@ const PaymentCallback = () => {
         if (data.status) {
           setStatus("success")
           setMessage("Your novel has been successfully promoted!")
+          
+          // Send notification to the user
+          let bookId = data.bookId
+          let userId = data.userId
+          let planId = data.planId
+          let novelTitle = null
+          let planName = null
+          let planDuration = null
+          
+          // If backend doesn't return the data, use localStorage fallback
+          if (!bookId || !userId) {
+            const pendingPayment = localStorage.getItem('pendingPromotionPayment')
+            if (pendingPayment) {
+              const paymentData = JSON.parse(pendingPayment)
+              bookId = paymentData.bookId
+              userId = paymentData.userId
+              planId = paymentData.planId
+              novelTitle = paymentData.novelTitle
+              planName = paymentData.planName
+              planDuration = paymentData.planDuration
+            }
+          }
+          
+          if (bookId && userId) {
+            try {
+              // If we don't have novel title from localStorage, fetch from Firestore
+              if (!novelTitle) {
+                const novelDoc = await getDoc(doc(db, "novels", bookId))
+                if (novelDoc.exists()) {
+                  novelTitle = novelDoc.data().title
+                }
+              }
+              
+              // Determine plan details if not from localStorage
+              if (!planName || !planDuration) {
+                planDuration = planId === "1-month" ? "30 days" : "60 days"
+                planName = planId === "1-month" ? "Essential Boost" : "Premium Growth"
+              }
+              
+              if (novelTitle && planName && planDuration) {
+                await sendPromotionApprovedNotification(
+                  userId,
+                  bookId,
+                  novelTitle,
+                  planName,
+                  planDuration
+                )
+              }
+              
+              // Clear localStorage after successful notification
+              localStorage.removeItem('pendingPromotionPayment')
+            } catch (notificationError) {
+              console.error("Error sending promotion notification:", notificationError)
+              // Don't fail the whole process if notification fails
+            }
+          }
         } else {
           setStatus("failed")
           setMessage(data.message || "Payment verification failed")
+          // Clear localStorage on failed payment
+          localStorage.removeItem('pendingPromotionPayment')
         }
       } catch (error) {
         setStatus("failed")

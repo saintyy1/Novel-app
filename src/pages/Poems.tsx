@@ -119,7 +119,7 @@ const Poems = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-8">
+    <div className="max-w-7xl mx-auto py-12">
       <SEOHead
         title="Browse Poems - NovlNest"
         description="Discover amazing poetry from talented poets. Browse by genre, search for your favorites, and enjoy beautiful verse."
