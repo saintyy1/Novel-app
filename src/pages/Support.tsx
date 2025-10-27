@@ -17,9 +17,11 @@ import {
   Settings,
   User,
   CreditCard,
-  Shield
+  Shield,
+  TrendingUp,
+  Headphones
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 interface FormData {
   name: string
@@ -37,6 +39,7 @@ interface FAQItem {
 
 const Support = () => {
   const { currentUser } = useAuth()
+  const navigate = useNavigate()
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -97,6 +100,18 @@ const Support = () => {
       answer: 'To add tip information to your profile, go to your profile page and click "Edit Profile". In the edit modal, you can add your support link or payment details in the "Support Link" field. This can be a payment URL (like PayPal, Ko-fi, etc.) or bank details in the format "Bank: Account Number, Account Name". Once saved, readers will see a gift icon on your profile and can click it to view your tip information.',
       category: 'account'
     },
+    {
+      id: '6',
+      question: 'How do I track my ticket status?',
+      answer: 'You can track your ticket status in the "My Tickets" page. You can see the status of your ticket and the responses from the support team.',
+      category: 'support'
+    },
+    {
+      id: '7',
+      question: 'How do I promote my novel?',
+      answer: 'To promote your novel, go to the "Promote" page and select a promotion plan. Once you have selected a plan, you will be redirected to the payment page. Once you have made the payment, your novel will be promoted for the selected duration.',
+      category: 'promotion'
+    },
   ]
 
   const categories = [
@@ -105,6 +120,8 @@ const Support = () => {
     { id: 'content', name: 'Content', icon: BookOpen },
     { id: 'reading', name: 'Reading', icon: BookOpen },
     { id: 'payment', name: 'Payment', icon: CreditCard },
+    { id: 'promotion', name: 'Promotion', icon: TrendingUp },
+    { id: 'support', name: 'Support', icon: Headphones },
   ]
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -115,24 +132,39 @@ const Support = () => {
     }))
   }
 
+  const generateTicketId = () => {
+    const timestamp = Date.now().toString(36).toUpperCase()
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase()
+    return `TKT-${timestamp}-${random}`
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
     try {
+      const ticketId = generateTicketId()
+      
       await addDoc(collection(db, 'support_messages'), {
         name: currentUser?.displayName || 'Guest User',
         email: currentUser?.email || 'no-email@example.com',
+        userId: currentUser?.uid,
         subject: formData.subject,
         message: formData.message,
+        ticketId: ticketId,
         status: 'unread',
         createdAt: new Date().toISOString(),
         timestamp: new Date(),
+        responses: []
       })
 
       setSuccess(true)
       setFormData({ name: '', email: '', subject: '', message: '' })
+      
+      // Show ticket ID to user
+      alert(`Your support ticket has been submitted!\nTicket ID: ${ticketId}\n\nYou can track your ticket in "My Tickets" page.`)
+      navigate('/my-tickets')
     } catch (err) {
       console.error('Error sending message:', err)
       setError('Failed to send message. Please try again.')
@@ -173,9 +205,16 @@ const Support = () => {
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
             How can we help you?
           </h1>
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
             Find answers to common questions or get in touch with our support team
           </p>
+          <Link
+            to="/my-tickets"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-lg font-medium transition-colors border border-purple-500/30"
+          >
+            <MessageCircle className="h-5 w-5" />
+            View My Tickets
+          </Link>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">

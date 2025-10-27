@@ -19,6 +19,7 @@ import {
   Trash2,
   TrendingUp,
   Clock,
+  Headphones,
 } from "lucide-react" // Import Lucide icons
 
 interface Notification {
@@ -41,6 +42,7 @@ interface Notification {
     | "poem_added_to_library"
     | "promotion_approved"
     | "promotion_ended"
+    | "support_response"
   fromUserId?: string
   fromUserName?: string
   toUserId: string
@@ -58,6 +60,8 @@ interface Notification {
   chapterTitle?: string // For chapter-specific notifications
   promotionPlan?: string // For promotion notifications
   promotionDuration?: string // For promotion notifications
+  ticketId?: string // For support notifications
+  subject?: string // For support notifications
   createdAt: string
   read: boolean
   fromUserPhotoURL?: string
@@ -216,6 +220,8 @@ const NotificationsPage = () => {
           return <TrendingUp className="h-5 w-5 text-green-400" />
         case "promotion_ended":
           return <Clock className="h-5 w-5 text-orange-400" />
+        case "support_response":
+          return <Headphones className="h-5 w-5 text-blue-400" />
         default:
           return <Mail className="h-5 w-5 text-gray-400" />
       }
@@ -260,13 +266,23 @@ const NotificationsPage = () => {
         return (
           <>
             {fromUserLink} liked your comment on{" "}
-            <Link
-              to={notification.chapterNumber ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}` : `/novel/${notification.novelId}`}
-              className="text-purple-400 hover:underline"
-              onClick={(e) => e.stopPropagation()} // Prevent parent div's onClick from triggering
-            >
-              "{notification.novelTitle}"
-            </Link>
+            {notification.poemId ? (
+              <Link
+                to={`/poem/${notification.poemId}`}
+                className="text-rose-400 hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                "{notification.poemTitle}"
+              </Link>
+            ) : (
+              <Link
+                to={notification.chapterNumber ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}` : `/novel/${notification.novelId}`}
+                className="text-purple-400 hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                "{notification.novelTitle}"
+              </Link>
+            )}
             {notification.chapterTitle && (
               <span className="text-gray-300"> ({notification.chapterTitle})</span>
             )}
@@ -327,16 +343,32 @@ const NotificationsPage = () => {
       case "comment_reply":
         return (
           <>
-            {fromUserLink} replied to your comment on novel{" "}
-            <Link
-              to={notification.chapterNumber ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}` : `/novel/${notification.novelId}`}
-              className="text-purple-400 hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              "{notification.novelTitle}"
-            </Link>
-            {notification.chapterTitle && (
-              <span className="text-gray-300"> ({notification.chapterTitle})</span>
+            {fromUserLink} replied to your comment on{" "}
+            {notification.poemId ? (
+              <>
+                poem{" "}
+                <Link
+                  to={`/poem/${notification.poemId}`}
+                  className="text-rose-400 hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  "{notification.poemTitle}"
+                </Link>
+              </>
+            ) : (
+              <>
+                novel{" "}
+                <Link
+                  to={notification.chapterNumber ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}` : `/novel/${notification.novelId}`}
+                  className="text-purple-400 hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  "{notification.novelTitle}"
+                </Link>
+                {notification.chapterTitle && (
+                  <span className="text-gray-300"> ({notification.chapterTitle})</span>
+                )}
+              </>
             )}
             : "{notification.commentContent}"
           </>
@@ -489,6 +521,26 @@ const NotificationsPage = () => {
             </Link>
           </>
         )
+      case "support_response":
+        return (
+          <>
+            Support team responded to your ticket{" "}
+            {notification.ticketId && (
+              <span className="text-purple-400">#{notification.ticketId}</span>
+            )}
+            {notification.subject && (
+              <span className="text-gray-300"> - {notification.subject}</span>
+            )}
+            .{" "}
+            <Link
+              to="/my-tickets"
+              className="text-blue-400 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              View Response
+            </Link>
+          </>
+        )
       default:
         return "You have a new message."
     }
@@ -504,10 +556,24 @@ const NotificationsPage = () => {
       case "new_chapter":
         return `/novel/${notification.novelId}`
       case "comment_like":
+        // Check if it's a poem or novel comment
+        if (notification.poemId) {
+          return `/poem/${notification.poemId}`
+        }
+        return notification.chapterNumber 
+          ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}`
+          : `/novel/${notification.novelId}`
+      case "comment_reply":
+        // Check if it's a poem or novel comment reply
+        if (notification.poemId) {
+          return `/poem/${notification.poemId}`
+        }
+        return notification.chapterNumber 
+          ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}`
+          : `/novel/${notification.novelId}`
       case "chapter_like":
       case "novel_comment":
       case "novel_reply":
-      case "comment_reply":
         // For chapter-specific notifications, go to the specific chapter
         return notification.chapterNumber 
           ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}`
@@ -522,6 +588,8 @@ const NotificationsPage = () => {
       case "promotion_approved":
       case "promotion_ended":
         return `/novel/${notification.novelId}`
+      case "support_response":
+        return "/my-tickets"
       default:
         return "#"
     }

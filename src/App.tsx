@@ -36,6 +36,8 @@ import ForgotPassword from "./pages/ForgotPassword"
 import Settings from "./pages/Settings"
 import VerifyEmail from "./pages/VerifyEmail"
 import Messages from "./pages/Messages"
+import MyTickets from "./pages/MyTickets"
+import AdminSupport from "./pages/AdminSupport"
 import { AuthProvider } from "./context/AuthContext"
 import { NotificationProvider } from "./context/NotificationContext"
 import { TranslationProvider } from "./context/TranslationContext"
@@ -132,6 +134,8 @@ function AppContent() {
           <Route path="/submit" element={<SubmitNovel />} />
           <Route path="/submit-poem" element={<SubmitPoem />} />
           <Route path="/novel/:id/edit-chapter/:chapterIndex" element={<EditChapter />} />
+          <Route path="/my-tickets" element={<MyTickets />} />
+          <Route path="/admin-support" element={<AdminSupport />} />
         </Routes>
       </main>
       {!isNovelReadPage && !isPoemReadPage && <Footer />}
