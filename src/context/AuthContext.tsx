@@ -53,6 +53,7 @@ export interface ExtendedUser extends User {
   poemLibrary?: string[]
   finishedReads?: string[]
   pendingEmail?: string | null // New property for pending email change
+  emailVisible?: boolean
 }
 
 interface AuthContextType {

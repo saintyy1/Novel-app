@@ -115,6 +115,8 @@ const Profile = () => {
   const [savingPoem, setSavingPoem] = useState(false)
   const [savePoemError, setSavePoemError] = useState("")
 
+  const [emailVisible, setEmailVisible] = useState(profileUser?.emailVisible ?? false)
+  
   const isOwnProfile = !userId || userId === currentUser?.uid
   const displayName = profileUser?.displayName || currentUser?.displayName || "User"
 
@@ -1035,6 +1037,29 @@ const Profile = () => {
     }
   }
 
+  useEffect(() => {
+    if (profileUser) {
+      setEmailVisible(profileUser.emailVisible ?? false)
+    }
+  }, [profileUser])
+
+  const handleToggleEmailVisibility = useCallback(async () => {
+    if (!currentUser) return
+    try {
+      const userRef = doc(db, "users", currentUser.uid)
+      await updateDoc(userRef, {
+        emailVisible: !emailVisible
+      })
+      setEmailVisible(!emailVisible)
+      showSuccessToast(
+        !emailVisible ? "Email is now visible to everyone" : "Email is now private"
+      )
+    } catch (error) {
+      console.error("Error updating email visibility:", error)
+      showErrorToast("Failed to update email visibility settings")
+    }
+  }, [currentUser, emailVisible])
+
   if (!currentUser && !userId) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -1174,7 +1199,40 @@ const Profile = () => {
               <h1 className="text-2xl sm:text-3xl font-bold text-white break-words">
                 {profileUser?.displayName || "User"}
               </h1>
-              <p className="text-gray-400 mt-1 break-all text-sm sm:text-base">{profileUser?.email}</p>
+              
+              {/* Email Section with Privacy Toggle */}
+              <div className="flex items-center justify-center sm:justify-start gap-2 mt-1">
+                {emailVisible && (
+                  <p className="text-gray-400 break-all text-sm sm:text-base">
+                    {profileUser?.email}
+                  </p>
+                )}
+                {isOwnProfile && (
+                  <button
+                    onClick={() => handleToggleEmailVisibility()}
+                    className="text-gray-400 hover:text-purple-400 transition-colors relative group"
+                    title={emailVisible ? "Email is public" : "Email is private"}
+                  >
+                    {emailVisible ? (
+                      <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                        <path d="M15.171 11.586a4 4 0 111.414-1.414l.707.707a1 1 0 01-1.414 1.414l-.707-.707z" />
+                      </svg>
+                    )}
+                    
+                    {/* Tooltip */}
+                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      {emailVisible ? "Click to make private" : "Click to make public"}
+                    </span>
+                  </button>
+                )}
+              </div>
+
               {/* Bio Section */}
               <div className="mt-4">
                 <p className="text-gray-300 text-sm sm:text-base whitespace-pre-wrap">
@@ -2168,6 +2226,7 @@ const Profile = () => {
         </div>
       )}
 
+      {/* Delete Novel Confirmation Modal */}
       {showDeleteConfirm && selectedNovel && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-gray-700 shadow-2xl">

@@ -12,7 +12,6 @@ import ReactMarkdown from "react-markdown"
 import { useSwipeable } from "react-swipeable"
 import { useRef as useReactRef } from "react"
 import { BookOpen, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Trash2, Reply } from "lucide-react"
-import LanguageSelector from "../components/LanguageSelector"
 
 interface Comment {
   id: string
@@ -1668,8 +1667,7 @@ const NovelRead = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-900">
       {/* Top navigation */}
-      <div className="fixed top-0 right-0 z-50 p-4 bg-gradient-to-b from-gray-900/80 to-transparent w-full flex justify-between items-center">
-        <LanguageSelector />
+      <div className="fixed top-0 right-0 z-50 p-4 bg-gradient-to-b from-gray-900/80 to-transparent w-full flex justify-end items-center">
         <Link
           to={`/novel/${novel.id}`}
           className="p-2 rounded-full bg-gray-800/90 text-gray-300 hover:bg-gray-700/90 hover:text-white transition-colors shadow-lg backdrop-blur-sm"
