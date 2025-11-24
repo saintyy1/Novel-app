@@ -33,7 +33,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
   // Parse support link for Nigerian users
   const parseNigerianSupportLink = (link: string) => {
     if (!link) return { bankName: "", accountNumber: "", accountName: "" }
-    
+
     // Try to parse format: "BankName: AccountNumber, AccountName"
     const match = link.match(/^(.+?):\s*(\d+),\s*(.+)$/)
     if (match) {
@@ -43,7 +43,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
         accountName: match[3].trim()
       }
     }
-    
+
     return { bankName: "", accountNumber: "", accountName: "" }
   }
 
@@ -86,19 +86,19 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
 
     try {
       const allUsersSnapshot = await getDocs(collection(db, "users"))
-      
+
       const displayNameExists = allUsersSnapshot.docs.some(doc => {
         const existingName = doc.data().displayName
         if (!existingName) return false
-        
+
         // Don't check against current user's own display name
         if (doc.id === currentUser?.uid) return false
-        
+
         const normalizedExistingName = existingName
           .toLowerCase()
           .replace(/\s+/g, ' ')
           .trim()
-        
+
         return normalizedExistingName === normalizedNewName
       })
 
@@ -137,7 +137,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
       settwitterUrl(profileUser.twitterUrl || "")
       setSupportLink((profileUser as any).supportLink || "")
       setLocation((profileUser as any).location || "")
-      
+
       // Parse Nigerian support link if location is Nigerian
       if ((profileUser as any).location === "Nigerian") {
         const parsed = parseNigerianSupportLink((profileUser as any).supportLink || "")
@@ -145,11 +145,24 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
         setAccountNumber(parsed.accountNumber)
         setAccountName(parsed.accountName)
       }
-      
+
       setSaveError("")
       setDisplayNameError("")
     }
   }, [isOpen, profileUser])
+
+  // Add effect to handle location changes
+  useEffect(() => {
+    if (location === "Nigerian") {
+      // Clear international support link when switching to Nigerian
+      setSupportLink("")
+    } else if (location === "International") {
+      // Clear Nigerian bank details when switching to International
+      setBankName("")
+      setAccountNumber("")
+      setAccountName("")
+    }
+  }, [location])
 
   const handleSave = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
@@ -195,7 +208,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
       if (location === "Nigerian" && bankName && accountNumber && accountName) {
         formattedSupportLink = `${bankName}: ${accountNumber}, ${accountName}`
       }
-      
+
       await updateUserProfile(displayName, bio, instagramUrl, twitterUrl, formattedSupportLink, location)
       showSuccessToast("Profile updated successfully!")
       onClose()
@@ -233,11 +246,10 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
               id="displayName"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className={`w-full px-4 py-2 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:border-transparent outline-none transition-colors ${
-                displayNameError 
-                  ? "border-red-500 focus:ring-red-500" 
+              className={`w-full px-4 py-2 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:border-transparent outline-none transition-colors ${displayNameError
+                  ? "border-red-500 focus:ring-red-500"
                   : "border-gray-600 focus:ring-purple-500"
-              }`}
+                }`}
               required
               maxLength={50}
             />
@@ -321,7 +333,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
           {location === "Nigerian" ? (
             <div className="space-y-3">
               <h3 className="text-lg font-medium text-white">Bank Details — optional</h3>
-              
+
               <div>
                 <label htmlFor="bankName" className="block text-sm font-medium text-gray-300 mb-1">
                   Bank Name

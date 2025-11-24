@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react"
 import { doc, setDoc, getDocs, collection } from "firebase/firestore"
 import { db } from "../firebase/config"
+import { auth } from "../firebase/config"
+import { updateProfile } from "firebase/auth"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
@@ -86,52 +88,60 @@ const GoogleDisplayNameModal: React.FC<GoogleDisplayNameModalProps> = ({
   }, [userId])
 
   const handleSave = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault()
+  async (e: React.FormEvent) => {
+    e.preventDefault()
 
-      if (displayNameError) {
-        showErrorToast("Please fix the display name error")
-        return
+    if (displayNameError) {
+      showErrorToast("Please fix the display name error")
+      return
+    }
+
+    if (displayName.trim() === "") {
+      showErrorToast("Display name cannot be empty")
+      return
+    }
+
+    const isValid = await validateDisplayName(displayName)
+    if (!isValid) return
+
+    setIsSaving(true)
+    try {
+      const trimmedDisplayName = displayName.trim()
+      const normalizedDisplayName = trimmedDisplayName
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim()
+
+      // Update user document with new display name
+      await setDoc(
+        doc(db, "users", userId),
+        {
+          displayName: trimmedDisplayName,
+          displayNameLower: normalizedDisplayName,
+        },
+        { merge: true }
+      )
+
+      // Also update Firebase Auth display name
+      const firebaseUser = auth.currentUser
+      if (firebaseUser) {
+        await updateProfile(firebaseUser, {
+          displayName: trimmedDisplayName
+        })
       }
 
-      if (displayName.trim() === "") {
-        showErrorToast("Display name cannot be empty")
-        return
-      }
-
-      const isValid = await validateDisplayName(displayName)
-      if (!isValid) return
-
-      setIsSaving(true)
-      try {
-        const trimmedDisplayName = displayName.trim()
-        const normalizedDisplayName = trimmedDisplayName
-          .toLowerCase()
-          .replace(/\s+/g, ' ')
-          .trim()
-
-        // Update user document with new display name
-        await setDoc(
-          doc(db, "users", userId),
-          {
-            displayName: trimmedDisplayName,
-            displayNameLower: normalizedDisplayName,
-          },
-          { merge: true }
-        )
-
-        showSuccessToast("Display name set successfully!")
-        await refreshUser()
-        navigate("/novels")
-      } catch (error) {
-        console.error("Error saving display name:", error)
-        showErrorToast("Failed to save display name. Please try again.")
-      } finally {
-        setIsSaving(false)
-      }
-    },
-    [displayName, displayNameError, validateDisplayName, userId, refreshUser, navigate]
-  )
+      showSuccessToast("Display name set successfully!")
+      await refreshUser()
+      navigate("/novels")
+    } catch (error) {
+      console.error("Error saving display name:", error)
+      showErrorToast("Failed to save display name. Please try again.")
+    } finally {
+      setIsSaving(false)
+    }
+  },
+  [displayName, displayNameError, validateDisplayName, userId, refreshUser, navigate]
+)
 
   if (!isOpen) return null
 

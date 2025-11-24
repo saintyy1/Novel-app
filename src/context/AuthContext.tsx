@@ -523,9 +523,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser((prev) =>
         prev
           ? {
-              ...prev,
-              library: add ? [...(prev.library || []), novelId] : (prev.library || []).filter((id) => id !== novelId),
-            }
+            ...prev,
+            library: add ? [...(prev.library || []), novelId] : (prev.library || []).filter((id) => id !== novelId),
+          }
           : null,
       )
 
@@ -603,10 +603,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentUser((prev) =>
           prev
             ? {
-                ...prev,
-                finishedReads: [...(prev.finishedReads || []), novelId],
-                library: (prev.library || []).filter((id) => id !== novelId), // Remove from library
-              }
+              ...prev,
+              finishedReads: [...(prev.finishedReads || []), novelId],
+              library: (prev.library || []).filter((id) => id !== novelId), // Remove from library
+            }
             : null,
         )
       } else {
@@ -618,10 +618,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentUser((prev) =>
           prev
             ? {
-                ...prev,
-                finishedReads: (prev.finishedReads || []).filter((id) => id !== novelId),
-                library: [...(prev.library || []), novelId], // Add back to library
-              }
+              ...prev,
+              finishedReads: (prev.finishedReads || []).filter((id) => id !== novelId),
+              library: [...(prev.library || []), novelId], // Add back to library
+            }
             : null,
         )
       }
@@ -644,9 +644,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser((prev) =>
         prev
           ? {
-              ...prev,
-              poemLibrary: add ? [...(prev.poemLibrary || []), poemId] : (prev.poemLibrary || []).filter((id) => id !== poemId),
-            }
+            ...prev,
+            poemLibrary: add ? [...(prev.poemLibrary || []), poemId] : (prev.poemLibrary || []).filter((id) => id !== poemId),
+          }
           : null,
       )
 
@@ -725,16 +725,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .trim()
 
     const allUsersSnapshot = await getDocs(collection(db, "users"))
-    
+
     const displayNameExists = allUsersSnapshot.docs.some(doc => {
       const existingName = doc.data().displayName
       if (!existingName) return false
-      
+
       const normalizedExistingName = existingName
         .toLowerCase()
         .replace(/\s+/g, ' ')
         .trim()
-      
+
       return normalizedExistingName === normalizedDisplayName
     })
 
@@ -827,16 +827,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // Verify the action code
       const info = await checkActionCode(auth, actionCode)
-      
+
       // Apply the action code
       await applyActionCode(auth, actionCode)
-      
+
       // Refresh the user to get updated email verification status
       if (firebaseUser) {
         await firebaseUser.reload()
         await fetchUserData(firebaseUser)
       }
-      
+
       return info
     } catch (error) {
       console.error("Error verifying email:", error)
@@ -848,22 +848,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await signInWithPopup(auth, googleProvider)
       const user = result.user
-      
+
       // Get display name from Google account
       const googleDisplayName = user.displayName || user.email?.split("@")[0] || "User"
-      
+
       // Check if user document exists
       const userDoc = await getDoc(doc(db, "users", user.uid))
       if (!userDoc.exists()) {
         // Validate Google display name format
         const trimmedDisplayName = googleDisplayName.trim()
-        
+
         if (trimmedDisplayName.length > 50) {
+          await user.delete()
           throw new Error("DISPLAY_NAME_TOO_LONG")
         }
 
         const validNamePattern = /^[a-zA-Z0-9\s\-']+$/
         if (!validNamePattern.test(trimmedDisplayName)) {
+          await user.delete()
           throw new Error("INVALID_CHARACTER")
         }
 
@@ -874,21 +876,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .trim()
 
         const allUsersSnapshot = await getDocs(collection(db, "users"))
-        
+
         const displayNameExists = allUsersSnapshot.docs.some(doc => {
           const existingName = doc.data().displayName
           if (!existingName) return false
-          
+
           const normalizedExistingName = existingName
             .toLowerCase()
             .replace(/\s+/g, ' ')
             .trim()
-          
+
           return normalizedExistingName === normalizedGoogleName
         })
 
         if (displayNameExists) {
-          // Display name is taken - throw special error to trigger modal
+          // Don't delete user yet - they'll set a new display name
+          // Just throw the error to trigger modal
           throw new Error("DISPLAY_NAME_TAKEN")
         }
 
@@ -915,16 +918,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         await setDoc(doc(db, "users", user.uid), newUserData)
         trackUserRegistration(user.uid, "google")
+        await fetchUserData(user)
+      } else {
+        // User already exists, just fetch their data
+        await fetchUserData(user)
       }
-      
-      // Fetch user data to update context
-      await fetchUserData(user)
     } catch (error) {
       console.error("Error signing in with Google:", error)
       throw error
     }
   }
-
   const markAllNotificationsAsRead = async () => {
     if (!currentUser) return
 

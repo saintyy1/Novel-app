@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
+import { auth } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import GoogleDisplayNameModal from "../components/GoogleDisplayNameModal"
 import SEOHead from "../components/SEOHead"
@@ -12,7 +13,7 @@ const LoginPage = () => {
   const [showDisplayNameModal, setShowDisplayNameModal] = useState(false)
   const [googleUserId, setGoogleUserId] = useState("")
   const [googleUserEmail, setGoogleUserEmail] = useState("")
-  const { login, signInWithGoogle, currentUser } = useAuth()
+  const { login, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,26 +33,31 @@ const LoginPage = () => {
   }
 
   const handleGoogleSignIn = async () => {
-    try {
-      setError("")
-      setLoading(true)
-      await signInWithGoogle()
-      navigate("/novels")
-    } catch (error: any) {
-      if (error.message === "DISPLAY_NAME_TAKEN") {
-        // Get the current user info for the modal
-        if (currentUser) {
-          setGoogleUserId(currentUser.uid)
-          setGoogleUserEmail(currentUser.email || "")
-          setShowDisplayNameModal(true)
-        }
-      } else {
-        setError(error.message || "Failed to sign in with Google")
+  try {
+    setError("")
+    setLoading(true)
+    await signInWithGoogle()
+    navigate("/novels")
+  } catch (error: any) {
+    if (error.message === "DISPLAY_NAME_TAKEN") {
+      // User was created with Firebase Auth but display name is taken
+      // Get the current user from Firebase Auth directly
+      const firebaseUser = auth.currentUser
+      if (firebaseUser) {
+        setGoogleUserId(firebaseUser.uid)
+        setGoogleUserEmail(firebaseUser.email || "")
+        setShowDisplayNameModal(true)
+        setError("")
+        setLoading(false)
+        return
       }
-    } finally {
-      setLoading(false)
+    } else {
+      setError(error.message || "Failed to sign in with Google")
     }
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <>
