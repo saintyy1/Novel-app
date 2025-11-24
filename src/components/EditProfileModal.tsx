@@ -6,6 +6,8 @@ import { useAuth, type ExtendedUser } from "../context/AuthContext"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
 import { FaTimes, FaInstagram } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
+import { collection, getDocs } from "firebase/firestore"
+import { db } from "../firebase/config"
 
 interface EditProfileModalProps {
   isOpen: boolean
@@ -14,8 +16,9 @@ interface EditProfileModalProps {
 }
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, profileUser }) => {
-  const { updateUserProfile, refreshUser } = useAuth()
+  const { updateUserProfile, refreshUser, currentUser } = useAuth()
   const [displayName, setDisplayName] = useState(profileUser?.displayName || "")
+  const [displayNameError, setDisplayNameError] = useState("")
   const [bio, setBio] = useState(profileUser?.bio || "")
   const [instagramUrl, setInstagramUrl] = useState(profileUser?.instagramUrl || "")
   const [twitterUrl, settwitterUrl] = useState(profileUser?.twitterUrl || "")
@@ -44,6 +47,88 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
     return { bankName: "", accountNumber: "", accountName: "" }
   }
 
+  // Validate display name uniqueness
+  const validateDisplayName = useCallback(async (name: string) => {
+    if (!name || name.trim().length === 0) {
+      setDisplayNameError("Display name cannot be empty")
+      return false
+    }
+
+    if (name.trim().length < 2) {
+      setDisplayNameError("Display name must be at least 2 characters long")
+      return false
+    }
+
+    if (name.trim().length > 50) {
+      setDisplayNameError("Display name must not exceed 50 characters")
+      return false
+    }
+
+    // Validate that display name contains only allowed characters (letters, numbers, spaces, hyphens, apostrophes)
+    const validNamePattern = /^[a-zA-Z0-9\s\-']+$/
+    if (!validNamePattern.test(name.trim())) {
+      setDisplayNameError("Display name can only contain letters, numbers, spaces, hyphens, and apostrophes")
+      return false
+    }
+
+    // If display name hasn't changed, no need to check uniqueness
+    if (name.trim() === profileUser?.displayName) {
+      setDisplayNameError("")
+      return true
+    }
+
+    // Check if displayName already exists (case-insensitive and whitespace-insensitive)
+    const normalizedNewName = name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    try {
+      const allUsersSnapshot = await getDocs(collection(db, "users"))
+      
+      const displayNameExists = allUsersSnapshot.docs.some(doc => {
+        const existingName = doc.data().displayName
+        if (!existingName) return false
+        
+        // Don't check against current user's own display name
+        if (doc.id === currentUser?.uid) return false
+        
+        const normalizedExistingName = existingName
+          .toLowerCase()
+          .replace(/\s+/g, ' ')
+          .trim()
+        
+        return normalizedExistingName === normalizedNewName
+      })
+
+      if (displayNameExists) {
+        setDisplayNameError("This display name is already taken. Try another one.")
+        return false
+      }
+
+      setDisplayNameError("")
+      return true
+    } catch (error) {
+      console.error("Error validating display name:", error)
+      setDisplayNameError("Error checking display name availability")
+      return false
+    }
+  }, [profileUser?.displayName, currentUser?.uid])
+
+  // Debounce display name validation
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (displayName !== profileUser?.displayName) {
+        validateDisplayName(displayName)
+      } else {
+        setDisplayNameError("")
+      }
+    }, 500) // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer)
+  }, [displayName, profileUser?.displayName, validateDisplayName])
+
   useEffect(() => {
     if (isOpen && profileUser) {
       setDisplayName(profileUser.displayName || "")
@@ -61,7 +146,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
         setAccountName(parsed.accountName)
       }
       
-      setSaveError("") // Clear error on open
+      setSaveError("")
+      setDisplayNameError("")
     }
   }, [isOpen, profileUser])
 
@@ -69,10 +155,17 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
     e.preventDefault()
     if (!profileUser) return
 
+    // Check for display name errors before saving
+    if (displayNameError) {
+      setSaveError("Please fix the display name error before saving.")
+      return
+    }
+
     if (displayName.trim() === "") {
       setSaveError("Display name cannot be empty.")
       return
     }
+
     if (bio.length > 500) {
       setSaveError("Bio cannot exceed 500 characters.")
       return
@@ -86,7 +179,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
       return;
     }
     if (twitterUrl && !urlRegex.test(twitterUrl)) {
-      setSaveError("Invalid TikTok URL.")
+      setSaveError("Invalid Twitter URL.")
       return;
     }
     if (supportLink && !urlRegex.test(supportLink)) {
@@ -114,7 +207,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
     } finally {
       setIsSaving(false)
     }
-  }, [displayName, bio, instagramUrl, twitterUrl, supportLink, location, bankName, accountNumber, accountName, profileUser, updateUserProfile, refreshUser, onClose])
+  }, [displayName, bio, instagramUrl, twitterUrl, supportLink, location, bankName, accountNumber, accountName, profileUser, updateUserProfile, refreshUser, onClose, displayNameError])
 
   if (!isOpen) return null
 
@@ -140,10 +233,18 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
               id="displayName"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              className={`w-full px-4 py-2 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:border-transparent outline-none transition-colors ${
+                displayNameError 
+                  ? "border-red-500 focus:ring-red-500" 
+                  : "border-gray-600 focus:ring-purple-500"
+              }`}
               required
               maxLength={50}
             />
+            {displayNameError && (
+              <p className="text-red-400 text-xs mt-1">{displayNameError}</p>
+            )}
+            <p className="text-gray-400 text-xs mt-1">{displayName.length}/50</p>
           </div>
 
           <div>
@@ -159,6 +260,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
               rows={3}
               maxLength={500}
             />
+            <p className="text-gray-400 text-xs mt-1">{bio.length}/500</p>
           </div>
 
           {/* Social Media Links */}
@@ -325,7 +427,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
             </button>
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || displayNameError !== ""}
               className="px-5 py-2 text-sm font-medium rounded-lg text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isSaving ? (

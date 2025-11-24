@@ -204,6 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const extendedUser = {
           ...user,
           isAdmin: data.isAdmin || false,
+          emailVisible: data.emailVisible || false,
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
           // Always use Firestore photoURL, fallback to Firebase Auth photoURL
@@ -233,6 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           displayName: user.displayName || user.email?.split("@")[0] || "User",
           photoURL: user.photoURL, // Keep original Firebase Auth photoURL if it exists
           isAdmin: false,
+          emailVisible: false,
           createdAt: new Date().toISOString(),
           bio: "", // New: Initialize bio
           followers: [], // New
@@ -251,6 +253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           displayName: user.displayName || user.email?.split("@")[0] || "User",
           photoURL: user.photoURL,
           isAdmin: false,
+          emailVisible: false,
           createdAt: newUserData.createdAt,
           bio: newUserData.bio, // New
           followers: newUserData.followers, // New
@@ -695,27 +698,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const register = async (email: string, password: string, displayName: string) => {
+    // Validate displayName
+    if (!displayName || displayName.trim().length === 0) {
+      throw new Error("Display name is required")
+    }
+
+    const trimmedDisplayName = displayName.trim()
+
+    if (trimmedDisplayName.length < 2) {
+      throw new Error("Display name must be at least 2 characters long")
+    }
+
+    if (trimmedDisplayName.length > 50) {
+      throw new Error("Display name must not exceed 50 characters")
+    }
+
+    // Validate that display name contains only allowed characters (letters, numbers, spaces, hyphens, apostrophes)
+    const validNamePattern = /^[a-zA-Z0-9\s\-']+$/
+    if (!validNamePattern.test(trimmedDisplayName)) {
+      throw new Error("Display name can only contain letters, numbers, spaces, hyphens, and apostrophes")
+    }
+
+    const normalizedDisplayName = trimmedDisplayName
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    const allUsersSnapshot = await getDocs(collection(db, "users"))
+    
+    const displayNameExists = allUsersSnapshot.docs.some(doc => {
+      const existingName = doc.data().displayName
+      if (!existingName) return false
+      
+      const normalizedExistingName = existingName
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim()
+      
+      return normalizedExistingName === normalizedDisplayName
+    })
+
+    if (displayNameExists) {
+      throw new Error("This display name is already taken. Try another one.")
+    }
+
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
-    // Track registration immediately after user creation
     trackUserRegistration(user.uid, "email")
 
     // Update the user's display name in Firebase Auth
     await updateProfile(user, {
-      displayName: displayName,
+      displayName: trimmedDisplayName,
     })
 
-    // Send email verification
     await sendEmailVerification(user, actionCodeSettings)
 
     // Create user document in Firestore
     const newUserData = {
       uid: user.uid,
       email: user.email,
-      displayName: displayName,
+      displayName: trimmedDisplayName,
+      displayNameLower: normalizedDisplayName,
       photoURL: null, // Start with no photo
       isAdmin: false,
+      emailVisible: false,
       createdAt: new Date().toISOString(),
       bio: "", // New: Initialize bio
       followers: [], // New
@@ -732,9 +779,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set extended user
     const extendedUser: ExtendedUser = {
       ...user,
-      displayName: displayName,
+      displayName: trimmedDisplayName,
       photoURL: null,
       isAdmin: false,
+      emailVisible: false,
       createdAt: newUserData.createdAt,
       bio: newUserData.bio, // New
       followers: newUserData.followers, // New
@@ -800,30 +848,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await signInWithPopup(auth, googleProvider)
       const user = result.user
+      
+      // Get display name from Google account
+      const googleDisplayName = user.displayName || user.email?.split("@")[0] || "User"
+      
       // Check if user document exists
       const userDoc = await getDoc(doc(db, "users", user.uid))
       if (!userDoc.exists()) {
-        // Create new user document if it doesn't exist
+        // Validate Google display name format
+        const trimmedDisplayName = googleDisplayName.trim()
+        
+        if (trimmedDisplayName.length > 50) {
+          throw new Error("DISPLAY_NAME_TOO_LONG")
+        }
+
+        const validNamePattern = /^[a-zA-Z0-9\s\-']+$/
+        if (!validNamePattern.test(trimmedDisplayName)) {
+          throw new Error("INVALID_CHARACTER")
+        }
+
+        // Check if Google display name already exists
+        const normalizedGoogleName = trimmedDisplayName
+          .toLowerCase()
+          .replace(/\s+/g, ' ')
+          .trim()
+
+        const allUsersSnapshot = await getDocs(collection(db, "users"))
+        
+        const displayNameExists = allUsersSnapshot.docs.some(doc => {
+          const existingName = doc.data().displayName
+          if (!existingName) return false
+          
+          const normalizedExistingName = existingName
+            .toLowerCase()
+            .replace(/\s+/g, ' ')
+            .trim()
+          
+          return normalizedExistingName === normalizedGoogleName
+        })
+
+        if (displayNameExists) {
+          // Display name is taken - throw special error to trigger modal
+          throw new Error("DISPLAY_NAME_TAKEN")
+        }
+
+        // Google display name is available - create user with it
         const newUserData = {
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName || user.email?.split("@")[0] || "User",
-          photoURL: null,
+          displayName: trimmedDisplayName,
+          displayNameLower: normalizedGoogleName,
+          photoURL: user.photoURL || null,
           isAdmin: false,
+          emailVisible: false,
           createdAt: new Date().toISOString(),
-          bio: "", // New: Initialize bio
-          followers: [], // New
-          following: [], // New
-          instagramUrl: "", // New: Initialize social links
-          twitterUrl: "", // New: Initialize social links
-          supportLink: "", // New
-          location: "", // New
-          library: [], // New: Initialize library
-          finishedReads: [], // Add this line
-          pendingEmail: null, // New property for pending email change
+          bio: "",
+          followers: [],
+          following: [],
+          instagramUrl: "",
+          twitterUrl: "",
+          supportLink: "",
+          location: "",
+          library: [],
+          finishedReads: [],
+          pendingEmail: null,
         }
         await setDoc(doc(db, "users", user.uid), newUserData)
+        trackUserRegistration(user.uid, "google")
       }
+      
       // Fetch user data to update context
       await fetchUserData(user)
     } catch (error) {

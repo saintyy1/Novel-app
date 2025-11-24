@@ -4,9 +4,8 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { useChat, type ChatConversation } from "../context/ChatContext"
 import { useAuth } from "../context/AuthContext"
-import UserSearch from "../components/UserSearch"
 import SEOHead from "../components/SEOHead"
-import { MessageCircle, Search, Send, MoreVertical, ArrowLeft, UserPlus, Trash2 } from "lucide-react"
+import { MessageCircle, Search, Send, MoreVertical, ArrowLeft, Trash2 } from "lucide-react"
 import { useNavigate, useSearchParams, Link } from "react-router-dom"
 
 const Messages: React.FC = () => {
@@ -27,7 +26,6 @@ const Messages: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("")
   const [messageInput, setMessageInput] = useState("")
   const [showSearch, setShowSearch] = useState(false)
-  const [showUserSearch, setShowUserSearch] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ messageId: string; conversationId: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showConversations, setShowConversations] = useState(true) // For mobile toggle
@@ -122,27 +120,6 @@ const Messages: React.FC = () => {
     // Only focus on desktop or when user explicitly taps the input
     if (window.innerWidth >= 768 && messageInputRef.current) {
       messageInputRef.current.focus()
-    }
-  }
-
-  const handleUserSelect = async (user: any) => {
-    // Create a new conversation with the selected user
-    const newConversation: ChatConversation = {
-      id: `${currentUser?.uid}_${user.uid}`.split("_").sort().join("_"),
-      participants: [currentUser?.uid || "", user.uid],
-      unreadCount: 0,
-      lastActivity: Date.now(),
-      isTyping: false,
-      typingUsers: [],
-    }
-
-    // Fetch user data for the selected user
-    await fetchUserData(user.uid)
-
-    setCurrentConversation(newConversation)
-    // On mobile, hide conversations list when selecting a conversation
-    if (window.innerWidth < 768) {
-      setShowConversations(false)
     }
   }
 
@@ -293,12 +270,6 @@ const Messages: React.FC = () => {
         ) : (
           <>
             <h1 className="text-xl font-bold text-white">Messages</h1>
-            <button
-              onClick={() => setShowUserSearch(true)}
-              className="p-2 text-gray-400 hover:text-purple-400 transition-colors rounded-lg hover:bg-purple-600/10"
-            >
-              <UserPlus className="h-5 w-5" />
-            </button>
           </>
         )}
       </div>
@@ -316,13 +287,6 @@ const Messages: React.FC = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-white">Messages</h2>
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setShowUserSearch(true)}
-                  className="p-2.5 text-gray-400 hover:text-purple-400 transition-colors rounded-xl hover:bg-purple-600/20 group"
-                  title="New Message"
-                >
-                  <UserPlus className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                </button>
                 <button
                   onClick={() => setShowSearch(!showSearch)}
                   className="p-2.5 text-gray-400 hover:text-purple-400 transition-colors rounded-xl hover:bg-purple-600/20 group"
@@ -629,9 +593,6 @@ const Messages: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* User Search Modal */}
-      <UserSearch isOpen={showUserSearch} onClose={() => setShowUserSearch(false)} onUserSelect={handleUserSelect} />
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
