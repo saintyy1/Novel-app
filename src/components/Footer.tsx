@@ -1,6 +1,6 @@
 import type React from "react"
 import { Link } from "react-router-dom"
-import { FaFacebook, FaTiktok, FaInstagram, FaXTwitter } from "react-icons/fa6"
+import { FaTiktok, FaInstagram, FaXTwitter, FaTelegram, FaDiscord } from "react-icons/fa6"
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear()
@@ -109,9 +109,9 @@ const Footer: React.FC = () => {
               &copy; {currentYear} NovlNest. All rights reserved.
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
-              <Link to="#" className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400">
-                <span className="sr-only">Facebook</span>
-                <FaFacebook className="h-6 w-6" />
+              <Link to="https://t.me/novlnest" className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400">
+                <span className="sr-only">Telegram</span>
+                <FaTelegram className="h-6 w-6" />
               </Link>
               <Link to="https://www.tiktok.com/@novlnest" className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400">
                 <span className="sr-only">TikTok</span>
@@ -124,6 +124,10 @@ const Footer: React.FC = () => {
               <Link to="https://x.com/novlnest" className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400">
                 <span className="sr-only">Twitter</span>
                 <FaXTwitter className="h-6 w-6" />
+              </Link>
+              <Link to="#" className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400">
+                <span className="sr-only">Discord</span>
+                <FaDiscord className="h-6 w-6" />
               </Link>
             </div>
           </div>
