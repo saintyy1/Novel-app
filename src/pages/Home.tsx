@@ -21,66 +21,66 @@ const Home = () => {
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
-  const fetchPromotionalNovels = async () => {
-    setLoadingPromotional(true)
-    try {
-      const promotionalQuery = query(
-        collection(db, "novels"),
-        where("published", "==", true),
-        where("isPromoted", "==", true),
-        orderBy("views", "desc"),
-        limit(7),
-      )
-      const querySnapshot = await getDocs(promotionalQuery)
-      const promotionalData: Novel[] = []
+    const fetchPromotionalNovels = async () => {
+      setLoadingPromotional(true)
+      try {
+        const promotionalQuery = query(
+          collection(db, "novels"),
+          where("published", "==", true),
+          where("isPromoted", "==", true),
+          orderBy("views", "desc"),
+          limit(7),
+        )
+        const querySnapshot = await getDocs(promotionalQuery)
+        const promotionalData: Novel[] = []
 
-      const now = new Date()
+        const now = new Date()
 
-      for (const docSnap of querySnapshot.docs) {
-        const data = docSnap.data() as any
-        const endDate = data.promotionEndDate?.toDate?.() || data.promotionEndDate
+        for (const docSnap of querySnapshot.docs) {
+          const data = docSnap.data() as any
+          const endDate = data.promotionEndDate?.toDate?.() || data.promotionEndDate
 
-        if (endDate && endDate < now) {
-          // Send notification to the author that their promotion has ended
-          // Only send once - check if notification hasn't been sent yet
-          if (!data.promotionEndNotificationSent) {
-            try {
-              await sendPromotionEndedNotification(
-                data.authorId,
-                docSnap.id,
-                data.title
-              )
-              console.log(`Promotion ended notification sent for novel: ${data.title}`)
-            } catch (error) {
-              console.error("Error sending promotion ended notification:", error)
+          if (endDate && endDate < now) {
+            // Send notification to the author that their promotion has ended
+            // Only send once - check if notification hasn't been sent yet
+            if (!data.promotionEndNotificationSent) {
+              try {
+                await sendPromotionEndedNotification(
+                  data.authorId,
+                  docSnap.id,
+                  data.title
+                )
+                console.log(`Promotion ended notification sent for novel: ${data.title}`)
+              } catch (error) {
+                console.error("Error sending promotion ended notification:", error)
+              }
             }
+
+            // expired — update Firestore to set isPromoted back to false
+            // Mark that notification has been sent
+            await updateDoc(docSnap.ref, {
+              isPromoted: false,
+              promotionStartDate: null,
+              promotionEndDate: null,
+              reference: null,
+              promotionPlan: null,
+              promotionEndNotificationSent: true
+            })
+          } else {
+            promotionalData.push({ id: docSnap.id, ...data } as Novel)
           }
-          
-          // expired — update Firestore to set isPromoted back to false
-          // Mark that notification has been sent
-          await updateDoc(docSnap.ref, { 
-            isPromoted: false, 
-            promotionStartDate: null, 
-            promotionEndDate: null, 
-            reference: null, 
-            promotionPlan: null,
-            promotionEndNotificationSent: true
-          })
-        } else {
-          promotionalData.push({ id: docSnap.id, ...data } as Novel)
         }
+
+        setPromotionalNovels(promotionalData)
+      } catch (error) {
+        console.error("Error fetching promotional novels:", error)
+      } finally {
+        setLoadingPromotional(false)
       }
-
-      setPromotionalNovels(promotionalData)
-    } catch (error) {
-      console.error("Error fetching promotional novels:", error)
-    } finally {
-      setLoadingPromotional(false)
     }
-  }
 
-  fetchPromotionalNovels()
-}, [])
+    fetchPromotionalNovels()
+  }, [])
 
   useEffect(() => {
     const fetchTrendingNovels = async () => {
@@ -159,7 +159,7 @@ const Home = () => {
 
   // Combine all novels for structured data
   const allNovels = [...promotionalNovels, ...trendingNovels, ...newReleaseNovels]
-  const uniqueNovels = allNovels.filter((novel, index, self) => 
+  const uniqueNovels = allNovels.filter((novel, index, self) =>
     index === self.findIndex(n => n.id === novel.id)
   )
 
@@ -171,9 +171,9 @@ const Home = () => {
         keywords="free novels, online stories, fiction reading, creative writing, novel platform, digital books, trending novels, new releases, wattpad alternative, storytelling community"
         url="https://novlnest.com"
         canonicalUrl="https://novlnest.com"
-        structuredData={[generateWebsiteStructuredData(), generateBreadcrumbStructuredData([{name: "Home", url: "https://novlnest.com"}]), generateCollectionStructuredData(uniqueNovels, "Free Online Novels & Stories | Read & Write Fiction"), generateCollectionStructuredData(uniqueNovels, "Promotional Novels"), generateCollectionStructuredData(uniqueNovels, "Trending Novels"), generateCollectionStructuredData(uniqueNovels, "New Releases")]}
+        structuredData={[generateWebsiteStructuredData(), generateBreadcrumbStructuredData([{ name: "Home", url: "https://novlnest.com" }]), generateCollectionStructuredData(uniqueNovels, "Free Online Novels & Stories | Read & Write Fiction"), generateCollectionStructuredData(uniqueNovels, "Promotional Novels"), generateCollectionStructuredData(uniqueNovels, "Trending Novels"), generateCollectionStructuredData(uniqueNovels, "New Releases")]}
       />
-      
+
       <section className="relative bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white py-20 px-4 sm:px-6 lg:px-8 rounded-b-3xl shadow-xl">
         <div className="absolute inset-0 bg-black opacity-50 rounded-b-3xl"></div>
         <div className="relative max-w-7xl mx-auto">
@@ -204,15 +204,19 @@ const Home = () => {
 
       <PromotionSection />
 
-      <NovelCarousel
-        title="Promotions"
-        novels={promotionalNovels}
-        loading={loadingPromotional}
-        seeAllLink="/novels/promotional"
-        imageErrors={imageErrors}
-        handleImageError={handleImageError}
-        getGenreColorClass={getGenreColorClass}
-      />
+      {promotionalNovels.length > 0 && (
+        <>
+          <NovelCarousel
+            title="Promotions"
+            novels={promotionalNovels}
+            loading={loadingPromotional}
+            seeAllLink="/novels/promotional"
+            imageErrors={imageErrors}
+            handleImageError={handleImageError}
+            getGenreColorClass={getGenreColorClass}
+          />
+        </>
+      )}
 
       <NovelCarousel
         title="Trending Novels"
@@ -244,7 +248,7 @@ const Home = () => {
             <div className="absolute bottom-6 left-12 w-12 h-12 border-2 border-white"></div>
             <div className="absolute bottom-12 right-16 w-6 h-6 bg-white/50 rounded-full"></div>
           </div>
-          
+
           <div className="relative px-6 py-10 md:py-12 md:px-12 flex flex-col md:flex-row items-center gap-6">
             {/* Icon */}
             <div className="flex-shrink-0">
@@ -254,7 +258,7 @@ const Home = () => {
                 </svg>
               </div>
             </div>
-            
+
             {/* Content */}
             <div className="flex-1 text-center md:text-left text-white">
               <h3 className="text-2xl md:text-3xl font-serif font-bold mb-2">
