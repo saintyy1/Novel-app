@@ -255,7 +255,7 @@ const NotificationsPage = () => {
             <Link
               to={`/novel/${notification.novelId}`}
               className="text-purple-400 hover:underline"
-              onClick={(e) => e.stopPropagation()} // Prevent parent div's onClick from triggering
+              onClick={(e) => e.stopPropagation()}
             >
               "{notification.novelTitle}"
             </Link>
@@ -313,7 +313,7 @@ const NotificationsPage = () => {
             <Link
               to={notification.chapterNumber ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}` : `/novel/${notification.novelId}`}
               className="text-purple-400 hover:underline"
-              onClick={(e) => e.stopPropagation()} // Prevent parent div's onClick from triggering
+              onClick={(e) => e.stopPropagation()}
             >
               "{notification.novelTitle}"
             </Link>
@@ -330,7 +330,7 @@ const NotificationsPage = () => {
             <Link
               to={notification.chapterNumber ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}` : `/novel/${notification.novelId}`}
               className="text-purple-400 hover:underline"
-              onClick={(e) => e.stopPropagation()} // Prevent parent div's onClick from triggering
+              onClick={(e) => e.stopPropagation()}
             >
               "{notification.novelTitle}"
             </Link>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef, useState } from 'react'
 import { collection, doc, addDoc, updateDoc, setDoc, query, where, orderBy, onSnapshot, getDocs, serverTimestamp, deleteDoc, limit } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from './AuthContext'
@@ -296,6 +296,8 @@ interface ChatContextType {
   addUser: (user: ChatUser) => void
   fetchUserData: (userId: string) => Promise<ChatUser | null>
   fetchUsersForConversations: (conversations: ChatConversation[]) => Promise<void>
+  unreadCount: number
+  getTotalUnreadCount: () => number
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined)
@@ -315,6 +317,53 @@ interface ChatProviderProps {
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(chatReducer, initialState)
   const { currentUser } = useAuth()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  // Real-time listener for unread conversations count (not total messages)
+  useEffect(() => {
+    if (!currentUser) {
+      setUnreadCount(0)
+      return
+    }
+
+    // Listen to all messages where this user is the receiver and they're unread
+    // Group by sender/conversation to count unique conversations
+    const unreadQuery = query(
+      collection(db, 'messages'),
+      where('receiverId', '==', currentUser.uid),
+      where('read', '==', false)
+    )
+
+    const unsubscribe = onSnapshot(
+      unreadQuery,
+      (messagesSnapshot) => {
+        if (messagesSnapshot.empty) {
+          setUnreadCount(0)
+          return
+        }
+
+        // Count unique senders/conversations with unread messages
+        const uniqueSenders = new Set<string>()
+        
+        messagesSnapshot.forEach((doc) => {
+          const data = doc.data()
+          uniqueSenders.add(data.senderId)
+        })
+
+        const conversationsWithUnread = uniqueSenders.size
+        setUnreadCount(conversationsWithUnread)
+      },
+      (error) => {
+        console.error('❌ Error listening to unread messages:', error)
+      }
+    )
+
+    return () => unsubscribe()
+  }, [currentUser])
+
+  const getTotalUnreadCount = useCallback(() => {
+    return unreadCount
+  }, [unreadCount])
 
   // Worker is no longer needed as Firebase handles real-time updates
   // This effect is kept for future WebSocket integration if needed
@@ -372,21 +421,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           timestamp: serverTimestamp()
         },
         lastActivity: serverTimestamp(),
-        unreadCount: 0,
         createdAt: serverTimestamp()
       }, { merge: true })
-
-      // Send notification to receiver
-      await addDoc(collection(db, 'notifications'), {
-        toUserId: receiverId,
-        fromUserId: currentUser.uid,
-        fromUserName: currentUser.displayName || 'Anonymous',
-        type: 'message',
-        messageContent: content,
-        conversationId,
-        createdAt: new Date().toISOString(),
-        read: false
-      })
 
     } catch (error) {
       console.error('Error sending message:', error)
@@ -456,6 +492,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         
         snapshot.forEach((doc) => {
           const data = doc.data()
+          
           conversations.push({
             id: doc.id,
             participants: data.participants || [],
@@ -468,7 +505,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
               read: data.lastMessage.read || false,
               type: 'text'
             } : undefined,
-            unreadCount: data.unreadCount || 0,
+            unreadCount: 0, // Not used anymore, unread count comes from direct message query
             lastActivity: data.lastActivity?.toDate?.()?.getTime() || Date.now(),
             isTyping: false,
             typingUsers: []
@@ -491,16 +528,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const loadMessages = useCallback(async (conversationId: string, loadMore: boolean = false) => {
     if (!currentUser) return
-
-    // Check cache first for initial load
-    const cachedMessages = state.messageCache.get(conversationId)
-    if (cachedMessages && !loadMore) {
-      dispatch({ type: 'MESSAGES_LOADED', payload: { conversationId, messages: cachedMessages } })
-      
-      // Set up real-time listener for new messages
-      setupMessageListener(conversationId)
-      return
-    }
 
     if (loadMore) {
       dispatch({ type: 'SET_LOADING_MORE', payload: true })
@@ -528,7 +555,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         return
       }
 
-      // Load messages for this conversation with pagination
+      // Set up real-time listener for messages in this conversation
       const messagesQuery = query(
         collection(db, 'messages'),
         where('senderId', 'in', participants),
@@ -537,46 +564,61 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         limit(50) // Load 50 messages at a time
       )
 
-      const messagesSnapshot = await getDocs(messagesQuery)
-      const messages: ChatMessage[] = []
-      
-      messagesSnapshot.forEach((doc) => {
-        const data = doc.data()
-        messages.push({
-          id: doc.id,
-          senderId: data.senderId,
-          receiverId: data.receiverId,
-          content: data.content,
-          timestamp: data.timestamp?.toDate?.()?.getTime() || Date.now(),
-          read: data.read || false,
-          type: data.type || 'text',
-          metadata: data.metadata
-        })
-      })
-
-      // Sort messages by timestamp ascending for display
-      messages.sort((a, b) => a.timestamp - b.timestamp)
-
-      if (loadMore) {
-        dispatch({ type: 'MESSAGES_APPENDED', payload: { conversationId, messages } })
-      } else {
-        dispatch({ type: 'MESSAGES_LOADED', payload: { conversationId, messages } })
-        // Set up real-time listener for new messages after initial load
-        setupMessageListener(conversationId)
+      // Clean up existing listener for this conversation
+      const existingListener = messageListeners.current.get(conversationId)
+      if (existingListener) {
+        existingListener()
+        messageListeners.current.delete(conversationId)
       }
 
-      // Clear conversation loading state
-      dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
+      // Set up real-time listener
+      const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+        const messages: ChatMessage[] = []
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data()
+          messages.push({
+            id: doc.id,
+            senderId: data.senderId,
+            receiverId: data.receiverId,
+            content: data.content,
+            timestamp: data.timestamp?.toDate?.()?.getTime() || Date.now(),
+            read: data.read || false,
+            type: data.type || 'text',
+            metadata: data.metadata
+          })
+        })
 
-      // Set pagination state
-      dispatch({ type: 'SET_HAS_MORE_MESSAGES', payload: { conversationId, hasMore: messages.length === 50 } })
+        // Sort messages by timestamp ascending for display
+        messages.sort((a, b) => a.timestamp - b.timestamp)
+
+        if (loadMore) {
+          dispatch({ type: 'MESSAGES_APPENDED', payload: { conversationId, messages } })
+        } else {
+          dispatch({ type: 'MESSAGES_LOADED', payload: { conversationId, messages } })
+        }
+
+        // Clear conversation loading state
+        dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
+
+        // Set pagination state
+        dispatch({ type: 'SET_HAS_MORE_MESSAGES', payload: { conversationId, hasMore: messages.length === 50 } })
+      }, (error) => {
+        console.error('Error in messages listener:', error)
+        dispatch({ type: 'SET_ERROR', payload: 'Failed to load messages' })
+        dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
+      })
+
+      // Store the unsubscribe function
+      messageListeners.current.set(conversationId, unsubscribe)
+
     } catch (error) {
       console.error('Error loading messages:', error)
       dispatch({ type: 'SET_ERROR', payload: 'Failed to load messages' })
       // Clear conversation loading state on error
       dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
     }
-  }, [currentUser, state.messageCache])
+  }, [currentUser])
 
   const loadMoreMessages = useCallback(async (conversationId: string) => {
     await loadMessages(conversationId, true)
@@ -585,84 +627,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   // Store active listeners
   const messageListeners = useRef<Map<string, () => void>>(new Map())
   const conversationListener = useRef<(() => void) | null>(null)
-
-  const setupMessageListener = useCallback((conversationId: string) => {
-    if (!currentUser) return
-
-    // Clean up existing listener for this conversation
-    const existingListener = messageListeners.current.get(conversationId)
-    if (existingListener) {
-      existingListener()
-      messageListeners.current.delete(conversationId)
-    }
-
-    // Get conversation participants
-    const conversation = state.conversations.find(conv => conv.id === conversationId)
-    if (!conversation) return
-
-    const participants = conversation.participants
-
-    // Set up real-time listener for new messages
-    const messagesQuery = query(
-      collection(db, 'messages'),
-      where('senderId', 'in', participants),
-      where('receiverId', 'in', participants),
-      orderBy('timestamp', 'desc'),
-      limit(1) // Only listen for the most recent message
-    )
-
-    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-      if (snapshot.empty) return
-
-      const latestDoc = snapshot.docs[0]
-      const data = latestDoc.data()
-      
-      const newMessage: ChatMessage = {
-        id: latestDoc.id,
-        senderId: data.senderId,
-        receiverId: data.receiverId,
-        content: data.content,
-        timestamp: data.timestamp?.toDate?.()?.getTime() || Date.now(),
-        read: data.read || false,
-        type: data.type || 'text',
-        metadata: data.metadata
-      }
-
-      // Check if this message is already in our cached messages for this conversation
-      const cachedMessages = state.messageCache.get(conversationId) || []
-      const isNewMessage = !cachedMessages.some(msg => msg.id === newMessage.id)
-      
-      if (isNewMessage) {
-        // Add to cache
-        const updatedCache = [...cachedMessages, newMessage].sort((a, b) => a.timestamp - b.timestamp)
-        
-        const newCache = new Map(state.messageCache)
-        newCache.set(conversationId, updatedCache)
-        
-        // Only update current messages if this is the active conversation
-        if (state.currentConversation?.id === conversationId) {
-          dispatch({ type: 'MESSAGES_LOADED', payload: { conversationId, messages: updatedCache } })
-        }
-        
-        // Update conversation's last message
-        dispatch({ type: 'CONVERSATION_UPDATED', payload: { 
-          conversationId, 
-          lastMessage: {
-            id: newMessage.id,
-            senderId: newMessage.senderId,
-            receiverId: newMessage.receiverId,
-            content: newMessage.content,
-            timestamp: newMessage.timestamp,
-            read: newMessage.read,
-            type: newMessage.type
-          }
-        }})
-      }
-    })
-
-    // Store the unsubscribe function
-    messageListeners.current.set(conversationId, unsubscribe)
-  }, [currentUser, state.conversations, state.messages, state.messageCache])
 
   const setCurrentConversation = useCallback((conversation: ChatConversation | null) => {
     // Clean up all existing message listeners
@@ -697,42 +661,47 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     if (!currentUser) return
 
     try {
-      // SECURITY: Verify user has access to this conversation
+      // Get the conversation to find all messages between participants
       const conversationDoc = await getDocs(query(
         collection(db, 'conversations'),
         where('__name__', '==', conversationId)
       ))
 
-      if (!conversationDoc.empty) {
-        const conversationData = conversationDoc.docs[0].data()
-        const participants = conversationData.participants || []
-        
-        if (!participants.includes(currentUser.uid)) {
-          console.error('Unauthorized access attempt to mark messages as read:', conversationId)
-          return
-        }
+      if (conversationDoc.empty) return
+
+      const conversationData = conversationDoc.docs[0].data()
+      const participants = conversationData.participants || []
+      
+      if (!participants.includes(currentUser.uid)) {
+        console.error('Unauthorized access attempt to mark messages as read:', conversationId)
+        return
       }
 
-      // Mark messages as read in Firebase
-      const messagesQuery = query(
+      // Mark all unread messages in this conversation as read
+      const unreadMessagesQuery = query(
         collection(db, 'messages'),
         where('receiverId', '==', currentUser.uid),
         where('read', '==', false)
       )
 
-      const messagesSnapshot = await getDocs(messagesQuery)
-      const batch = messagesSnapshot.docs.map(doc => 
+      const messagesSnapshot = await getDocs(unreadMessagesQuery)
+      
+      // Filter messages that are part of this conversation
+      const messagesToUpdate = messagesSnapshot.docs.filter(doc => {
+        const data = doc.data()
+        return participants.includes(data.senderId)
+      })
+
+      // Update messages as read
+      const updatePromises = messagesToUpdate.map(doc => 
         updateDoc(doc.ref, { read: true })
       )
 
-      await Promise.all(batch)
+      await Promise.all(updatePromises)
+      
+      console.log('✅ Marked', messagesToUpdate.length, 'messages as read in conversation', conversationId)
 
-      // Update conversation unread count
-      const conversationRef = doc(db, 'conversations', conversationId)
-      await setDoc(conversationRef, {
-        unreadCount: 0
-      }, { merge: true })
-
+      // Update local state
       dispatch({ type: 'MESSAGES_READ', payload: { conversationId, userId: currentUser.uid } })
     } catch (error) {
       console.error('Error marking messages as read:', error)
@@ -883,7 +852,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     getUser,
     addUser,
     fetchUserData,
-    fetchUsersForConversations
+    fetchUsersForConversations,
+    unreadCount,
+    getTotalUnreadCount
   }
 
   return (
