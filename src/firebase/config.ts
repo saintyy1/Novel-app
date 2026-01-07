@@ -26,8 +26,8 @@ export const analytics = getAnalytics(app)
 // Configure custom email verification settings
 auth.settings.appVerificationDisabledForTesting = false
 
-// Configure custom email verification URL
-// This will be used in the email verification links
+// Configure custom email verification settings
+// This is used only for email verification
 const actionCodeSettings = {
   url: `${window.location.origin}/verify-email`,
   handleCodeInApp: true,

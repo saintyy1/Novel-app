@@ -815,6 +815,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const resetPassword = async (email: string) => {
+    // Send password reset email without custom settings
+    // The action URL should be configured in Firebase Console
     await sendPasswordResetEmail(auth, email)
   }
 

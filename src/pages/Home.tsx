@@ -56,7 +56,6 @@ const Home = () => {
               }
             }
 
-            // expired — update Firestore to set isPromoted back to false
             // Mark that notification has been sent
             await updateDoc(docSnap.ref, {
               isPromoted: false,

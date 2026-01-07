@@ -35,6 +35,7 @@ import Support from "./pages/Support"
 import ForgotPassword from "./pages/ForgotPassword"
 import Settings from "./pages/Settings"
 import VerifyEmail from "./pages/VerifyEmail"
+import AuthAction from "./pages/AuthAction"
 import Messages from "./pages/Messages"
 import MyTickets from "./pages/MyTickets"
 import AdminSupport from "./pages/AdminSupport"
@@ -106,6 +107,7 @@ function AppContent() {
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/auth-action" element={<AuthAction />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/profile/:userId" element={<Profile />} />
           <Route path="/novels" element={<Novels />} />
