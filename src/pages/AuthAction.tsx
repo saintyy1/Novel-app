@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { auth } from "../firebase/config"
+import { auth, db } from "../firebase/config"
 import { 
   verifyPasswordResetCode, 
   confirmPasswordReset, 
   applyActionCode,
   checkActionCode
 } from "firebase/auth"
+import { doc, updateDoc, getDoc } from "firebase/firestore"
 import SEOHead from "../components/SEOHead"
 
 const AuthAction = () => {
@@ -103,6 +104,21 @@ const AuthAction = () => {
     const currentUser = auth.currentUser
     if (currentUser) {
       await currentUser.reload()
+      
+      // Update Firestore with new email and clear pendingEmail
+      const userRef = doc(db, "users", currentUser.uid)
+      const userDoc = await getDoc(userRef)
+      
+      if (userDoc.exists()) {
+        // Update the email in Firestore and clear pendingEmail
+        await updateDoc(userRef, {
+          email: currentUser.email, // Update to new verified email
+          pendingEmail: null, // Clear pending email
+          updatedAt: new Date().toISOString(),
+        })
+        
+        console.log('Email updated in Firestore:', currentUser.email)
+      }
     }
     
     setStatus('success')
