@@ -45,6 +45,10 @@ const AuthAction = () => {
           await handleEmailVerification(code)
           break
 
+        case 'verifyAndChangeEmail':
+          await handleEmailChange(code)
+          break
+
         case 'recoverEmail':
           await handleEmailRecovery(code)
           break
@@ -91,6 +95,22 @@ const AuthAction = () => {
     }
   }
 
+  const handleEmailChange = async (code: string) => {
+    await checkActionCode(auth, code)
+    await applyActionCode(auth, code)
+    
+    // Reload user to get updated email
+    const currentUser = auth.currentUser
+    if (currentUser) {
+      await currentUser.reload()
+    }
+    
+    setStatus('success')
+    setTimeout(() => {
+      navigate('/settings')
+    }, 3000)
+  }
+
   const handleEmailRecovery = async (code: string) => {
     await applyActionCode(auth, code)
     setStatus('success')
@@ -134,7 +154,7 @@ const AuthAction = () => {
     if (error.code === 'auth/invalid-action-code') {
       if (mode === 'resetPassword') {
         setError('This password reset link has already been used or is invalid. Please request a new one.')
-      } else if (mode === 'verifyEmail') {
+      } else if (mode === 'verifyEmail' || mode === 'verifyAndChangeEmail') {
         setError('This verification link has already been used or is invalid. Please request a new one.')
       } else {
         setError('This link has already been used or is invalid.')
@@ -166,6 +186,8 @@ const AuthAction = () => {
     switch (mode) {
       case 'resetPassword':
         return 'Your password has been successfully reset. Redirecting to login...'
+      case 'verifyAndChangeEmail':
+        return 'Your new email has been successfully verified. Redirecting to settings...'
       case 'verifyEmail':
         return 'Your email has been successfully verified. Redirecting...'
       case 'recoverEmail':
