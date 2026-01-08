@@ -1,12 +1,14 @@
 "use client"
 import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
 import { collection, query, where, getDocs, orderBy, limit, updateDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
+import type { Poem } from "../types/poem"
 import NovelCarousel from "../components/NovelCarousel"
+import PoemCarousel from "../components/PoemCarousel"
 import PromotionSection from "../components/PromotionSection"
 import InviteFriendsSection from "../components/InviteFriendsSection"
+import HeroBanner from "../components/HeroBanner"
 import SEOHead from "../components/SEOHead"
 import { generateWebsiteStructuredData, generateBreadcrumbStructuredData, generateCollectionStructuredData } from "../utils/structuredData"
 import { sendPromotionEndedNotification } from "../services/notificationService"
@@ -15,6 +17,7 @@ const Home = () => {
   const [promotionalNovels, setPromotionalNovels] = useState<Novel[]>([])
   const [trendingNovels, setTrendingNovels] = useState<Novel[]>([])
   const [newReleaseNovels, setNewReleaseNovels] = useState<Novel[]>([])
+  const [trendingPoems, setTrendingPoems] = useState<Poem[]>([])
   const [loadingPromotional, setLoadingPromotional] = useState<boolean>(true)
   const [loadingTrending, setLoadingTrending] = useState<boolean>(true)
   const [loadingNewReleases, setLoadingNewReleases] = useState<boolean>(true)
@@ -132,10 +135,35 @@ const Home = () => {
     fetchNewReleaseNovels()
   }, [])
 
-  const handleImageError = (novelId: string) => {
+  useEffect(() => {
+    const fetchNewReleasePoems = async () => {
+      setLoadingNewReleases(true)
+      try {
+        const newReleaseQuery = query(
+          collection(db, "poems"),
+          where("published", "==", true),
+          orderBy("views", "desc"),
+          limit(7),
+        )
+        const querySnapshot = await getDocs(newReleaseQuery)
+        const newReleaseData: Poem[] = []
+        querySnapshot.forEach((doc) => {
+          newReleaseData.push({ id: doc.id, ...doc.data() } as Poem)
+        })
+        setTrendingPoems(newReleaseData)
+      } catch (error) {
+        console.error("Error fetching new release novels:", error)
+      } finally {
+        setLoadingNewReleases(false)
+      }
+    }
+    fetchNewReleasePoems()
+  }, [])
+
+  const handleImageError = (id: string) => {
     setImageErrors((prev) => ({
       ...prev,
-      [novelId]: true,
+      [id]: true,
     }))
   }
 
@@ -156,11 +184,44 @@ const Home = () => {
     return "from-gray-600 to-gray-800"
   }
 
+  // Get poetry genre-based color gradients
+  const getPoemGenreColorClass = (genres: string[]) => {
+    if (genres.includes("Romantic")) return "from-rose-500 to-pink-600"
+    if (genres.includes("Nature")) return "from-emerald-500 to-teal-600"
+    if (genres.includes("Free Verse")) return "from-purple-500 to-fuchsia-600"
+    if (genres.includes("Haiku")) return "from-cyan-500 to-blue-600"
+    if (genres.includes("Sonnet")) return "from-amber-500 to-orange-600"
+    if (genres.includes("Epic")) return "from-red-600 to-rose-800"
+    if (genres.includes("Lyric")) return "from-pink-400 to-rose-500"
+    if (genres.includes("Narrative")) return "from-indigo-500 to-purple-600"
+    if (genres.includes("Limerick")) return "from-yellow-400 to-amber-500"
+    if (genres.includes("Ballad")) return "from-violet-500 to-purple-600"
+    if (genres.includes("Elegy")) return "from-slate-600 to-gray-700"
+    if (genres.includes("Ode")) return "from-orange-500 to-red-600"
+    return "from-rose-600 to-pink-600" // Default poetry gradient
+  }
+
   // Combine all novels for structured data
   const allNovels = [...promotionalNovels, ...trendingNovels, ...newReleaseNovels]
   const uniqueNovels = allNovels.filter((novel, index, self) =>
     index === self.findIndex(n => n.id === novel.id)
   )
+
+  // Hero banner slides - Replace with your actual banner images and novel IDs
+  const bannerSlides = [
+    {
+      id: "banner-1",
+      image: "/images/writers-comp.png",
+      externalLink: "https://discord.gg/rMasj5PDPe",
+      alt: "Discord Community Banner"
+    },
+    {
+      id: "banner-2",
+      image: "/images/dec-comp-winner.png",
+      novelId: "xeypggSi2BR7dYzp7NhO",
+      alt: "Discord Community Banner"
+    },
+  ]
 
   return (
     <div className="min-h-screen">
@@ -173,33 +234,8 @@ const Home = () => {
         structuredData={[generateWebsiteStructuredData(), generateBreadcrumbStructuredData([{ name: "Home", url: "https://novlnest.com" }]), generateCollectionStructuredData(uniqueNovels, "Free Online Novels & Stories | Read & Write Fiction"), generateCollectionStructuredData(uniqueNovels, "Promotional Novels"), generateCollectionStructuredData(uniqueNovels, "Trending Novels"), generateCollectionStructuredData(uniqueNovels, "New Releases")]}
       />
 
-      <section className="relative bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white py-20 px-4 sm:px-6 lg:px-8 rounded-b-3xl shadow-xl">
-        <div className="absolute inset-0 bg-black opacity-50 rounded-b-3xl"></div>
-        <div className="relative max-w-7xl mx-auto">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-4">
-              Discover Extraordinary Stories
-            </h1>
-            <p className="text-xl md:text-2xl max-w-3xl mx-auto mb-8 text-purple-100">
-              From new voices to hidden gems, explore novels created and shared by real storytellers.
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Link
-                to="/novels"
-                className="px-8 py-3 bg-white text-purple-900 rounded-full font-bold text-lg hover:bg-purple-100 transition duration-300 shadow-lg"
-              >
-                Browse Novels
-              </Link>
-              <Link
-                to="/submit"
-                className="px-8 py-3 bg-purple-600 text-white rounded-full font-bold text-lg hover:bg-purple-700 transition duration-300 shadow-lg border border-purple-500"
-              >
-                Submit Your Novel
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Hero Banner Section */}
+      <HeroBanner slides={bannerSlides} autoSlideInterval={7000} />
 
       <PromotionSection />
 
@@ -237,59 +273,15 @@ const Home = () => {
         getGenreColorClass={getGenreColorClass}
       />
 
-      {/* Poetry Feature Announcement */}
-      <section className="py-8 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-        <div className="relative bg-gradient-to-r from-rose-600 via-pink-600 to-rose-700 rounded-2xl shadow-2xl overflow-hidden">
-          {/* Decorative Elements */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-4 left-4 w-16 h-16 border-2 border-white rounded-full"></div>
-            <div className="absolute top-12 right-8 w-8 h-8 bg-white rounded-full"></div>
-            <div className="absolute bottom-6 left-12 w-12 h-12 border-2 border-white"></div>
-            <div className="absolute bottom-12 right-16 w-6 h-6 bg-white/50 rounded-full"></div>
-          </div>
-
-          <div className="relative px-6 py-10 md:py-12 md:px-12 flex flex-col md:flex-row items-center gap-6">
-            {/* Icon */}
-            <div className="flex-shrink-0">
-              <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white/30">
-                <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 text-center md:text-left text-white">
-              <h3 className="text-2xl md:text-3xl font-serif font-bold mb-2">
-                Discover Poetry
-              </h3>
-              <p className="text-base md:text-lg text-rose-50 font-serif italic mb-4 max-w-2xl">
-                "Words that dance, emotions that resonate. Explore our new poetry collection and let verses touch your soul."
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Link
-                  to="/poems"
-                  className="inline-flex items-center justify-center px-6 py-3 bg-white text-rose-600 rounded-full font-serif font-bold text-base hover:bg-rose-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                  </svg>
-                  Browse Poetry
-                </Link>
-                <Link
-                  to="/submit-poem"
-                  className="inline-flex items-center justify-center px-6 py-3 bg-rose-700/50 backdrop-blur-sm text-white rounded-full font-serif font-bold text-base hover:bg-rose-700 transition-all duration-300 shadow-lg hover:shadow-xl border-2 border-white/30 hover:border-white/50"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                  </svg>
-                  Submit Your Poem
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <PoemCarousel
+        title="Poetry"
+        poems={trendingPoems}
+        loading={loadingNewReleases}
+        seeAllLink="/poems"
+        imageErrors={imageErrors}
+        handleImageError={handleImageError}
+        getGenreColorClass={getPoemGenreColorClass}
+      />
 
       {/* Invite Friends Section */}
       <section className="py-8 sm:px-6 lg:px-8 max-w-5xl mx-auto">
