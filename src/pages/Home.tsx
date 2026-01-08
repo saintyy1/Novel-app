@@ -6,7 +6,6 @@ import type { Novel } from "../types/novel"
 import type { Poem } from "../types/poem"
 import NovelCarousel from "../components/NovelCarousel"
 import PoemCarousel from "../components/PoemCarousel"
-import PromotionSection from "../components/PromotionSection"
 import InviteFriendsSection from "../components/InviteFriendsSection"
 import HeroBanner from "../components/HeroBanner"
 import SEOHead from "../components/SEOHead"
@@ -236,8 +235,6 @@ const Home = () => {
 
       {/* Hero Banner Section */}
       <HeroBanner slides={bannerSlides} autoSlideInterval={7000} />
-
-      <PromotionSection />
 
       {promotionalNovels.length > 0 && (
         <>
