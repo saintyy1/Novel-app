@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
@@ -18,8 +18,8 @@ interface HeroBannerProps {
 
 const HeroBanner = ({ slides, autoSlideInterval = 4000 }: HeroBannerProps) => {
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [isHovered, setIsHovered] = useState(false)
   const navigate = useNavigate()
+  const mobileCarouselRef = useRef<HTMLDivElement>(null)
 
   const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev + 1) % slides.length)
@@ -28,10 +28,6 @@ const HeroBanner = ({ slides, autoSlideInterval = 4000 }: HeroBannerProps) => {
   const prevSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
   }, [slides.length])
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index)
-  }
 
   const handleBannerClick = () => {
     const slide = slides[currentSlide]
@@ -42,25 +38,36 @@ const HeroBanner = ({ slides, autoSlideInterval = 4000 }: HeroBannerProps) => {
     }
   }
 
+  // Simple auto-slide
   useEffect(() => {
-    if (!isHovered && slides.length > 1) {
-      const timer = setInterval(nextSlide, autoSlideInterval)
-      return () => clearInterval(timer)
+    if (slides.length <= 1) return
+
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length)
+    }, autoSlideInterval)
+
+    return () => clearInterval(interval)
+  }, [slides.length, autoSlideInterval])
+
+  // Auto-scroll mobile carousel
+  useEffect(() => {
+    if (mobileCarouselRef.current) {
+      const slideWidth = mobileCarouselRef.current.scrollWidth / slides.length
+      mobileCarouselRef.current.scrollTo({
+        left: slideWidth * currentSlide,
+        behavior: 'smooth'
+      })
     }
-  }, [currentSlide, isHovered, autoSlideInterval, nextSlide, slides.length])
+  }, [currentSlide, slides.length])
 
   if (!slides || slides.length === 0) {
     return null
   }
 
   return (
-    <div
-      className="relative w-full max-w-[95%] sm:max-w-[90%] md:max-w-[1200px] mx-auto h-[180px] xs:h-[200px] sm:h-[250px] md:h-[300px] lg:h-[350px] xl:h-[400px] group mt-12 px-2 sm:px-0"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Banner Images */}
-      <div className="relative w-full h-full overflow-hidden rounded-lg">
+    <div className="relative w-full max-w-[95%] sm:max-w-[90%] md:max-w-[1200px] mx-auto xs:h-[200px] sm:h-[250px] md:h-[300px] lg:h-[350px] xl:h-[400px] group mt-12">
+      {/* Banner Images - Desktop (fade animation) */}
+      <div className="relative w-full h-full overflow-hidden rounded-lg hidden md:block">
         {slides.map((slide, index) => (
           <div
             key={slide.id}
@@ -82,8 +89,54 @@ const HeroBanner = ({ slides, autoSlideInterval = 4000 }: HeroBannerProps) => {
             </div>
           </div>
         ))}
+      </div>
 
-        {/* Navigation Arrows */}
+      {/* Banner Images - Mobile/Tablet (carousel with peek) */}
+      <div 
+        ref={mobileCarouselRef}
+        className="relative w-full h-full md:hidden overflow-x-auto overflow-y-hidden scrollbar-hide snap-x snap-mandatory"
+        style={{
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          scrollSnapType: "x mandatory",
+        }}
+      >
+        <style>
+          {`
+            div::-webkit-scrollbar {
+              display: none;
+            }
+          `}
+        </style>
+        <div className="flex gap-4">
+          {slides.map((slide, index) => (
+            <div
+              key={slide.id}
+              className="flex-shrink-0 w-[85%] h-full snap-center"
+              onClick={() => {
+                const clickedSlide = slides[index]
+                if (clickedSlide?.externalLink) {
+                  window.open(clickedSlide.externalLink, '_blank', 'noopener,noreferrer')
+                } else if (clickedSlide?.novelId) {
+                  navigate(`/novel/${clickedSlide.novelId}`)
+                }
+              }}
+            >
+              <div className="relative w-full h-full cursor-pointer rounded-lg overflow-hidden">
+                <img
+                  src={slide.image}
+                  alt={slide.alt || slide.title || `Banner ${index + 1}`}
+                  className="w-full h-full object-cover object-center"
+                />
+                {/* Optional overlay gradient for better text visibility */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Navigation Arrows - Desktop Only */}
       {slides.length > 1 && (
         <>
           {/* Left Arrow */}
@@ -111,7 +164,6 @@ const HeroBanner = ({ slides, autoSlideInterval = 4000 }: HeroBannerProps) => {
           </button>
         </>
       )}
-      </div>
     </div>
   )
 }

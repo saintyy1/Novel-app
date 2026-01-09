@@ -218,7 +218,19 @@ const Home = () => {
       id: "banner-2",
       image: "/images/dec-comp-winner.png",
       novelId: "xeypggSi2BR7dYzp7NhO",
-      alt: "Discord Community Banner"
+      alt: "Dec Comp Banner"
+    },
+    {
+      id: "banner-3",
+      image: "/images/his-dangerous-truth.png",
+      novelId: "erpas9As02OQgKGlXtJ7",
+      alt: "Promotion Banner"
+    },
+    {
+      id: "banner-4",
+      image: "/images/the-accidental-landlord.png",
+      novelId: "OgrUd6n4cLlAbh3aKMrm",
+      alt: "Promotion Banner"
     },
   ]
 
