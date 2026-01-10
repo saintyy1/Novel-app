@@ -65,7 +65,7 @@ const HeroBanner = ({ slides, autoSlideInterval = 4000 }: HeroBannerProps) => {
   }
 
   return (
-    <div className="relative w-full max-w-[95%] sm:max-w-[90%] md:max-w-[1200px] mx-auto xs:h-[200px] sm:h-[250px] md:h-[300px] lg:h-[350px] xl:h-[400px] group mt-12">
+    <div className="relative w-full md:max-w-[1200px] mx-auto md:h-[300px] lg:h-[350px] xl:h-[400px] group mt-12">
       {/* Banner Images - Desktop (fade animation) */}
       <div className="relative w-full h-full overflow-hidden rounded-lg hidden md:block">
         {slides.map((slide, index) => (
