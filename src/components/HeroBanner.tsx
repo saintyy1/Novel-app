@@ -16,184 +16,154 @@ interface HeroBannerProps {
   autoSlideInterval?: number
 }
 
-/* ===== Layout constants ===== */
-const SLIDE_WIDTH = 85
-const GAP = 4
-const SIDE_PEEK = (100 - SLIDE_WIDTH) / 2
-const DRAG_THRESHOLD = 50
-
 const HeroBanner = ({ slides, autoSlideInterval = 4000 }: HeroBannerProps) => {
+  const [currentSlide, setCurrentSlide] = useState(0)
   const navigate = useNavigate()
+  const mobileCarouselRef = useRef<HTMLDivElement>(null)
 
-  /* ===== Desktop ===== */
-  const [desktopIndex, setDesktopIndex] = useState(0)
-
-  const nextDesktop = useCallback(() => {
-    setDesktopIndex((p) => (p + 1) % slides.length)
+  const nextSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length)
   }, [slides.length])
 
-  const prevDesktop = useCallback(() => {
-    setDesktopIndex((p) => (p - 1 + slides.length) % slides.length)
+  const prevSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
   }, [slides.length])
 
-  useEffect(() => {
-    if (slides.length <= 1) return
-    const id = setInterval(nextDesktop, autoSlideInterval)
-    return () => clearInterval(id)
-  }, [slides.length, autoSlideInterval, nextDesktop])
-
-  /* ===== Mobile infinite ===== */
-  const extendedSlides =
-    slides.length > 1
-      ? [slides[slides.length - 1], ...slides, slides[0]]
-      : slides
-
-  const [mobileIndex, setMobileIndex] = useState(1)
-  const [isTransitioning, setIsTransitioning] = useState(true)
-
-  const trackRef = useRef<HTMLDivElement>(null)
-  const isDragging = useRef(false)
-  const startX = useRef(0)
-  const deltaX = useRef(0)
-  const pointerId = useRef<number | null>(null)
-
-  /* ===== Auto slide ===== */
-  useEffect(() => {
-    if (slides.length <= 1) return
-    const id = setInterval(() => {
-      if (isDragging.current) return
-      setIsTransitioning(true)
-      setMobileIndex((p) => p + 1)
-    }, autoSlideInterval)
-    return () => clearInterval(id)
-  }, [slides.length, autoSlideInterval])
-
-  /* ===== Infinite reset ===== */
-  const handleTransitionEnd = () => {
-    if (mobileIndex === extendedSlides.length - 1) {
-      setIsTransitioning(false)
-      setMobileIndex(1)
-    }
-    if (mobileIndex === 0) {
-      setIsTransitioning(false)
-      setMobileIndex(slides.length)
-    }
-  }
-
-  /* ===== Swipe logic (FIXED) ===== */
-  const onPointerDown = (e: React.PointerEvent) => {
-    pointerId.current = e.pointerId
-    trackRef.current?.setPointerCapture(e.pointerId)
-
-    isDragging.current = true
-    startX.current = e.clientX
-    deltaX.current = 0
-    setIsTransitioning(false)
-  }
-
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!isDragging.current || !trackRef.current) return
-
-    deltaX.current = e.clientX - startX.current
-    e.preventDefault()
-
-    trackRef.current.style.transform = `translateX(calc(-${
-      mobileIndex * (SLIDE_WIDTH + GAP) - SIDE_PEEK
-    }% + ${deltaX.current}px))`
-  }
-
-  const onPointerUp = () => {
-    if (!isDragging.current) return
-
-    if (pointerId.current !== null) {
-      trackRef.current?.releasePointerCapture(pointerId.current)
-      pointerId.current = null
-    }
-
-    isDragging.current = false
-    setIsTransitioning(true)
-
-    if (Math.abs(deltaX.current) > DRAG_THRESHOLD) {
-      setMobileIndex((p) => (deltaX.current > 0 ? p - 1 : p + 1))
-    }
-
-    deltaX.current = 0
-  }
-
-  const handleBannerClick = (slide: BannerSlide) => {
-    if (slide.externalLink) {
-      window.open(slide.externalLink, "_blank", "noopener,noreferrer")
-    } else if (slide.novelId) {
+  const handleBannerClick = () => {
+    const slide = slides[currentSlide]
+    if (slide?.externalLink) {
+      window.open(slide.externalLink, '_blank', 'noopener,noreferrer')
+    } else if (slide?.novelId) {
       navigate(`/novel/${slide.novelId}`)
     }
   }
 
-  if (!slides.length) return null
+  // Simple auto-slide
+  useEffect(() => {
+    if (slides.length <= 1) return
+
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length)
+    }, autoSlideInterval)
+
+    return () => clearInterval(interval)
+  }, [slides.length, autoSlideInterval])
+
+  // Auto-scroll mobile carousel
+  useEffect(() => {
+    if (mobileCarouselRef.current) {
+      const slideWidth = mobileCarouselRef.current.scrollWidth / slides.length
+      mobileCarouselRef.current.scrollTo({
+        left: slideWidth * currentSlide,
+        behavior: 'smooth'
+      })
+    }
+  }, [currentSlide, slides.length])
+
+  if (!slides || slides.length === 0) {
+    return null
+  }
 
   return (
-    <div className="relative w-full md:max-w-[1200px] mx-auto md:h-[300px] lg:h-[350px] xl:h-[400px] mt-12">
-      {/* Desktop */}
-      <div className="hidden md:block relative w-full h-full overflow-hidden rounded-lg">
-        {slides.map((s, i) => (
+    <div className="relative w-full md:max-w-[1200px] mx-auto md:h-[300px] lg:h-[350px] xl:h-[400px] group mt-12">
+      {/* Banner Images - Desktop (fade animation) */}
+      <div className="relative w-full h-full overflow-hidden rounded-lg hidden md:block">
+        {slides.map((slide, index) => (
           <div
-            key={s.id}
-            onClick={() => handleBannerClick(s)}
-            className={`absolute inset-0 transition-opacity duration-1000 ${
-              i === desktopIndex ? "opacity-100" : "opacity-0"
+            key={slide.id}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+              index === currentSlide ? "opacity-100 z-10" : "opacity-0 z-0"
             }`}
           >
-            <img src={s.image} className="w-full h-full object-cover" />
+            <div
+              onClick={handleBannerClick}
+              className="relative w-full h-full cursor-pointer"
+            >
+              <img
+                src={slide.image}
+                alt={slide.alt || slide.title || `Banner ${index + 1}`}
+                className="w-full h-full object-cover object-center"
+              />
+              {/* Optional overlay gradient for better text visibility */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Mobile infinite carousel */}
-      <div className="md:hidden overflow-hidden w-full h-full">
-        <div
-          ref={trackRef}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          onPointerLeave={onPointerUp}
-          onTransitionEnd={handleTransitionEnd}
-          className="flex gap-4 cursor-grab active:cursor-grabbing"
-          style={{
-            touchAction: "pan-y",
-            transform: `translateX(-${
-              mobileIndex * (SLIDE_WIDTH + GAP) - SIDE_PEEK
-            }%)`,
-            transition: isTransitioning ? "transform 600ms ease" : "none",
-          }}
-        >
-          {extendedSlides.map((s, i) => (
+      {/* Banner Images - Mobile/Tablet (carousel with peek) */}
+      <div 
+        ref={mobileCarouselRef}
+        className="relative w-full h-full md:hidden overflow-x-auto overflow-y-hidden scrollbar-hide snap-x snap-mandatory"
+        style={{
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          scrollSnapType: "x mandatory",
+        }}
+      >
+        <style>
+          {`
+            div::-webkit-scrollbar {
+              display: none;
+            }
+          `}
+        </style>
+        <div className="flex gap-4">
+          {slides.map((slide, index) => (
             <div
-              key={`${s.id}-${i}`}
-              className="flex-shrink-0 w-[85%]"
-              onClick={() => handleBannerClick(s)}
+              key={slide.id}
+              className="flex-shrink-0 w-[85%] h-full snap-center"
+              onClick={() => {
+                const clickedSlide = slides[index]
+                if (clickedSlide?.externalLink) {
+                  window.open(clickedSlide.externalLink, '_blank', 'noopener,noreferrer')
+                } else if (clickedSlide?.novelId) {
+                  navigate(`/novel/${clickedSlide.novelId}`)
+                }
+              }}
             >
-              <img
-                src={s.image}
-                className="w-full h-full rounded-lg object-cover"
-              />
+              <div className="relative w-full h-full cursor-pointer rounded-lg overflow-hidden">
+                <img
+                  src={slide.image}
+                  alt={slide.alt || slide.title || `Banner ${index + 1}`}
+                  className="w-full h-full object-cover object-center"
+                />
+                {/* Optional overlay gradient for better text visibility */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Desktop arrows */}
-      <button
-        onClick={prevDesktop}
-        className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 bg-white p-1 rounded-full"
-      >
-        <ChevronLeft />
-      </button>
-      <button
-        onClick={nextDesktop}
-        className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 bg-white p-1 rounded-full"
-      >
-        <ChevronRight />
-      </button>
+      {/* Navigation Arrows - Desktop Only */}
+      {slides.length > 1 && (
+        <>
+          {/* Left Arrow */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              prevSlide()
+            }}
+            className="hidden md:flex absolute -left-0 top-1/2 -translate-y-1/2 z-20 bg-white cursor-pointer text-black md:p-1 rounded-full transition-all duration-300 items-center justify-center"
+            aria-label="Previous slide"
+          >
+            <ChevronLeft className="w-6 h-6 lg:w-7 lg:h-7" />
+          </button>
+
+          {/* Right Arrow */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              nextSlide()
+            }}
+            className="hidden md:flex absolute -right-0 top-1/2 -translate-y-1/2 z-20 bg-white cursor-pointer text-black md:p-1 rounded-full transition-all duration-300 items-center justify-center"
+            aria-label="Next slide"
+          >
+            <ChevronRight className="w-6 h-6 lg:w-7 lg:h-7" />
+          </button>
+        </>
+      )}
     </div>
   )
 }
