@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useChat, type ChatConversation } from '../context/ChatContext'
 import { useAuth } from '../context/AuthContext'
-import UserSearch from './UserSearch'
 import { 
   MessageCircle, 
   Search, 
@@ -9,7 +8,6 @@ import {
   MoreVertical, 
   X,
   ChevronLeft,
-  UserPlus,
   Trash2
 } from 'lucide-react'
 
@@ -19,12 +17,11 @@ interface ChatInboxProps {
 }
 
 const ChatInbox: React.FC<ChatInboxProps> = ({ isOpen, onClose }) => {
-  const { state, loadConversations, setCurrentConversation, markAsRead, sendMessage, deleteMessage, loadMoreMessages, getUser, fetchUserData } = useChat()
+  const { state, loadConversations, setCurrentConversation, markAsRead, sendMessage, deleteMessage, loadMoreMessages, getUser } = useChat()
   const { currentUser } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [messageInput, setMessageInput] = useState('')
   const [showSearch, setShowSearch] = useState(false)
-  const [showUserSearch, setShowUserSearch] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ messageId: string; conversationId: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -63,23 +60,6 @@ const ChatInbox: React.FC<ChatInboxProps> = ({ isOpen, onClose }) => {
       sendMessage(receiverId, messageInput.trim(), 'text')
       setMessageInput('')
     }
-  }
-
-  const handleUserSelect = async (user: any) => {
-    // Create a new conversation with the selected user
-    const newConversation: ChatConversation = {
-      id: `${currentUser?.uid}_${user.uid}`.split('_').sort().join('_'),
-      participants: [currentUser?.uid || '', user.uid],
-      unreadCount: 0,
-      lastActivity: Date.now(),
-      isTyping: false,
-      typingUsers: []
-    }
-    
-    // Fetch user data for the selected user
-    await fetchUserData(user.uid)
-    
-    setCurrentConversation(newConversation)
   }
 
   const handleDeleteMessage = (messageId: string, conversationId: string) => {
@@ -136,13 +116,6 @@ const ChatInbox: React.FC<ChatInboxProps> = ({ isOpen, onClose }) => {
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h2 className="text-lg sm:text-xl font-bold text-white">Messages</h2>
               <div className="flex items-center space-x-1 sm:space-x-2">
-                <button
-                  onClick={() => setShowUserSearch(true)}
-                  className="p-2 text-gray-400 hover:text-white transition-colors"
-                  title="New Message"
-                >
-                  <UserPlus className="h-5 w-5" />
-                </button>
                 <button
                   onClick={() => setShowSearch(!showSearch)}
                   className="p-2 text-gray-400 hover:text-white transition-colors"
@@ -415,13 +388,6 @@ const ChatInbox: React.FC<ChatInboxProps> = ({ isOpen, onClose }) => {
           )}
         </div>
       </div>
-
-      {/* User Search Modal */}
-      <UserSearch
-        isOpen={showUserSearch}
-        onClose={() => setShowUserSearch(false)}
-        onUserSelect={handleUserSelect}
-      />
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (

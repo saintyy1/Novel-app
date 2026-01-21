@@ -206,29 +206,29 @@ const Home = () => {
     index === self.findIndex(n => n.id === novel.id)
   )
 
-  // Hero banner slides - Replace with your actual banner images and novel IDs
+  // Hero banner slides
   const bannerSlides = [
     {
       id: "banner-1",
-      image: "/images/writers-comp.png",
+      image: "/images/writers-comp.webp",
       externalLink: "https://discord.gg/rMasj5PDPe",
       alt: "Discord Community Banner"
     },
     {
       id: "banner-2",
-      image: "/images/dec-comp-winner.png",
+      image: "/images/dec-comp-winner.webp",
       novelId: "xeypggSi2BR7dYzp7NhO",
       alt: "Dec Comp Banner"
     },
     {
       id: "banner-3",
-      image: "/images/his-dangerous-truth.png",
+      image: "/images/his-dangerous-truth.webp",
       novelId: "erpas9As02OQgKGlXtJ7",
       alt: "Promotion Banner"
     },
     {
       id: "banner-4",
-      image: "/images/the-accidental-landlord.png",
+      image: "/images/the-accidental-landlord.webp",
       novelId: "OgrUd6n4cLlAbh3aKMrm",
       alt: "Promotion Banner"
     },
@@ -246,7 +246,7 @@ const Home = () => {
       />
 
       {/* Hero Banner Section */}
-      <HeroBanner slides={bannerSlides} autoSlideInterval={7000} />
+      <HeroBanner slides={bannerSlides} autoSlideInterval={5000} />
 
       {promotionalNovels.length > 0 && (
         <>

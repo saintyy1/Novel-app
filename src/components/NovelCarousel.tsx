@@ -101,6 +101,7 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
                   src={getFirebaseDownloadUrl(novel.coverSmallImage || novel.coverImage || "/placeholder.svg")}
                   alt={`Cover for ${novel.title}`}
                   className="w-full h-full object-cover"
+                  loading="lazy"
                   onError={() => handleImageError(novel.id)}
                 />
               ) : (
