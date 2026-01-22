@@ -956,7 +956,7 @@ const NovelOverview = () => {
           description={novel.description || `Read ${novel.title} by ${novel.authorName || 'Unknown Author'} for free on NovlNest. ${novel.genres?.join(', ')} novel with ${novel.chapters?.length || 0} chapters.`}
           canonicalUrl={`https://novlnest.com/novel/${novel.id}`}
           keywords={`${novel.title}, ${novel.authorName}, ${novel.genres?.join(', ')}, free novel, online reading, ${novel.genres?.map(g => `${g} novel`).join(', ')}, digital book`}
-          image={novel.coverImage ? `https://novlnest.com${novel.coverImage}` : "https://novlnest.com/images/logo.png"}
+          image={novel.coverImage ? `https://novlnest.com${novel.coverImage}` : "https://novlnest.com/images/app-icon.png"}
           url={`https://novlnest.com/novel/${novel.id}`}
           type="article"
           structuredData={[generateNovelStructuredData(novel), generateBreadcrumbStructuredData(breadcrumbItems)]}
