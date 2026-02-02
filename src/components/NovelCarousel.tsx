@@ -44,7 +44,7 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
   return (
     <section className="py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6 px-4 sm:px-0">
-        <h2 className="text-3xl font-bold text-[#E0E0E0]">{title}</h2>
+        <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-[#E0E0E0]">{title}</h2>
         <Link to={seeAllLink} className="text-purple-400 hover:text-purple-300 transition-colors text-lg font-medium">
           See All
         </Link>

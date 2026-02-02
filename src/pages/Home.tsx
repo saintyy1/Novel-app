@@ -30,7 +30,7 @@ const Home = () => {
           collection(db, "novels"),
           where("published", "==", true),
           where("isPromoted", "==", true),
-          orderBy("views", "desc"),
+          orderBy("createdAt", "desc"),
           limit(7),
         )
         const querySnapshot = await getDocs(promotionalQuery)
