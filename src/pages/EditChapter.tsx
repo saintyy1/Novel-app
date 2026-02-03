@@ -258,6 +258,7 @@ const EditChapter = () => {
             <img
               src={getFirebaseDownloadUrl(novel.coverImage || "/placeholder.svg")}
               alt={novel.title}
+              loading="lazy"
               className="w-20 h-28 object-cover rounded-lg shadow-md"
             />
           )}

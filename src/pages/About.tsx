@@ -15,25 +15,12 @@ const About = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">
-          <div className="flex justify-center mb-6">
-            <div className="h-16 w-16 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
-              <svg
-                className="h-10 w-10 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
-              </svg>
+          <div className="flex justify-center">
+            <div className="w-20 h-20 mx-auto flex items-center justify-center">
+              <img src="../images/logo.png" alt="NovlNest Logo" />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-4">About Novlnest</h1>
+          <h1 className="text-4xl font-bold text-white mb-4">About NovlNest</h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
             A platform where stories come to life and readers discover their next favorite adventure.
           </p>
@@ -44,13 +31,13 @@ const About = () => {
           <div className="prose dark:prose-invert max-w-none">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Our Story</h2>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Novlnest was born from a simple belief: every story deserves to be told, and every reader deserves to
+              NovlNest was born from a simple belief: every story deserves to be told, and every reader deserves to
               find stories that speak to their soul. Founded in 2025, we set out to create a platform that bridges the
               gap between aspiring writers and passionate readers.
             </p>
 
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              In a world where traditional publishing can be challenging to navigate, Novlnest provides a welcoming
+              In a world where traditional publishing can be challenging to navigate, NovlNest provides a welcoming
               space for writers to share their creativity and for readers to discover fresh, diverse voices. Whether
               you're crafting your first short story or your tenth novel, our platform is designed to support your
               journey.
@@ -152,7 +139,7 @@ const About = () => {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 mt-8">Join Our Community</h2>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
               Whether you're a writer looking to share your stories or a reader seeking your next great adventure,
-              Novlnest is here for you. Join thousands of storytellers and story-lovers who have made Novlnest their
+              NovlNest is here for you. Join thousands of storytellers and story-lovers who have made NovlNest their
               literary home.
             </p>
 

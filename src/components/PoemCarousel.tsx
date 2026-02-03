@@ -101,6 +101,7 @@ const PoemCarousel: React.FC<PoemCarouselProps> = ({
                   src={getFirebaseDownloadUrl(poem.coverSmallImage || poem.coverImage || "/placeholder.svg")}
                   alt={`Cover for ${poem.title}`}
                   className="w-full h-full object-cover"
+                  loading="lazy"
                   onError={() => handleImageError(poem.id)}
                 />
               ) : (

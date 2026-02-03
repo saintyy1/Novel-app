@@ -1,44 +1,42 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom"
-import { useEffect } from "react"
-import { logEvent } from "firebase/analytics"
+import { useEffect, lazy, Suspense } from "react"
 import { useAuth } from "./context/AuthContext"
 import { getOrCreateSessionId } from "./utils/sessionUtils"
-import { analytics } from "./firebase/config"
 import ScrollToTop from "./components/ScrollToTop"
 import Navbar from "./components/Navbar"
 import Footer from "./components/Footer"
 import AdminRoute from "./components/AdminRoute"
-import AdminDashboard from "./pages/AdminDashboard"
-import LoginPage from "./pages/LoginPage"
-import Home from "./pages/Home"
-import Promote from "./pages/Promote"
-import PaymentCallback from "./pages/PaymentCallback"
-import Profile from "./pages/Profile"
-import NotificationsPage from "./pages/Notifications"
-import LibraryPage from "./pages/Library"
-import Novels from "./pages/Novels"
-import NovelOverview from "./pages/NovelOverview"
-import NovelRead from "./pages/NovelRead"
-import Poems from "./pages/Poems"
-import PoemOverview from "./pages/PoemOverview"
-import PoemRead from "./pages/PoemRead"
-import AddChapters from "./pages/add-chapters"
-import EditChapter from "./pages/EditChapter"
-import RegisterPage from "./pages/RegisterPage"
-import SubmitNovel from "./pages/SubmitNovel"
-import SubmitPoem from "./pages/SubmitPoem"
-import TermsOfService from "./pages/TermsOfService"
-import PrivacyPolicy from "./pages/PrivacyPolicy"
-import About from "./pages/About"
-import Contact from "./pages/Contact"
-import Support from "./pages/Support"
-import ForgotPassword from "./pages/ForgotPassword"
-import Settings from "./pages/Settings"
-import VerifyEmail from "./pages/VerifyEmail"
-import AuthAction from "./pages/AuthAction"
-import Messages from "./pages/Messages"
-import MyTickets from "./pages/MyTickets"
-import AdminSupport from "./pages/AdminSupport"
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"))
+const LoginPage = lazy(() => import("./pages/LoginPage"))
+const Home = lazy(() => import("./pages/Home"))
+const Promote = lazy(() => import("./pages/Promote"))
+const PaymentCallback = lazy(() => import("./pages/PaymentCallback"))
+const Profile = lazy(() => import("./pages/Profile"))
+const NotificationsPage = lazy(() => import("./pages/Notifications"))
+const LibraryPage = lazy(() => import("./pages/Library"))
+const Novels = lazy(() => import("./pages/Novels"))
+const NovelOverview = lazy(() => import("./pages/NovelOverview"))
+const NovelRead = lazy(() => import("./pages/NovelRead"))
+const Poems = lazy(() => import("./pages/Poems"))
+const PoemOverview = lazy(() => import("./pages/PoemOverview"))
+const PoemRead = lazy(() => import("./pages/PoemRead"))
+const AddChapters = lazy(() => import("./pages/add-chapters"))
+const EditChapter = lazy(() => import("./pages/EditChapter"))
+const RegisterPage = lazy(() => import("./pages/RegisterPage"))
+const SubmitNovel = lazy(() => import("./pages/SubmitNovel"))
+const SubmitPoem = lazy(() => import("./pages/SubmitPoem"))
+const TermsOfService = lazy(() => import("./pages/TermsOfService"))
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"))
+const About = lazy(() => import("./pages/About"))
+const Contact = lazy(() => import("./pages/Contact"))
+const Support = lazy(() => import("./pages/Support"))
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"))
+const Settings = lazy(() => import("./pages/Settings"))
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"))
+const AuthAction = lazy(() => import("./pages/AuthAction"))
+const Messages = lazy(() => import("./pages/Messages"))
+const MyTickets = lazy(() => import("./pages/MyTickets"))
+const AdminSupport = lazy(() => import("./pages/AdminSupport"))
 import { AuthProvider } from "./context/AuthContext"
 import { NotificationProvider } from "./context/NotificationContext"
 import { TranslationProvider } from "./context/TranslationContext"
@@ -76,20 +74,33 @@ function AppContent() {
     // Skip novel and poem pages as they have their own detailed tracking
     const isNovelPage = /^\/novel\/[^/]+(\/read)?$/.test(location.pathname)
     const isPoemPage = /^\/poem\/[^/]+(\/read)?$/.test(location.pathname)
-    
+
     if (!isNovelPage && !isPoemPage) {
-      logEvent(analytics, 'page_view', {
-        page_path: location.pathname,
-        page_location: window.location.href,
-        page_title: document.title,
-        user_type: currentUser ? 'registered' : 'anonymous',
-        user_id: currentUser?.uid || sessionId,
-        timestamp: new Date().toISOString(),
-        referrer: document.referrer,
-        screen_resolution: `${window.screen.width}x${window.screen.height}`,
-        viewport_size: `${window.innerWidth}x${window.innerHeight}`,
-        device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
-      })
+      // Dynamically import analytics to avoid pulling it into the initial bundle
+      ;(async () => {
+        try {
+          const [{ logEvent }, { analytics }] = await Promise.all([
+            import('firebase/analytics'),
+            import('./firebase/config')
+          ])
+
+          logEvent(analytics, 'page_view', {
+            page_path: location.pathname,
+            page_location: window.location.href,
+            page_title: document.title,
+            user_type: currentUser ? 'registered' : 'anonymous',
+            user_id: currentUser?.uid || sessionId,
+            timestamp: new Date().toISOString(),
+            referrer: document.referrer,
+            screen_resolution: `${window.screen.width}x${window.screen.height}`,
+            viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+            device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+          })
+        } catch (e) {
+          // fail silently if analytics can't be loaded
+          console.debug('Analytics load failed', e)
+        }
+      })()
     }
   }, [location, currentUser])
   
@@ -98,47 +109,57 @@ function AppContent() {
       <NavigationLoader />
       {!isNovelReadPage && !isPoemReadPage && <Navbar />}
       <main className={`flex-grow ${!isNovelReadPage && !isPoemReadPage ? "px-3 py-8" : "px-0 py-0"}`}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/promote" element={<Promote />} />
-          <Route path="/PaymentCallback" element={<PaymentCallback />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/library" element={<LibraryPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/auth-action" element={<AuthAction />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/profile/:userId" element={<Profile />} />
-          <Route path="/novels" element={<Novels />} />
-          <Route path="/novels/:type" element={<Novels />} />
-          <Route path="/novel/:id" element={<NovelOverview />} />
-          <Route path="/novel/:id/read" element={<NovelRead />} />
-          <Route path="/poems" element={<Poems />} />
-          <Route path="/poem/:id" element={<PoemOverview />} />
-          <Route path="/poem/:id/read" element={<PoemRead />} />
-          <Route path="/terms-of-service" element={<TermsOfService />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/support" element={<Support />} />
-          <Route path="/messages" element={<Messages />} />
-          <Route
-            path="/admin"
-            element={
-              <AdminRoute>
-                <AdminDashboard />
-              </AdminRoute>
-            }
-          />
-          <Route path="/novel/:id/add-chapters" element={<AddChapters />} />
-          <Route path="/submit" element={<SubmitNovel />} />
-          <Route path="/submit-poem" element={<SubmitPoem />} />
-          <Route path="/novel/:id/edit-chapter/:chapterIndex" element={<EditChapter />} />
-          <Route path="/my-tickets" element={<MyTickets />} />
-          <Route path="/admin-support" element={<AdminSupport />} />
-        </Routes>
+        <Suspense
+          fallback={
+            <div
+              className="w-full animate-pulse bg-[#0b0b0b]"
+              style={{ minHeight: '60vh' }}
+              aria-hidden
+            />
+          }
+        >
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/promote" element={<Promote />} />
+            <Route path="/PaymentCallback" element={<PaymentCallback />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/library" element={<LibraryPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/auth-action" element={<AuthAction />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/profile/:userId" element={<Profile />} />
+            <Route path="/novels" element={<Novels />} />
+            <Route path="/novels/:type" element={<Novels />} />
+            <Route path="/novel/:id" element={<NovelOverview />} />
+            <Route path="/novel/:id/read" element={<NovelRead />} />
+            <Route path="/poems" element={<Poems />} />
+            <Route path="/poem/:id" element={<PoemOverview />} />
+            <Route path="/poem/:id/read" element={<PoemRead />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/support" element={<Support />} />
+            <Route path="/messages" element={<Messages />} />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              }
+            />
+            <Route path="/novel/:id/add-chapters" element={<AddChapters />} />
+            <Route path="/submit" element={<SubmitNovel />} />
+            <Route path="/submit-poem" element={<SubmitPoem />} />
+            <Route path="/novel/:id/edit-chapter/:chapterIndex" element={<EditChapter />} />
+            <Route path="/my-tickets" element={<MyTickets />} />
+            <Route path="/admin-support" element={<AdminSupport />} />
+          </Routes>
+        </Suspense>
       </main>
       {!isNovelReadPage && !isPoemReadPage && <Footer />}
       {/* Mobile Chat Button - Always visible on mobile */}

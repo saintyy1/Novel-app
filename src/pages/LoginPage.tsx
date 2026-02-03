@@ -72,23 +72,10 @@ const LoginPage = () => {
 
         <div className="max-w-md w-full space-y-8">
           <div>
-            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl shadow-lg flex items-center justify-center">
-              <svg
-                className="w-12 h-12 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
-              </svg>
+            <div className="w-20 h-20 mx-auto flex items-center justify-center">
+              <img src="../images/logo.png" alt="NovlNest Logo" />
             </div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
+            <h2 className="text-center text-3xl font-extrabold text-white">
               Welcome back to NovlNest
             </h2>
             <p className="mt-2 text-center text-sm text-gray-400">

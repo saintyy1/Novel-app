@@ -331,6 +331,7 @@ const Promote = () => {
                           <img
                             src={getFirebaseDownloadUrl(book.coverSmallImage || book.coverImage || "/placeholder.svg")}
                             alt={book.title}
+                            loading="lazy"
                             className="w-32 h-48 mx-auto rounded-xl shadow-lg group-hover:scale-105 transition-transform duration-300"
                           />
                         </div>
@@ -379,6 +380,7 @@ const Promote = () => {
                         <img
                           src={getFirebaseDownloadUrl(selectedBook.coverSmallImage || selectedBook.coverImage || "/placeholder.svg")}
                           alt={selectedBook.title}
+                          loading="lazy"
                           className="w-20 h-30 rounded-lg shadow-md"
                         />
                         <div>

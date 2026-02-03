@@ -1928,6 +1928,7 @@ const Profile = () => {
                       <img
                         src={getFirebaseDownloadUrl(selectedNovel.coverImage) || "/placeholder.svg"}
                         alt="Cover"
+                        loading="lazy"
                         className="w-full h-full object-cover group-hover:opacity-90"
                       />
                     ) : (
@@ -2123,6 +2124,7 @@ const Profile = () => {
                       <img
                         src={getFirebaseDownloadUrl(selectedPoem.coverImage) || "/placeholder.svg"}
                         alt="Cover"
+                        loading="lazy"
                         className="w-full h-full object-cover group-hover:opacity-90"
                       />
                     ) : (
