@@ -2,6 +2,7 @@
 import type React from "react"
 import { Link } from "react-router-dom"
 import type { Poem } from "../types/poem"
+import CachedImage from "./CachedImage"
 
 interface PoemCarouselProps {
   title: string
@@ -97,8 +98,8 @@ const PoemCarousel: React.FC<PoemCarouselProps> = ({
               className="flex-shrink-0 w-[calc(50%-1rem)] sm:w-[calc(33.33%-1rem)] md:w-[calc(25%-1rem)] lg:w-[calc(20%-1rem)] xl:w-[calc(16.66%-1rem)] h-64 relative rounded-lg shadow-md overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300"
             >
               {(poem.coverSmallImage || poem.coverImage) && !imageErrors[poem.id] ? (
-                <img
-                  src={getFirebaseDownloadUrl(poem.coverSmallImage || poem.coverImage || "/placeholder.svg")}
+                <CachedImage
+                  uri={getFirebaseDownloadUrl(poem.coverSmallImage || poem.coverImage || "/placeholder.svg")}
                   alt={`Cover for ${poem.title}`}
                   className="w-full h-full object-cover"
                   loading="lazy"

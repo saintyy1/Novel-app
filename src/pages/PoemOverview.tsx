@@ -27,6 +27,7 @@ import { FaXTwitter } from "react-icons/fa6"
 import { Gift } from "lucide-react"
 import SEOHead from "../components/SEOHead"
 import SkeletonLoader from "../components/SkeletonLoader"
+import CachedImage from "../components/CachedImage"
 
 interface Comment {
   id: string
@@ -875,8 +876,8 @@ const PoemOverview = () => {
                 {/* Cover Image */}
                 <div className="w-full md:w-1/3 md:h-auto relative bg-[#070707] sm:h-[400px]">
                   {poem.coverImage ? (
-                    <img
-                      src={getFirebaseDownloadUrl(poem.coverImage || "/placeholder.svg")}
+                    <CachedImage
+                      uri={getFirebaseDownloadUrl(poem.coverImage || "/placeholder.svg")}
                       alt={poem.title}
                       className="w-full h-full object-contain"
                     />

@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom" // Import useParams
 import type { Novel } from "../types/novel"
 import { fetchNovels } from "../services/novelService" // Import the service
 import SEOHead from "../components/SEOHead"
+import CachedImage from "../components/CachedImage"
 import { generateCollectionStructuredData } from "../utils/structuredData"
 
 const Novels: React.FC = () => {
@@ -281,8 +282,8 @@ const Novels: React.FC = () => {
               {/* Image Section (fixed size) */}
               <div className="w-40 h-64 flex-shrink-0 relative">
                 {(novel.coverSmallImage || novel.coverImage) && !imageErrors[novel.id] ? (
-                  <img
-                    src={getFirebaseDownloadUrl(novel.coverSmallImage || novel.coverImage || "/placeholder.svg")}
+                  <CachedImage
+                    uri={getFirebaseDownloadUrl(novel.coverSmallImage || novel.coverImage || "/placeholder.svg")}
                     alt={`Cover for ${novel.title}`}
                     className="w-full h-full object-cover"
                     onError={() => {

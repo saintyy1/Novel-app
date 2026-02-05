@@ -25,6 +25,7 @@ import type { ExtendedUser } from "../context/AuthContext"
 import EditProfileModal from "../components/EditProfileModal" // Import the new modal component
 import UserListDrawer from "../components/UserListDrawer" // Import the new UserListDrawer
 import SEOHead from "../components/SEOHead"
+import CachedImage from "../components/CachedImage"
 import { FaInstagram, FaTimes, FaFacebook, FaWhatsapp, FaCopy, FaShare } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
@@ -1676,8 +1677,8 @@ const Profile = () => {
                       <Link to={novel.published ? `/novel/${novel.id}` : "#"}>
                         <div className="w-full h-full rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                           {novel.coverImage ? (
-                            <img
-                              src={getFirebaseDownloadUrl(novel.coverImage) || "/placeholder.svg"}
+                            <CachedImage
+                              uri={getFirebaseDownloadUrl(novel.coverImage) || "/placeholder.svg"}
                               alt={novel.title}
                               loading="lazy"
                               className="w-full h-full object-cover"
@@ -1809,8 +1810,8 @@ const Profile = () => {
                         <Link to={poem.published ? `/poem/${poem.id}` : "#"}>
                           <div className="w-full h-full rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                             {poem.coverImage ? (
-                              <img
-                                src={getFirebaseDownloadUrl(poem.coverImage) || "/placeholder.svg"}
+                              <CachedImage
+                                uri={getFirebaseDownloadUrl(poem.coverImage) || "/placeholder.svg"}
                                 alt={poem.title}
                                 loading="lazy"
                                 className="w-full h-full object-cover"
@@ -1925,8 +1926,8 @@ const Profile = () => {
                     title="Click to change cover"
                   >
                     {selectedNovel.coverImage ? (
-                      <img
-                        src={getFirebaseDownloadUrl(selectedNovel.coverImage) || "/placeholder.svg"}
+                      <CachedImage
+                        uri={getFirebaseDownloadUrl(selectedNovel.coverImage) || "/placeholder.svg"}
                         alt="Cover"
                         loading="lazy"
                         className="w-full h-full object-cover group-hover:opacity-90"
@@ -2121,8 +2122,8 @@ const Profile = () => {
                     title="Click to change cover"
                   >
                     {selectedPoem.coverImage ? (
-                      <img
-                        src={getFirebaseDownloadUrl(selectedPoem.coverImage) || "/placeholder.svg"}
+                      <CachedImage
+                        uri={getFirebaseDownloadUrl(selectedPoem.coverImage) || "/placeholder.svg"}
                         alt="Cover"
                         loading="lazy"
                         className="w-full h-full object-cover group-hover:opacity-90"

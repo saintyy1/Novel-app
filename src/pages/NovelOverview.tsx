@@ -30,6 +30,7 @@ import { BookOpen } from "lucide-react"
 import SEOHead from "../components/SEOHead"
 import { generateNovelStructuredData, generateBreadcrumbStructuredData } from "../utils/structuredData"
 import SkeletonLoader from "../components/SkeletonLoader"
+import CachedImage from "../components/CachedImage"
 
 interface Comment {
   id: string
@@ -985,8 +986,8 @@ const NovelOverview = () => {
                 {/* Cover Image */}
                 <div className="w-full md:w-1/3 md:h-auto relative bg-[#070707] sm:h-[400px]">
                   {novel.coverImage ? (
-                    <img
-                      src={getFirebaseDownloadUrl(novel.coverImage || "/placeholder.svg")}
+                    <CachedImage
+                      uri={getFirebaseDownloadUrl(novel.coverImage || "/placeholder.svg")}
                       alt={novel.title}
                       className="w-full h-full object-contain"
                     />

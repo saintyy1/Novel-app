@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom"
 import { fetchPoems } from "../services/poemService"
 import type { Poem } from "../types/poem"
 import SEOHead from "../components/SEOHead"
+import CachedImage from "../components/CachedImage"
 
 const Poems = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -255,8 +256,8 @@ const Poems = () => {
               className="flex-shrink-0 w-full h-64 relative rounded-lg shadow-md overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300"
             >
               {poem.coverSmallImage && !imageErrors[poem.id] ? (
-                <img
-                  src={getFirebaseDownloadUrl(poem.coverSmallImage)}
+                <CachedImage
+                  uri={getFirebaseDownloadUrl(poem.coverSmallImage)}
                   alt={`Cover for ${poem.title}`}
                   className="w-full h-full object-cover"
                   onError={() => setImageErrors((prev) => ({ ...prev, [poem.id]: true }))}

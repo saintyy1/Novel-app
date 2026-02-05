@@ -9,6 +9,7 @@ import type { Novel, ChatMessage } from "../types/novel"
 import MDEditor from "@uiw/react-md-editor"
 import rehypeSanitize from "rehype-sanitize"
 import InlineChatEditor from "../components/InlineChatEditor"
+import CachedImage from "../components/CachedImage"
 
 interface Chapter {
   title: string
@@ -228,8 +229,8 @@ const AddChapters = () => {
       <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-8">
         <div className="flex items-start space-x-4">
           {novel?.coverImage && (
-            <img
-              src={getFirebaseDownloadUrl(novel.coverImage || "/placeholder.svg")}
+            <CachedImage
+              uri={getFirebaseDownloadUrl(novel.coverImage || "/placeholder.svg")}
               alt={novel.title}
               className="w-20 h-28 object-cover rounded-lg shadow-md"
               loading="lazy"

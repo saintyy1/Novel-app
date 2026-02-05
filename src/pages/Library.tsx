@@ -10,6 +10,7 @@ import type { Novel } from "../types/novel"
 import type { Poem } from "../types/poem"
 import { BookOpen, BookOpenCheck, BookOpenText } from "lucide-react"
 import SEOHead from "../components/SEOHead"
+import CachedImage from "../components/CachedImage"
 
 const getFirebaseDownloadUrl = (url: string) => {
     if (!url || !url.includes("firebasestorage.app")) {
@@ -196,8 +197,8 @@ const LibraryPage = () => {
       >
         {/* Book Cover */}
         {(novel.coverSmallImage || novel.coverImage) && !currentImageError ? (
-          <img
-            src={getImageSrc() || "/placeholder.svg"}
+          <CachedImage
+            uri={getImageSrc() || "/placeholder.svg"}
             alt={`Cover for ${novel.title}`}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             onError={handleCardImageError}
@@ -303,8 +304,8 @@ const LibraryPage = () => {
       >
         {/* Poem Cover */}
         {(poem.coverSmallImage || poem.coverImage) && !currentImageError ? (
-          <img
-            src={getImageSrc() || "/placeholder.svg"}
+          <CachedImage
+            uri={getImageSrc() || "/placeholder.svg"}
             alt={`Cover for ${poem.title}`}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             onError={handleCardImageError}

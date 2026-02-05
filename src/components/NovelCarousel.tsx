@@ -2,6 +2,7 @@
 import type React from "react"
 import { Link } from "react-router-dom"
 import type { Novel } from "../types/novel"
+import CachedImage from "./CachedImage"
 
 interface NovelCarouselProps {
   title: string
@@ -97,8 +98,8 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
               className="flex-shrink-0 w-[calc(50%-1rem)] sm:w-[calc(33.33%-1rem)] md:w-[calc(25%-1rem)] lg:w-[calc(20%-1rem)] xl:w-[calc(16.66%-1rem)] h-64 relative rounded-lg shadow-md overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300"
             >
               {(novel.coverSmallImage || novel.coverImage) && !imageErrors[novel.id] ? (
-                <img
-                  src={getFirebaseDownloadUrl(novel.coverSmallImage || novel.coverImage || "/placeholder.svg")}
+                <CachedImage
+                  uri={getFirebaseDownloadUrl(novel.coverSmallImage || novel.coverImage || "/placeholder.svg")}
                   alt={`Cover for ${novel.title}`}
                   className="w-full h-full object-cover"
                   loading="lazy"
