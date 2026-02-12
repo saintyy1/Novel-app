@@ -99,7 +99,7 @@ const PoemCarousel: React.FC<PoemCarouselProps> = ({
             >
               {(poem.coverSmallImage || poem.coverImage) && !imageErrors[poem.id] ? (
                 <CachedImage
-                  uri={getFirebaseDownloadUrl(poem.coverSmallImage || poem.coverImage || "/placeholder.svg")}
+                  uri={getFirebaseDownloadUrl(poem.coverSmallImage || poem.coverImage || "")}
                   alt={`Cover for ${poem.title}`}
                   className="w-full h-full object-cover"
                   loading="lazy"

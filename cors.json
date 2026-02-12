@@ -1,0 +1,7 @@
+[
+  {
+    "origin": ["https://www.novlnest.com"],
+    "method": ["GET"],
+    "maxAgeSeconds": 604800
+  }
+]
