@@ -848,7 +848,7 @@ const PoemOverview = () => {
           description={poem.description || `Read ${poem.title} by ${poem.poetName || 'Unknown Poet'} for free on NovlNest. ${poem.genres?.join(', ')} poetry.`}
           canonicalUrl={`https://novlnest.com/poem/${poem.id}`}
           keywords={`${poem.title}, ${poem.poetName}, ${poem.genres?.join(', ')}, poetry, free poem, online reading`}
-          image={poem.coverImage ? `https://novlnest.com${poem.coverImage}` : "https://novlnest.com/images/app-icon.png"}
+          image={poem.coverImage ? `https://novlnest.com${poem.coverImage}` : "https://novlnest.com/images/logo.png"}
           url={`https://novlnest.com/poem/${poem.id}`}
           type="article"
         />
