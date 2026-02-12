@@ -1,6 +1,6 @@
 [
   {
-    "origin": ["https://www.novlnest.com"],
+    "origin": ["https://www.novlnest.com", "https://novlnest.com"],
     "method": ["GET"],
     "maxAgeSeconds": 604800
   }
