@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { collection, query, where, getDocs, orderBy, limit, updateDoc } from "firebase/firestore"
+import { collection, query, where, getDocs, orderBy, limit, updateDoc, onSnapshot } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
 import type { Poem } from "../types/poem"
@@ -12,6 +12,15 @@ import SEOHead from "../components/SEOHead"
 import { generateWebsiteStructuredData, generateBreadcrumbStructuredData, generateCollectionStructuredData } from "../utils/structuredData"
 import { sendPromotionEndedNotification } from "../services/notificationService"
 
+interface BannerSlide {
+  id: string
+  imageUrl: string
+  novelId?: string
+  externalLink?: string
+  title?: string
+  alt?: string
+}
+
 const Home = () => {
   const [promotionalNovels, setPromotionalNovels] = useState<Novel[]>([])
   const [trendingNovels, setTrendingNovels] = useState<Novel[]>([])
@@ -21,6 +30,28 @@ const Home = () => {
   const [loadingTrending, setLoadingTrending] = useState<boolean>(true)
   const [loadingNewReleases, setLoadingNewReleases] = useState<boolean>(true)
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
+  const [banners, setBanners] = useState<BannerSlide[]>([])
+  const [loadingBanners, setLoadingBanners] = useState(true)
+
+  useEffect(() => {
+    const q = query(
+      collection(db, "banners"),
+      where("isActive", "==", true),
+      orderBy("priority", "asc")
+    )
+
+    const unsubscribe = onSnapshot(q, snapshot => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as BannerSlide[]
+
+      setBanners(data)
+      setLoadingBanners(false)
+    })
+
+    return () => unsubscribe()
+  }, [])
 
   useEffect(() => {
     const fetchPromotionalNovels = async () => {
@@ -206,34 +237,6 @@ const Home = () => {
     index === self.findIndex(n => n.id === novel.id)
   )
 
-  // Hero banner slides
-  const bannerSlides = [
-    {
-      id: "banner-1",
-      image: "/images/writers-comp.webp",
-      externalLink: "https://discord.gg/rMasj5PDPe",
-      alt: "Discord Community Banner"
-    },
-    {
-      id: "banner-2",
-      image: "/images/dec-comp-winner.webp",
-      novelId: "xeypggSi2BR7dYzp7NhO",
-      alt: "Dec Comp Banner"
-    },
-    {
-      id: "banner-3",
-      image: "/images/his-dangerous-truth.webp",
-      novelId: "erpas9As02OQgKGlXtJ7",
-      alt: "Promotion Banner"
-    },
-    {
-      id: "banner-4",
-      image: "/images/the-accidental-landlord.webp",
-      novelId: "OgrUd6n4cLlAbh3aKMrm",
-      alt: "Promotion Banner"
-    },
-  ]
-
   return (
     <div className="min-h-screen">
       <SEOHead
@@ -246,7 +249,14 @@ const Home = () => {
       />
 
       {/* Hero Banner Section */}
-      <HeroBanner slides={bannerSlides} autoSlideInterval={5000} />
+      {loadingBanners ? (
+        <div className="flex justify-center items-center h-64">
+          {/* Simple Tailwind Spinner */}
+          <div className="w-12 h-12 border-4 border-t-primary border-gray-200 rounded-full animate-spin"></div>
+        </div>
+      ) : (
+        <HeroBanner slides={banners} autoSlideInterval={5000} />
+      )}
 
       {promotionalNovels.length > 0 && (
         <>

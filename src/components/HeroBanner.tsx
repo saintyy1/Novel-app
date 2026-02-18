@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import CachedImage from "./CachedImage"
 
 interface BannerSlide {
   id: string
-  image: string
+  imageUrl: string
   novelId?: string
   externalLink?: string
   title?: string
@@ -71,16 +72,15 @@ const HeroBanner = ({ slides, autoSlideInterval = 4000 }: HeroBannerProps) => {
         {slides.map((slide, index) => (
           <div
             key={slide.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              index === currentSlide ? "opacity-100 z-10" : "opacity-0 z-0"
-            }`}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? "opacity-100 z-10" : "opacity-0 z-0"
+              }`}
           >
             <div
               onClick={handleBannerClick}
               className="relative w-full h-full cursor-pointer"
             >
-              <img
-                src={slide.image}
+              <CachedImage
+                uri={slide.imageUrl}
                 alt={slide.alt || slide.title || `Banner ${index + 1}`}
                 className="w-full h-full object-cover object-center"
               />
@@ -92,7 +92,7 @@ const HeroBanner = ({ slides, autoSlideInterval = 4000 }: HeroBannerProps) => {
       </div>
 
       {/* Banner Images - Mobile/Tablet (carousel with peek) */}
-      <div 
+      <div
         ref={mobileCarouselRef}
         className="relative w-full h-full md:hidden overflow-x-auto overflow-y-hidden scrollbar-hide snap-x snap-mandatory"
         style={{
@@ -123,8 +123,8 @@ const HeroBanner = ({ slides, autoSlideInterval = 4000 }: HeroBannerProps) => {
               }}
             >
               <div className="relative w-full h-full cursor-pointer rounded-lg overflow-hidden">
-                <img
-                  src={slide.image}
+                <CachedImage
+                  uri={slide.imageUrl}
                   alt={slide.alt || slide.title || `Banner ${index + 1}`}
                   className="w-full h-full object-cover object-center"
                 />
