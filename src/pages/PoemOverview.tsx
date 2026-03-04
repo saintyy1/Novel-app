@@ -136,11 +136,15 @@ const PoemOverview = () => {
             const now = Date.now()
             const twentyFourHours = 24 * 60 * 60 * 1000
             if (!lastViewTimestamp || now - Number(lastViewTimestamp) > twentyFourHours) {
-              await updateDoc(poemDocRef, {
-                views: increment(1),
-              })
-              localStorage.setItem(viewKey, now.toString())
-              setPoem((prev) => (prev ? { ...prev, views: (prev.views || 0) + 1 } : null))
+              try {
+                await updateDoc(poemDocRef, {
+                  views: increment(1),
+                })
+                localStorage.setItem(viewKey, now.toString())
+                setPoem((prev) => (prev ? { ...prev, views: (prev.views || 0) + 1 } : null))
+              } catch (updateError) {
+                console.error("Failed to update view count:", updateError)
+              }
             }
           }
         } else {
@@ -158,50 +162,50 @@ const PoemOverview = () => {
 
   useEffect(() => {
     if (!id) return
-    
+
     // Delay comment fetching to prioritize main content loading
     const commentLoadDelay = setTimeout(() => {
       const commentsQuery = query(collection(db, "poemComments"), where("poemId", "==", id), orderBy("createdAt", "desc"))
       const unsubscribe = onSnapshot(commentsQuery, async (snapshot) => {
         setCommentsLoading(true)
-      const commentsData: Comment[] = []
-      const uniqueUserIds = new Set<string>()
-      snapshot.forEach((doc) => {
-        const comment = { id: doc.id, ...doc.data() } as Comment
-        commentsData.push(comment)
-        uniqueUserIds.add(comment.userId)
-      })
-      const usersMap = new Map<string, { displayName: string; photoURL?: string }>()
-      const userPromises = Array.from(uniqueUserIds).map(async (uid) => {
-        const userDoc = await getDoc(doc(db, "users", uid))
-        if (userDoc.exists()) {
-          const userData = userDoc.data()
-          usersMap.set(uid, {
-            displayName: userData.displayName || "Anonymous",
-            photoURL: userData.photoURL || undefined,
-          })
-        } else {
-          usersMap.set(uid, { displayName: "Deleted User", photoURL: undefined })
-        }
-      })
-      await Promise.all(userPromises)
-      const enrichedComments = commentsData.map((comment) => {
-        const userData = usersMap.get(comment.userId)
-        return {
+        const commentsData: Comment[] = []
+        const uniqueUserIds = new Set<string>()
+        snapshot.forEach((doc) => {
+          const comment = { id: doc.id, ...doc.data() } as Comment
+          commentsData.push(comment)
+          uniqueUserIds.add(comment.userId)
+        })
+        const usersMap = new Map<string, { displayName: string; photoURL?: string }>()
+        const userPromises = Array.from(uniqueUserIds).map(async (uid) => {
+          const userDoc = await getDoc(doc(db, "users", uid))
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            usersMap.set(uid, {
+              displayName: userData.displayName || "Anonymous",
+              photoURL: userData.photoURL || undefined,
+            })
+          } else {
+            usersMap.set(uid, { displayName: "Deleted User", photoURL: undefined })
+          }
+        })
+        await Promise.all(userPromises)
+        const enrichedComments = commentsData.map((comment) => {
+          const userData = usersMap.get(comment.userId)
+          return {
+            ...comment,
+            userName: userData?.displayName || comment.userName,
+            userPhoto: userData?.photoURL || comment.userPhoto,
+          }
+        })
+        const topLevelComments = enrichedComments.filter((comment) => !comment.parentId)
+        const organizedComments = topLevelComments.map((comment) => ({
           ...comment,
-          userName: userData?.displayName || comment.userName,
-          userPhoto: userData?.photoURL || comment.userPhoto,
-        }
+          replies: buildCommentTree(enrichedComments, comment.id),
+        }))
+        setComments(organizedComments)
+        setCommentsLoading(false)
       })
-      const topLevelComments = enrichedComments.filter((comment) => !comment.parentId)
-      const organizedComments = topLevelComments.map((comment) => ({
-        ...comment,
-        replies: buildCommentTree(enrichedComments, comment.id),
-      }))
-      setComments(organizedComments)
-      setCommentsLoading(false)
-    })
-      
+
       // Cleanup function for the snapshot listener
       return () => unsubscribe()
     }, 400) // 400ms delay to prioritize main content
@@ -376,12 +380,12 @@ const PoemOverview = () => {
     try {
       const commentRef = doc(db, "poemComments", commentId)
       const commentDoc = await getDoc(commentRef)
-      
+
       if (!commentDoc.exists()) return
-      
+
       const commentData = commentDoc.data()
       const commentAuthorId = commentData.userId
-      
+
       if (isLiked) {
         await updateDoc(commentRef, {
           likes: increment(-1),
@@ -392,7 +396,7 @@ const PoemOverview = () => {
           likes: increment(1),
           likedBy: arrayUnion(currentUser.uid),
         })
-        
+
         if (commentAuthorId !== currentUser.uid) {
           const notificationQuery = query(
             collection(db, "notifications"),
@@ -401,9 +405,9 @@ const PoemOverview = () => {
             where("type", "==", "comment_like"),
             where("commentId", "==", commentId)
           )
-          
+
           const existingNotifications = await getDocs(notificationQuery)
-          
+
           if (existingNotifications.empty) {
             await addDoc(collection(db, "notifications"), {
               toUserId: commentAuthorId,
@@ -659,11 +663,10 @@ const PoemOverview = () => {
               <button
                 onClick={() => handleCommentLike(comment.id, comment.likedBy?.includes(currentUser?.uid || ""))}
                 disabled={!currentUser}
-                className={`inline-flex items-center text-xs ${
-                  comment.likedBy?.includes(currentUser?.uid || "")
+                className={`inline-flex items-center text-xs ${comment.likedBy?.includes(currentUser?.uid || "")
                     ? "text-red-400"
                     : "text-gray-400 hover:text-red-400"
-                } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
+                  } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
               >
                 <svg
                   className={`h-4 w-4 mr-1 ${comment.likedBy?.includes(currentUser?.uid || "") ? "fill-current" : ""}`}
@@ -853,7 +856,7 @@ const PoemOverview = () => {
           type="article"
         />
       )}
-      
+
       <div className="max-w-7xl mx-auto px-2 lg:px-8 pt-3">
         {/* Header */}
         <div>
@@ -922,9 +925,8 @@ const PoemOverview = () => {
                     <button
                       onClick={handleLike}
                       disabled={!currentUser}
-                      className={`flex items-center transition-colors ${
-                        !currentUser ? "opacity-50 cursor-not-allowed" : "hover:scale-105 cursor-pointer"
-                      } ${liked ? "text-red-400" : "text-gray-300 hover:text-red-400"}`}
+                      className={`flex items-center transition-colors ${!currentUser ? "opacity-50 cursor-not-allowed" : "hover:scale-105 cursor-pointer"
+                        } ${liked ? "text-red-400" : "text-gray-300 hover:text-red-400"}`}
                     >
                       <svg
                         className={`h-5 w-5 mr-2 transition-colors ${liked ? "fill-current text-red-400" : ""}`}
@@ -1137,9 +1139,8 @@ const PoemOverview = () => {
                   </div>
                   <button
                     onClick={handleCopyLink}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      copySuccess ? "bg-green-600 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"
-                    }`}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${copySuccess ? "bg-green-600 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"
+                      }`}
                   >
                     <FaCopy className="h-4 w-4 mr-2" />
                     {copySuccess ? "Copied!" : "Copy"}
@@ -1186,7 +1187,7 @@ const PoemOverview = () => {
             >
               <FaTimes className="h-6 w-6" />
             </button>
-            
+
             <div className="text-center mb-6">
               <Gift className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-white mb-2">Want to tip this poet?</h2>
@@ -1199,15 +1200,15 @@ const PoemOverview = () => {
                 {(() => {
                   const supportLink = poetData.supportLink
                   const isUrl = supportLink?.startsWith('http')
-                  
+
                   if (isUrl) {
                     return (
                       <div className="space-y-2">
                         <div className="flex flex-col justify-between">
                           <span className="text-gray-300">Support Link:</span>
-                          <a 
-                            href={supportLink} 
-                            target="_blank" 
+                          <a
+                            href={supportLink}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-400 hover:text-blue-300 underline break-all"
                           >
@@ -1268,10 +1269,10 @@ const PoemOverview = () => {
                   const supportText = poetData.supportLink
                   if (supportText) {
                     const isUrl = supportText.startsWith('http')
-                    const shareText = isUrl 
+                    const shareText = isUrl
                       ? `Support this poet: ${supportText}`
                       : `Support this poet: ${supportText}`
-                    
+
                     if (navigator.share) {
                       navigator.share({ text: shareText })
                     } else {

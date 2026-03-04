@@ -149,13 +149,17 @@ const NovelOverview = () => {
             const twentyFourHours = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
             if (!lastViewTimestamp || now - Number(lastViewTimestamp) > twentyFourHours) {
               // Increment view count in Firestore
-              await updateDoc(novelDocRef, {
-                views: increment(1),
-              })
-              // Update local storage timestamp
-              localStorage.setItem(viewKey, now.toString())
-              // Update local novel state to reflect new view count
-              setNovel((prev) => (prev ? { ...prev, views: (prev.views || 0) + 1 } : null))
+              try {
+                await updateDoc(novelDocRef, {
+                  views: increment(1),
+                })
+                // Update local storage timestamp
+                localStorage.setItem(viewKey, now.toString())
+                // Update local novel state to reflect new view count
+                setNovel((prev) => (prev ? { ...prev, views: (prev.views || 0) + 1 } : null))
+              } catch (error) {
+                console.error("Failed to update view count:", error)
+              }
             }
           }
         } else {
@@ -173,55 +177,55 @@ const NovelOverview = () => {
 
   useEffect(() => {
     if (!id) return
-    
+
     // Delay comment fetching to prioritize main content loading
     const commentLoadDelay = setTimeout(() => {
       // Fetch all comments for the novel, ordered by creation date descending for top-level comments
       const commentsQuery = query(collection(db, "comments"), where("novelId", "==", id), orderBy("createdAt", "desc"))
       const unsubscribe = onSnapshot(commentsQuery, async (snapshot) => {
         setCommentsLoading(true) // Set loading for comments
-      const commentsData: Comment[] = []
-      const uniqueUserIds = new Set<string>()
-      snapshot.forEach((doc) => {
-        const comment = { id: doc.id, ...doc.data() } as Comment
-        commentsData.push(comment)
-        uniqueUserIds.add(comment.userId)
-      })
-      // Fetch user data for all unique user IDs
-      const usersMap = new Map<string, { displayName: string; photoURL?: string }>()
-      const userPromises = Array.from(uniqueUserIds).map(async (uid) => {
-        const userDoc = await getDoc(doc(db, "users", uid))
-        if (userDoc.exists()) {
-          const userData = userDoc.data()
-          usersMap.set(uid, {
-            displayName: userData.displayName || "Anonymous",
-            photoURL: userData.photoURL || undefined,
-          })
-        } else {
-          // Handle case where user might have been deleted
-          usersMap.set(uid, { displayName: "Deleted User", photoURL: undefined })
-        }
-      })
-      await Promise.all(userPromises)
-      // Enrich comments with latest user data
-      const enrichedComments = commentsData.map((comment) => {
-        const userData = usersMap.get(comment.userId)
-        return {
+        const commentsData: Comment[] = []
+        const uniqueUserIds = new Set<string>()
+        snapshot.forEach((doc) => {
+          const comment = { id: doc.id, ...doc.data() } as Comment
+          commentsData.push(comment)
+          uniqueUserIds.add(comment.userId)
+        })
+        // Fetch user data for all unique user IDs
+        const usersMap = new Map<string, { displayName: string; photoURL?: string }>()
+        const userPromises = Array.from(uniqueUserIds).map(async (uid) => {
+          const userDoc = await getDoc(doc(db, "users", uid))
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            usersMap.set(uid, {
+              displayName: userData.displayName || "Anonymous",
+              photoURL: userData.photoURL || undefined,
+            })
+          } else {
+            // Handle case where user might have been deleted
+            usersMap.set(uid, { displayName: "Deleted User", photoURL: undefined })
+          }
+        })
+        await Promise.all(userPromises)
+        // Enrich comments with latest user data
+        const enrichedComments = commentsData.map((comment) => {
+          const userData = usersMap.get(comment.userId)
+          return {
+            ...comment,
+            userName: userData?.displayName || comment.userName, // Fallback to stored if not found
+            userPhoto: userData?.photoURL || comment.userPhoto, // Fallback to stored if not found
+          }
+        })
+        // Filter for top-level comments and then build the nested tree
+        const topLevelComments = enrichedComments.filter((comment) => !comment.parentId)
+        const organizedComments = topLevelComments.map((comment) => ({
           ...comment,
-          userName: userData?.displayName || comment.userName, // Fallback to stored if not found
-          userPhoto: userData?.photoURL || comment.userPhoto, // Fallback to stored if not found
-        }
+          replies: buildCommentTree(enrichedComments, comment.id),
+        }))
+        setComments(organizedComments)
+        setCommentsLoading(false)
       })
-      // Filter for top-level comments and then build the nested tree
-      const topLevelComments = enrichedComments.filter((comment) => !comment.parentId)
-      const organizedComments = topLevelComments.map((comment) => ({
-        ...comment,
-        replies: buildCommentTree(enrichedComments, comment.id),
-      }))
-      setComments(organizedComments)
-      setCommentsLoading(false)
-    })
-      
+
       // Cleanup function for the snapshot listener
       return () => unsubscribe()
     }, 400) // 400ms delay to prioritize main content
@@ -247,9 +251,9 @@ const NovelOverview = () => {
     try {
       const novelRef = doc(db, "novels", novel.id)
       trackNovelInteraction('like', {
-          novelId: novel.id,
-          userId: currentUser?.uid
-        });
+        novelId: novel.id,
+        userId: currentUser?.uid
+      });
       const newLikeStatus = !liked
       setLiked(newLikeStatus) // Optimistic update
       // Update novel's likes and likedBy array
@@ -424,12 +428,12 @@ const NovelOverview = () => {
     try {
       const commentRef = doc(db, "comments", commentId)
       const commentDoc = await getDoc(commentRef)
-      
+
       if (!commentDoc.exists()) return
-      
+
       const commentData = commentDoc.data()
       const commentAuthorId = commentData.userId
-      
+
       if (isLiked) {
         await updateDoc(commentRef, {
           likes: increment(-1),
@@ -440,7 +444,7 @@ const NovelOverview = () => {
           likes: increment(1),
           likedBy: arrayUnion(currentUser.uid),
         })
-        
+
         // Send notification only when liking (not unliking) and only to comment author if different from current user
         if (commentAuthorId !== currentUser.uid) {
           // Check if notification already exists to prevent spam (check both read and unread)
@@ -451,9 +455,9 @@ const NovelOverview = () => {
             where("type", "==", "comment_like"),
             where("commentId", "==", commentId)
           )
-          
+
           const existingNotifications = await getDocs(notificationQuery)
-          
+
           // Only send notification if none exists (regardless of read status)
           if (existingNotifications.empty) {
             await addDoc(collection(db, "notifications"), {
@@ -737,11 +741,10 @@ const NovelOverview = () => {
               <button
                 onClick={() => handleCommentLike(comment.id, comment.likedBy?.includes(currentUser?.uid || ""))}
                 disabled={!currentUser}
-                className={`inline-flex items-center text-xs ${
-                  comment.likedBy?.includes(currentUser?.uid || "")
+                className={`inline-flex items-center text-xs ${comment.likedBy?.includes(currentUser?.uid || "")
                     ? "text-red-400"
                     : "text-gray-400 hover:text-red-400"
-                } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
+                  } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
               >
                 <svg
                   className={`h-4 w-4 mr-1 ${comment.likedBy?.includes(currentUser?.uid || "") ? "fill-current" : ""}`}
@@ -963,7 +966,7 @@ const NovelOverview = () => {
           structuredData={[generateNovelStructuredData(novel), generateBreadcrumbStructuredData(breadcrumbItems)]}
         />
       )}
-      
+
       <div className="max-w-7xl mx-auto px-2 lg:px-8 pt-3">
         {/* Header */}
         <div>
@@ -1032,9 +1035,8 @@ const NovelOverview = () => {
                     <button
                       onClick={handleLike}
                       disabled={!currentUser}
-                      className={`flex items-center transition-colors ${
-                        !currentUser ? "opacity-50 cursor-not-allowed" : "hover:scale-105 cursor-pointer"
-                      } ${liked ? "text-red-400" : "text-gray-300 hover:text-red-400"}`}
+                      className={`flex items-center transition-colors ${!currentUser ? "opacity-50 cursor-not-allowed" : "hover:scale-105 cursor-pointer"
+                        } ${liked ? "text-red-400" : "text-gray-300 hover:text-red-400"}`}
                     >
                       <svg
                         className={`h-5 w-5 mr-2 transition-colors ${liked ? "fill-current text-red-400" : ""}`}
@@ -1115,11 +1117,10 @@ const NovelOverview = () => {
                       <button
                         onClick={handleMarkAsFinished}
                         disabled={!currentUser}
-                        className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold rounded-xl transition-all duration-200 border transform hover:scale-105 ${
-                          isFinished
+                        className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold rounded-xl transition-all duration-200 border transform hover:scale-105 ${isFinished
                             ? "bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30"
                             : "bg-white/10 hover:bg-white/20 text-white border-white/20 hover:border-white/30"
-                        }`}
+                          }`}
                       >
                         {isFinished ? (
                           <>
@@ -1171,9 +1172,8 @@ const NovelOverview = () => {
               </h2>
               <div className="relative">
                 <p
-                  className={`text-gray-300 leading-relaxed text-base sm:text-lg ${
-                    !isSummaryExpanded ? "line-clamp-5" : ""
-                  }`}
+                  className={`text-gray-300 leading-relaxed text-base sm:text-lg ${!isSummaryExpanded ? "line-clamp-5" : ""
+                    }`}
                 >
                   {novel.summary}
                 </p>
@@ -1341,10 +1341,10 @@ const NovelOverview = () => {
                     </div>
                   )
                 }) || (
-                  <div className="text-center py-8">
-                    <p className="text-gray-400">No chapters available yet.</p>
-                  </div>
-                )}
+                    <div className="text-center py-8">
+                      <p className="text-gray-400">No chapters available yet.</p>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
@@ -1500,9 +1500,8 @@ const NovelOverview = () => {
                   </div>
                   <button
                     onClick={handleCopyLink}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
-                    }`}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
+                      }`}
                   >
                     <FaCopy className="h-4 w-4 mr-2" />
                     {copySuccess ? "Copied!" : "Copy"}
@@ -1549,7 +1548,7 @@ const NovelOverview = () => {
             >
               <FaTimes className="h-6 w-6" />
             </button>
-            
+
             <div className="text-center mb-6">
               <Gift className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-white mb-2">Want to tip this author?</h2>
@@ -1562,16 +1561,16 @@ const NovelOverview = () => {
                 {(() => {
                   const supportLink = authorData.supportLink
                   const isUrl = supportLink?.startsWith('http')
-                  
+
                   if (isUrl) {
                     // For international users with URLs
                     return (
                       <div className="space-y-2">
                         <div className="flex flex-col justify-between">
                           <span className="text-gray-300">Support Link:</span>
-                          <a 
-                            href={supportLink} 
-                            target="_blank" 
+                          <a
+                            href={supportLink}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-400 hover:text-blue-300 underline break-all"
                           >
@@ -1633,10 +1632,10 @@ const NovelOverview = () => {
                   const supportText = authorData.supportLink
                   if (supportText) {
                     const isUrl = supportText.startsWith('http')
-                    const shareText = isUrl 
+                    const shareText = isUrl
                       ? `Support this author: ${supportText}`
                       : `Support this author: ${supportText}`
-                    
+
                     if (navigator.share) {
                       navigator.share({ text: shareText })
                     } else {

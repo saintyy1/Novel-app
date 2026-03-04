@@ -169,20 +169,20 @@ const Home = () => {
     const fetchNewReleasePoems = async () => {
       setLoadingNewReleases(true)
       try {
-        const newReleaseQuery = query(
+        const poemQuery = query(
           collection(db, "poems"),
           where("published", "==", true),
           orderBy("views", "desc"),
           limit(7),
         )
-        const querySnapshot = await getDocs(newReleaseQuery)
-        const newReleaseData: Poem[] = []
+        const querySnapshot = await getDocs(poemQuery)
+        const poemData: Poem[] = []
         querySnapshot.forEach((doc) => {
-          newReleaseData.push({ id: doc.id, ...doc.data() } as Poem)
+          poemData.push({ id: doc.id, ...doc.data() } as Poem)
         })
-        setTrendingPoems(newReleaseData)
+        setTrendingPoems(poemData)
       } catch (error) {
-        console.error("Error fetching new release novels:", error)
+        console.error("Error fetching new release poems:", error)
       } finally {
         setLoadingNewReleases(false)
       }
