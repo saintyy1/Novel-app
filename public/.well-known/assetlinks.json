@@ -1,0 +1,14 @@
+[
+    {
+        "relation": [
+            "delegate_permission/common.handle_all_urls"
+        ],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "com.novlnest",
+            "sha256_cert_fingerprints": [
+                "3E:EF:25:3B:C6:42:25:26:13:D1:A3:FA:E4:F0:B5:3F:2D:25:C6:E2:63:5E:13:A1:34:5A:B3:98:36:FD:27:C6"
+            ]
+        }
+    }
+]
