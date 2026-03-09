@@ -18,6 +18,10 @@ const Footer: React.FC = () => {
             <p className="mt-4 text-base text-gray-400">
               From new voices to hidden gems, explore novels created and shared by real storytellers.
             </p>
+            <div className="mt-4 space-y-2">
+              <Link to="/best-wattpad-alternative" className="block text-xs text-gray-500 hover:text-purple-400">Best Wattpad Alternative</Link>
+              <Link to="/top-novel-websites" className="block text-xs text-gray-500 hover:text-purple-400">Top Novel Websites</Link>
+            </div>
           </div>
 
           <div>

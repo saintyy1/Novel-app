@@ -39,6 +39,9 @@ import AuthAction from "./pages/AuthAction"
 import Messages from "./pages/Messages"
 import MyTickets from "./pages/MyTickets"
 import AdminSupport from "./pages/AdminSupport"
+import WattpadAlternative from "./pages/WattpadAlternative"
+import TopNovelWebsites from "./pages/TopNovelWebsites"
+import SitemapIndex from "./pages/SitemapIndex"
 import { AuthProvider } from "./context/AuthContext"
 import { NotificationProvider } from "./context/NotificationContext"
 import { TranslationProvider } from "./context/TranslationContext"
@@ -52,19 +55,19 @@ function AppContent() {
   const { currentUser } = useAuth()
   const isNovelReadPage = /^\/novel\/[^/]+\/read$/.test(location.pathname)
   const isPoemReadPage = /^\/poem\/[^/]+\/read$/.test(location.pathname)
-  
+
   // Wrapper component to access chat context
   function MobileChatButtonWrapper() {
     const { state: chatState } = useChat()
-    const totalUnreadCount = Array.isArray(chatState?.conversations) 
+    const totalUnreadCount = Array.isArray(chatState?.conversations)
       ? chatState.conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0)
       : 0
-    
+
     // Hide mobile chat button on NovelRead page to prevent interference with page navigation
     if (isNovelReadPage || isPoemReadPage) {
       return null
     }
-  
+
     return <MobileChatButton unreadCount={totalUnreadCount} />
   }
 
@@ -76,7 +79,7 @@ function AppContent() {
     // Skip novel and poem pages as they have their own detailed tracking
     const isNovelPage = /^\/novel\/[^/]+(\/read)?$/.test(location.pathname)
     const isPoemPage = /^\/poem\/[^/]+(\/read)?$/.test(location.pathname)
-    
+
     if (!isNovelPage && !isPoemPage) {
       logEvent(analytics, 'page_view', {
         page_path: location.pathname,
@@ -92,7 +95,7 @@ function AppContent() {
       })
     }
   }, [location, currentUser])
-  
+
   return (
     <div className="min-h-screen bg-[#121212] flex flex-col">
       <NavigationLoader />
@@ -138,6 +141,10 @@ function AppContent() {
           <Route path="/novel/:id/edit-chapter/:chapterIndex" element={<EditChapter />} />
           <Route path="/my-tickets" element={<MyTickets />} />
           <Route path="/admin-support" element={<AdminSupport />} />
+          <Route path="/best-wattpad-alternative" element={<WattpadAlternative />} />
+          <Route path="/top-novel-websites" element={<TopNovelWebsites />} />
+          <Route path="/free-novel-platform" element={<TopNovelWebsites />} />
+          <Route path="/sitemap" element={<SitemapIndex />} />
         </Routes>
       </main>
       {!isNovelReadPage && !isPoemReadPage && <Footer />}
@@ -147,21 +154,25 @@ function AppContent() {
   )
 }
 
+import { HelmetProvider } from "react-helmet-async"
+
 function App() {
   return (
-    <Router>
-      <ScrollToTop />
-      <AuthProvider>
-        <NotificationProvider>
-          <TranslationProvider>
-            <ChatProvider>
-              <AppContent />
-            </ChatProvider>
-          </TranslationProvider>
-        </NotificationProvider>
-      </AuthProvider>
-      <ToastContainer />
-    </Router>
+    <HelmetProvider>
+      <Router>
+        <ScrollToTop />
+        <AuthProvider>
+          <NotificationProvider>
+            <TranslationProvider>
+              <ChatProvider>
+                <AppContent />
+              </ChatProvider>
+            </TranslationProvider>
+          </NotificationProvider>
+        </AuthProvider>
+        <ToastContainer />
+      </Router>
+    </HelmetProvider>
   )
 }
 

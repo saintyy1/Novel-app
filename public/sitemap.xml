@@ -1,19 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://novlnest.com/</loc>
+    <loc>https://novlnest.com</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://novlnest.com/login</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://novlnest.com/register</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
   </url>
   <url>
     <loc>https://novlnest.com/novels</loc>
@@ -27,54 +17,317 @@
   </url>
   <url>
     <loc>https://novlnest.com/promote</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://novlnest.com/notifications</loc>
     <changefreq>daily</changefreq>
-    <priority>0.5</priority>
+    <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://novlnest.com/library</loc>
+    <loc>https://novlnest.com/about</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/contact</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/terms-of-service</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/privacy</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/best-wattpad-alternative</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/top-novel-websites</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/free-novel-platform</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/sitemap</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/37aFeh1cr16Mzv3bYauQ</loc>
+    <lastmod>2026-03-05T14:08:33.111861Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/3ocsH4O84krIIEhPkf86</loc>
+    <lastmod>2026-03-06T20:22:34.358297Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/7jxB6rAOeCUGMwtgd4Nk</loc>
+    <lastmod>2026-03-07T23:23:57.680120Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/7xocYvBB2pT4PHNlyzJU</loc>
+    <lastmod>2026-01-19T00:51:18.235817Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/APACiiFgh2vMgTnOvQ7H</loc>
+    <lastmod>2026-03-06T20:28:24.420449Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/OgrUd6n4cLlAbh3aKMrm</loc>
+    <lastmod>2026-03-07T22:53:20.953174Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/QcsFoVG71OB2UZp4teIP</loc>
+    <lastmod>2026-02-07T17:22:01.621092Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/R0yCnUZmTLZ0b5AsohXS</loc>
+    <lastmod>2025-10-24T13:21:59.752333Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/SEgCEsoOEwMCIgR37AyU</loc>
+    <lastmod>2026-03-06T20:22:06.499945Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/Vbwdf7JRUxkWajp1f8ak</loc>
+    <lastmod>2026-03-08T22:22:56.367511Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/Vl9xzKIGbTHXRGXoNMdK</loc>
+    <lastmod>2026-02-12T08:24:24.371116Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/YIdloB7VUKHGvZTv0ylB</loc>
+    <lastmod>2025-11-08T22:51:17.336871Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/dCov3baWOXxhy2ppQzkx</loc>
+    <lastmod>2026-03-06T20:10:30.623558Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/erpas9As02OQgKGlXtJ7</loc>
+    <lastmod>2026-03-07T14:05:25.679894Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/fdslsB1J46XJJOkGoNkm</loc>
+    <lastmod>2026-03-05T17:39:45.947382Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/fshMy77nW6NPawIppKn4</loc>
+    <lastmod>2026-03-05T14:05:02.782913Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/hrRxrmmcRGYpfuyWP1v3</loc>
+    <lastmod>2026-03-06T21:49:10.687898Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/iyHmuMpJwrVVZlQZxuMq</loc>
+    <lastmod>2026-03-06T21:48:54.337760Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/m7JJGRH2EPaEfKP2gGSy</loc>
+    <lastmod>2026-03-06T20:11:41.827053Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/nqCpxMo5aCjZNf3ud0CD</loc>
+    <lastmod>2026-02-11T15:03:00.640200Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/pldAr8E0livLOBE56QIu</loc>
+    <lastmod>2026-03-06T20:11:27.754013Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/qDybRRopqO2GzuHEqLUK</loc>
+    <lastmod>2026-03-06T20:30:34.815022Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/smj7zLcWt7l6HgWurCYw</loc>
+    <lastmod>2026-02-05T18:43:43.445052Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/tdi0NOyFhTbRjXLrbA3Q</loc>
+    <lastmod>2026-03-07T17:53:29.822555Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/two-worlds-one-fire</loc>
+    <lastmod>2026-03-07T17:52:38.010833Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/upS9jAhTiB619I7lEsoi</loc>
+    <lastmod>2026-03-07T23:23:38.145112Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/v1vVDZoHRiZIWMXZQXEh</loc>
+    <lastmod>2026-03-05T14:07:06.326963Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/xeypggSi2BR7dYzp7NhO</loc>
+    <lastmod>2026-03-06T20:31:06.739451Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/novel/xtWGf9dIzzUSdY5FZAe8</loc>
+    <lastmod>2026-01-30T12:05:27.732993Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/poem/0eoXcul0OVjOo285G6oh</loc>
+    <lastmod>2026-03-04T06:16:04.857845Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://novlnest.com/submit</loc>
-    <changefreq>monthly</changefreq>
+    <loc>https://novlnest.com/poem/0pqu0z9bc7PV8tsX5QV5</loc>
+    <lastmod>2026-03-04T06:09:12.108546Z</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://novlnest.com/terms-of-service</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://novlnest.com/poem/0qwGEX5nUZmxYyxXfXWW</loc>
+    <lastmod>2026-03-06T10:25:45.901627Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://novlnest.com/privacy</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://novlnest.com/poem/2ErzDqp4xhfyUh9AuVrY</loc>
+    <lastmod>2026-03-05T14:45:49.204489Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://novlnest.com/about</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://novlnest.com/poem/3A5DijQvSfq93XAYzh2y</loc>
+    <lastmod>2026-03-04T06:20:49.844635Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://novlnest.com/contact</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://novlnest.com/poem/61TOFt9IznwvO7JEntjV</loc>
+    <lastmod>2026-03-04T22:38:47.778790Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://novlnest.com/support</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://novlnest.com/poem/7vj2gJjshkbfjpgrpSv2</loc>
+    <lastmod>2026-02-05T18:42:12.694039Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://novlnest.com/messages</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.4</priority>
+    <loc>https://novlnest.com/poem/9PWSbgGgId5uYd0CnEuQ</loc>
+    <lastmod>2026-03-04T06:21:07.799513Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/poem/DlzZgcv1itRLBFoALRqP</loc>
+    <lastmod>2026-02-01T11:48:39.672554Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/poem/LTWxdDwhblNS8mk7ahLS</loc>
+    <lastmod>2026-03-06T15:52:02.124254Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/poem/S3btGVXM7h7gYDqq8P8g</loc>
+    <lastmod>2026-03-05T14:43:06.373556Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/poem/TtdyeGtNpjjgWNG9WuI7</loc>
+    <lastmod>2026-03-05T15:49:50.626021Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/poem/dwMmuPOFowGOYr1xVlse</loc>
+    <lastmod>2025-12-10T16:11:30.368799Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/poem/ihiLT1tcnOjEBVuNWxuh</loc>
+    <lastmod>2026-03-07T04:00:02.088675Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/poem/lFjMpkgwxZ5QyUvE8JcV</loc>
+    <lastmod>2026-03-06T20:23:11.477474Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://novlnest.com/poem/vGFaPaJRSZ6UO6JTnpX4</loc>
+    <lastmod>2026-03-05T14:41:41.869085Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
 </urlset>
-
-
