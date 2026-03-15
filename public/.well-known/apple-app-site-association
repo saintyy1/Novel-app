@@ -5,6 +5,14 @@
             {
                 "appID": "NV886J4Q64.com.tolu.novlnest",
                 "paths": [
+                    "NOT /auth-action*",
+                    "NOT /verify-email*",
+                    "NOT /forgot-password*",
+                    "NOT /login*",
+                    "NOT /register*",
+                    "NOT /privacy*",
+                    "NOT /terms-of-service*",
+                    "NOT /sitemap*",
                     "*"
                 ]
             }
