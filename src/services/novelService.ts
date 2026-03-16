@@ -6,7 +6,7 @@ interface FetchNovelsOptions {
   filter?: string // 'all', 'user', 'ai'
   genre?: string // 'all', specific genre
   searchQuery?: string
-  sortOrder?: string // 'default', 'trending', 'new-releases'
+  sortOrder?: string // 'default', 'trending', 'new-releases', 'promotional', 'timeless-stories'
 }
 
 export const fetchNovels = async ({
@@ -24,15 +24,17 @@ export const fetchNovels = async ({
 
     // Apply primary sorting based on sortOrder from URL or default
     if (sortOrder === "trending") {
-      q = query(q, orderBy("views", "desc"))
+      q = query(q, where("publicDomain", "==", false), orderBy("views", "desc"))
     } else if (sortOrder === "new-releases") {
-      q = query(q, orderBy("createdAt", "desc"))
+      q = query(q, where("publicDomain", "==", false), orderBy("createdAt", "desc"))
     } else if (sortOrder === "promotional") {
-      q = query(q, where("isPromoted", "==", true), orderBy("promotionStartDate", "desc"))
+      q = query(q, where("isPromoted", "==", true), where("publicDomain", "==", false), orderBy("promotionStartDate", "desc"))
+    } else if (sortOrder === "timeless-stories") {
+      q = query(q, where("publicDomain", "==", true), orderBy("views", "desc"))
     }
     else {
       // Default sorting for 'all' or other filters
-      q = query(q, orderBy("createdAt", "desc"))
+      q = query(q, where("publicDomain", "==", false), orderBy("createdAt", "desc"))
     }
 
     // Apply AI/User filter if specified (these apply on top of the sort order)

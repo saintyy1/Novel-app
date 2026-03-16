@@ -26,9 +26,11 @@ const Home = () => {
   const [trendingNovels, setTrendingNovels] = useState<Novel[]>([])
   const [newReleaseNovels, setNewReleaseNovels] = useState<Novel[]>([])
   const [trendingPoems, setTrendingPoems] = useState<Poem[]>([])
+  const [timelessStories, setTimelessStories] = useState<Novel[]>([])
   const [loadingPromotional, setLoadingPromotional] = useState<boolean>(true)
   const [loadingTrending, setLoadingTrending] = useState<boolean>(true)
   const [loadingNewReleases, setLoadingNewReleases] = useState<boolean>(true)
+  const [loadingTimelessStories, setLoadingTimelessStories] = useState<boolean>(true)
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
   const [banners, setBanners] = useState<BannerSlide[]>([])
   const [loadingBanners, setLoadingBanners] = useState(true)
@@ -147,6 +149,7 @@ const Home = () => {
         const newReleaseQuery = query(
           collection(db, "novels"),
           where("published", "==", true),
+          where("publicDomain", "==", false),
           orderBy("createdAt", "desc"),
           limit(7),
         )
@@ -163,6 +166,32 @@ const Home = () => {
       }
     }
     fetchNewReleaseNovels()
+  }, [])
+
+  useEffect(() => {
+    const fetchTimelessStories = async () => {
+      setLoadingTimelessStories(true)
+      try {
+        const timelessQuery = query(
+          collection(db, "novels"),
+          where("published", "==", true),
+          where("publicDomain", "==", true),
+          orderBy("views", "desc"),
+          limit(7),
+        )
+        const querySnapshot = await getDocs(timelessQuery)
+        const timelessData: Novel[] = []
+        querySnapshot.forEach((doc) => {
+          timelessData.push({ id: doc.id, ...doc.data() } as Novel)
+        })
+        setTimelessStories(timelessData)
+      } catch (error) {
+        console.error("Error fetching timeless stories:", error)
+      } finally {
+        setLoadingTimelessStories(false)
+      }
+    }
+    fetchTimelessStories()
   }, [])
 
   useEffect(() => {
@@ -287,6 +316,16 @@ const Home = () => {
         novels={newReleaseNovels}
         loading={loadingNewReleases}
         seeAllLink="/novels/new-releases"
+        imageErrors={imageErrors}
+        handleImageError={handleImageError}
+        getGenreColorClass={getGenreColorClass}
+      />
+
+      <NovelCarousel
+        title="Timeless Stories"
+        novels={timelessStories}
+        loading={loadingTimelessStories}
+        seeAllLink="/novels/timeless-stories"
         imageErrors={imageErrors}
         handleImageError={handleImageError}
         getGenreColorClass={getGenreColorClass}

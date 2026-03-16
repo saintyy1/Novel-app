@@ -78,7 +78,7 @@ const WattpadAlternative = () => {
                                 <div className="h-3 w-3 rounded-full bg-yellow-500 mr-2"></div>
                                 <div className="h-3 w-3 rounded-full bg-green-500"></div>
                             </div>
-                            <h4 className="text-white font-mono text-sm mb-2">Waitpad vs NovlNest</h4>
+                            <h4 className="text-white font-mono text-sm mb-2">Wattpad vs NovlNest</h4>
                             <div className="space-y-2">
                                 <div className="flex justify-between text-xs py-2 border-b border-white/5">
                                     <span className="text-gray-500">Feature</span>

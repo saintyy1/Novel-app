@@ -35,4 +35,6 @@ export interface Novel {
   ratingCount?: number
   coverImage?: string | null
   coverSmallImage?: string | null
+  publicDomain: boolean
+
 }
