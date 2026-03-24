@@ -12,6 +12,7 @@ import ReactMarkdown from "react-markdown"
 import { useSwipeable } from "react-swipeable"
 import { useRef as useReactRef } from "react"
 import { BookOpen, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Trash2, Reply } from "lucide-react"
+import { withCache, CACHE_TTL, invalidateCache } from "../utils/cache"
 
 interface Comment {
   id: string
@@ -1131,10 +1132,15 @@ const NovelRead = () => {
 
       try {
         setLoading(true)
-        const novelDoc = await getDoc(doc(db, "novels", id))
+        const novelData = await withCache(`novel_${id}`, async () => {
+          const novelDoc = await getDoc(doc(db, "novels", id))
+          if (novelDoc.exists()) {
+            return { id: novelDoc.id, ...novelDoc.data() } as Novel
+          }
+          return null
+        }, CACHE_TTL.CONTENT)
 
-        if (novelDoc.exists()) {
-          const novelData = { id: novelDoc.id, ...novelDoc.data() } as Novel
+        if (novelData) {
           setNovel(novelData)
 
           if (novelData.hasGraphicContent && !hasAcknowledgedWarning) {
@@ -1185,10 +1191,13 @@ const NovelRead = () => {
     const fetchChapterData = async () => {
       if (!novel) return
       try {
-        const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
-        const chapterDoc = await getDoc(chapterRef)
-        if (chapterDoc.exists()) {
-          const chapterData = chapterDoc.data()
+        const chapterData = await withCache(`chapter_${novel.id}_${currentChapter}`, async () => {
+          const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+          const chapterDoc = await getDoc(chapterRef)
+          return chapterDoc.exists() ? chapterDoc.data() : { chapterLikes: 0, chapterLikedBy: [], comments: [] }
+        }, CACHE_TTL.CONTENT)
+        
+        if (chapterData) {
           setChapterLiked(currentUser ? chapterData.chapterLikedBy?.includes(currentUser.uid) || false : false)
           setChapterLikes(chapterData.chapterLikes || 0)
           // Organize comments with replies
@@ -1266,6 +1275,10 @@ const NovelRead = () => {
         }
       }
 
+      // 🔥 Invalidate relevant caches
+      await invalidateCache(`chapter_${novel.id}_${currentChapter}`)
+      await invalidateCache(`novel_${novel.id}`)
+
       // Send notification to novel author when chapter is liked (not unliked)
       if (newLikeStatus && novel.authorId !== currentUser.uid) {
         await addDoc(collection(db, "notifications"), {
@@ -1320,6 +1333,10 @@ const NovelRead = () => {
           comments: updatedComments,
         })
       }
+
+      // 🔥 Invalidate relevant caches
+      await invalidateCache(`chapter_${novel.id}_${currentChapter}`)
+      await invalidateCache(`novel_${novel.id}`)
 
       // Send notification to novel author if different from current user
       if (novel.authorId !== currentUser.uid) {
@@ -1376,6 +1393,10 @@ const NovelRead = () => {
       await updateDoc(chapterRef, {
         comments: updatedComments,
       })
+
+      // 🔥 Invalidate relevant caches
+      await invalidateCache(`chapter_${novel.id}_${currentChapter}`)
+      await invalidateCache(`novel_${novel.id}`)
 
       // Send notification to novel author if different from current user
       if (novel.authorId !== currentUser.uid) {
@@ -1445,6 +1466,11 @@ const NovelRead = () => {
       await updateDoc(chapterRef, {
         comments: updatedComments,
       })
+      
+      // 🔥 Invalidate relevant caches
+      await invalidateCache(`chapter_${novel.id}_${currentChapter}`)
+      await invalidateCache(`novel_${novel.id}`)
+      
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
     } catch (error) {
@@ -1491,6 +1517,10 @@ const NovelRead = () => {
       await updateDoc(chapterRef, {
         comments: updatedComments,
       })
+      
+      // 🔥 Invalidate relevant caches
+      await invalidateCache(`chapter_${novel.id}_${currentChapter}`)
+      await invalidateCache(`novel_${novel.id}`)
       
       // Send notification only when liking (not unliking) and only to comment author if different from current user
       if (!isLiked && commentAuthorId !== currentUser.uid) {

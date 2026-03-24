@@ -1,29 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { getOrDownloadImage } from '../utils/cache';
 
 type Props = React.ImgHTMLAttributes<HTMLImageElement> & {
   uri?: string | null;
   placeholderColor?: string; // kept for API parity
-};
-
-const CACHE_NAME = 'image-cache-v1';
-
-const ensureCache = async () => {
-  await caches.open(CACHE_NAME);
-};
-
-const sha256 = async (input: string) => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-};
-
-const getFileExtension = (url: string) => {
-  const clean = url.split('?')[0];
-  const match = clean.match(/\.([0-9a-zA-Z]+)$/);
-  return match ? `.${match[1]}` : '.jpg';
 };
 
 export default function CachedImage({
@@ -32,7 +12,7 @@ export default function CachedImage({
   className,
   ...rest
 }: Props) {
-  const [localUri, setLocalUri] = useState<string | null>(null);
+  const [displayUri, setDisplayUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -40,41 +20,25 @@ export default function CachedImage({
 
     const load = async () => {
       if (!uri) {
-        setLocalUri(null);
+        setDisplayUri(null);
         return;
       }
 
-      if (uri.startsWith('data:') || uri.startsWith('blob:')) {
-        setLocalUri(uri);
+      // Handle local protocols
+      if (uri.startsWith('data:') || uri.startsWith('blob:') || uri.startsWith('file:')) {
+        setDisplayUri(uri);
         return;
       }
 
       setLoading(true);
 
       try {
-        await ensureCache();
-
-        const hash = await sha256(uri);
-        const ext = getFileExtension(uri);
-        const cacheKey = `/image-cache/${hash}${ext}`;
-
-        const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(cacheKey);
-
-        if (cached) {
-          const blob = await cached.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          if (mounted) setLocalUri(objectUrl);
-        } else {
-          const response = await fetch(uri, { mode: 'cors' });
-          await cache.put(cacheKey, response.clone());
-
-          const blob = await response.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          if (mounted) setLocalUri(objectUrl);
-        }
-      } catch {
-        if (mounted) setLocalUri(uri);
+        const result = await getOrDownloadImage(uri);
+        if (mounted) setDisplayUri(result);
+      } catch (err) {
+        console.warn(`[CachedImage] Error loading ${uri}:`, err);
+        // Fallback to original URI on error
+        if (mounted) setDisplayUri(uri);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -86,43 +50,40 @@ export default function CachedImage({
     };
   }, [uri]);
 
-  if (!uri && !localUri) return null;
+  if (!uri && !displayUri) return null;
 
-  return loading && !localUri ? (
-    <div
-      className={`flex items-center justify-center ${className ?? ''}`}
-      style={{ backgroundColor: placeholderColor }}
-    >
-      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-    </div>
-  ) : (
+  // Show loading spinner only if we don't have a URI yet
+  if (loading && !displayUri) {
+    return (
+      <div
+        className={`flex items-center justify-center ${className ?? ''}`}
+        style={{ backgroundColor: placeholderColor }}
+      >
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+      </div>
+    );
+  }
+
+  return (
     <img
       {...rest}
-      src={localUri ?? uri ?? undefined}
+      src={displayUri ?? uri ?? undefined}
       className={className}
+      onError={(e) => {
+        // Fallback to original URI if blobUrl fails (rare but possible if revoked)
+        const target = e.target as HTMLImageElement;
+        if (displayUri && displayUri !== uri) {
+          target.src = uri!;
+        }
+      }}
     />
   );
 }
 
-/* ===========================
-   Cache management utilities
-   =========================== */
-
+/**
+ * Legacy export for backward compatibility if needed elsewhere
+ */
 export async function clearImageCache() {
-  await caches.delete(CACHE_NAME);
-}
-
-export async function invalidateCacheForUrl(url: string) {
-  if (!url) return;
-
-  try {
-    const hash = await sha256(url);
-    const ext = getFileExtension(url);
-    const cacheKey = `/image-cache/${hash}${ext}`;
-
-    const cache = await caches.open(CACHE_NAME);
-    await cache.delete(cacheKey);
-  } catch {
-    // ignore
-  }
+  await caches.delete('image-cache-v1');
+  await caches.delete('novelnest-image-cache');
 }

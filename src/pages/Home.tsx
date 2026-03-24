@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { collection, query, where, getDocs, orderBy, limit, updateDoc, onSnapshot } from "firebase/firestore"
+import { collection, query, where, getDocs, orderBy, limit, updateDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
 import type { Poem } from "../types/poem"
@@ -11,6 +11,7 @@ import HeroBanner from "../components/HeroBanner"
 import SEOHead from "../components/SEOHead"
 import { generateWebsiteStructuredData, generateBreadcrumbStructuredData, generateCollectionStructuredData } from "../utils/structuredData"
 import { sendPromotionEndedNotification } from "../services/notificationService"
+import { withCache, CACHE_TTL } from "../utils/cache"
 
 interface BannerSlide {
   id: string
@@ -36,75 +37,77 @@ const Home = () => {
   const [loadingBanners, setLoadingBanners] = useState(true)
 
   useEffect(() => {
-    const q = query(
-      collection(db, "banners"),
-      where("isActive", "==", true),
-      orderBy("priority", "asc")
-    )
-
-    const unsubscribe = onSnapshot(q, snapshot => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as BannerSlide[]
-
-      setBanners(data)
-      setLoadingBanners(false)
-    })
-
-    return () => unsubscribe()
+    const fetchBanners = async () => {
+      try {
+        const data = await withCache("home_banners", async () => {
+          const q = query(
+            collection(db, "banners"),
+            where("isActive", "==", true),
+            orderBy("priority", "asc")
+          )
+          const snapshot = await getDocs(q)
+          return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as BannerSlide[]
+        }, CACHE_TTL.FEED, (data) => data.map(b => b.imageUrl))
+        setBanners(data)
+      } catch (error) {
+        console.error("Error fetching banners:", error)
+      } finally {
+        setLoadingBanners(false)
+      }
+    }
+    fetchBanners()
   }, [])
 
   useEffect(() => {
     const fetchPromotionalNovels = async () => {
       setLoadingPromotional(true)
       try {
-        const promotionalQuery = query(
-          collection(db, "novels"),
-          where("published", "==", true),
-          where("isPromoted", "==", true),
-          orderBy("createdAt", "desc"),
-          limit(7),
-        )
-        const querySnapshot = await getDocs(promotionalQuery)
-        const promotionalData: Novel[] = []
+        const promotionalData = await withCache("home_promotional", async () => {
+          const promotionalQuery = query(
+            collection(db, "novels"),
+            where("published", "==", true),
+            where("isPromoted", "==", true),
+            orderBy("createdAt", "desc"),
+            limit(7),
+          )
+          const querySnapshot = await getDocs(promotionalQuery)
+          const dataList: Novel[] = []
+          const now = new Date()
 
-        const now = new Date()
+          for (const docSnap of querySnapshot.docs) {
+            const data = docSnap.data() as any
+            const endDate = data.promotionEndDate?.toDate?.() || data.promotionEndDate
 
-        for (const docSnap of querySnapshot.docs) {
-          const data = docSnap.data() as any
-          const endDate = data.promotionEndDate?.toDate?.() || data.promotionEndDate
-
-          if (endDate && endDate < now) {
-            // Send notification to the author that their promotion has ended
-            // Only send once - check if notification hasn't been sent yet
-            if (!data.promotionEndNotificationSent) {
-              try {
-                await sendPromotionEndedNotification(
-                  data.authorId,
-                  docSnap.id,
-                  data.title
-                )
-                console.log(`Promotion ended notification sent for novel: ${data.title}`)
-              } catch (error) {
-                console.error("Error sending promotion ended notification:", error)
+            if (endDate && endDate < now) {
+              if (!data.promotionEndNotificationSent) {
+                try {
+                  await sendPromotionEndedNotification(
+                    data.authorId,
+                    docSnap.id,
+                    data.title
+                  )
+                } catch (error) {
+                  console.error("Error sending notification:", error)
+                }
               }
+              await updateDoc(docSnap.ref, {
+                isPromoted: false,
+                promotionStartDate: null,
+                promotionEndDate: null,
+                reference: null,
+                promotionPlan: null,
+                promotionEndNotificationSent: true
+              })
+            } else {
+              dataList.push({ id: docSnap.id, ...data } as Novel)
             }
-
-            // Mark that notification has been sent
-            await updateDoc(docSnap.ref, {
-              isPromoted: false,
-              promotionStartDate: null,
-              promotionEndDate: null,
-              reference: null,
-              promotionPlan: null,
-              promotionEndNotificationSent: true
-            })
-          } else {
-            promotionalData.push({ id: docSnap.id, ...data } as Novel)
           }
-        }
-
+          return dataList
+        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage))
+        
         setPromotionalNovels(promotionalData)
       } catch (error) {
         console.error("Error fetching promotional novels:", error)
@@ -112,7 +115,6 @@ const Home = () => {
         setLoadingPromotional(false)
       }
     }
-
     fetchPromotionalNovels()
   }, [])
 
@@ -120,18 +122,17 @@ const Home = () => {
     const fetchTrendingNovels = async () => {
       setLoadingTrending(true)
       try {
-        const trendingQuery = query(
-          collection(db, "novels"),
-          where("published", "==", true),
-          where("isPromoted", "!=", true),
-          orderBy("views", "desc"),
-          limit(7),
-        )
-        const querySnapshot = await getDocs(trendingQuery)
-        const trendingData: Novel[] = []
-        querySnapshot.forEach((doc) => {
-          trendingData.push({ id: doc.id, ...doc.data() } as Novel)
-        })
+        const trendingData = await withCache("home_trending", async () => {
+          const trendingQuery = query(
+            collection(db, "novels"),
+            where("published", "==", true),
+            where("isPromoted", "!=", true),
+            orderBy("views", "desc"),
+            limit(7),
+          )
+          const querySnapshot = await getDocs(trendingQuery)
+          return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Novel))
+        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage))
         setTrendingNovels(trendingData)
       } catch (error) {
         console.error("Error fetching trending novels:", error)
@@ -146,18 +147,17 @@ const Home = () => {
     const fetchNewReleaseNovels = async () => {
       setLoadingNewReleases(true)
       try {
-        const newReleaseQuery = query(
-          collection(db, "novels"),
-          where("published", "==", true),
-          where("publicDomain", "==", false),
-          orderBy("createdAt", "desc"),
-          limit(7),
-        )
-        const querySnapshot = await getDocs(newReleaseQuery)
-        const newReleaseData: Novel[] = []
-        querySnapshot.forEach((doc) => {
-          newReleaseData.push({ id: doc.id, ...doc.data() } as Novel)
-        })
+        const newReleaseData = await withCache("home_new_releases", async () => {
+          const newReleaseQuery = query(
+            collection(db, "novels"),
+            where("published", "==", true),
+            where("publicDomain", "==", false),
+            orderBy("createdAt", "desc"),
+            limit(7),
+          )
+          const querySnapshot = await getDocs(newReleaseQuery)
+          return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Novel))
+        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage))
         setNewReleaseNovels(newReleaseData)
       } catch (error) {
         console.error("Error fetching new release novels:", error)
@@ -172,18 +172,17 @@ const Home = () => {
     const fetchTimelessStories = async () => {
       setLoadingTimelessStories(true)
       try {
-        const timelessQuery = query(
-          collection(db, "novels"),
-          where("published", "==", true),
-          where("publicDomain", "==", true),
-          orderBy("views", "desc"),
-          limit(7),
-        )
-        const querySnapshot = await getDocs(timelessQuery)
-        const timelessData: Novel[] = []
-        querySnapshot.forEach((doc) => {
-          timelessData.push({ id: doc.id, ...doc.data() } as Novel)
-        })
+        const timelessData = await withCache("home_timeless", async () => {
+          const timelessQuery = query(
+            collection(db, "novels"),
+            where("published", "==", true),
+            where("publicDomain", "==", true),
+            orderBy("views", "desc"),
+            limit(7),
+          )
+          const querySnapshot = await getDocs(timelessQuery)
+          return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Novel))
+        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage))
         setTimelessStories(timelessData)
       } catch (error) {
         console.error("Error fetching timeless stories:", error)
@@ -198,20 +197,19 @@ const Home = () => {
     const fetchNewReleasePoems = async () => {
       setLoadingNewReleases(true)
       try {
-        const poemQuery = query(
-          collection(db, "poems"),
-          where("published", "==", true),
-          orderBy("views", "desc"),
-          limit(7),
-        )
-        const querySnapshot = await getDocs(poemQuery)
-        const poemData: Poem[] = []
-        querySnapshot.forEach((doc) => {
-          poemData.push({ id: doc.id, ...doc.data() } as Poem)
-        })
+        const poemData = await withCache("home_trending_poems", async () => {
+          const poemQuery = query(
+            collection(db, "poems"),
+            where("published", "==", true),
+            orderBy("views", "desc"),
+            limit(7),
+          )
+          const querySnapshot = await getDocs(poemQuery)
+          return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Poem))
+        }, CACHE_TTL.FEED, (data) => data.map(p => p.coverImage))
         setTrendingPoems(poemData)
       } catch (error) {
-        console.error("Error fetching new release poems:", error)
+        console.error("Error fetching trending poems:", error)
       } finally {
         setLoadingNewReleases(false)
       }

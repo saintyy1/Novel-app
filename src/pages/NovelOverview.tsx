@@ -31,6 +31,7 @@ import SEOHead from "../components/SEOHead"
 import { generateNovelStructuredData, generateBreadcrumbStructuredData } from "../utils/structuredData"
 import SkeletonLoader from "../components/SkeletonLoader"
 import CachedImage from "../components/CachedImage"
+import { withCache, CACHE_TTL, invalidateCache, invalidateByPrefix } from "../utils/cache"
 
 interface Comment {
   id: string
@@ -122,27 +123,32 @@ const NovelOverview = () => {
       try {
         setLoading(true)
         setError("")
-        const novelDocRef = doc(db, "novels", id)
-        const novelDoc = await getDoc(novelDocRef)
-        if (novelDoc.exists()) {
-          const novelData = novelDoc.data() as Novel
-          setNovel({
-            ...novelData,
-            id: novelDoc.id,
-          } as Novel)
+        
+        const novelData = await withCache(`novel_${id}`, async () => {
+          const novelDocRef = doc(db, "novels", id)
+          const novelDoc = await getDoc(novelDocRef)
+          if (novelDoc.exists()) {
+            return { id: novelDoc.id, ...novelDoc.data() } as Novel
+          }
+          return null
+        }, CACHE_TTL.CONTENT)
+
+        if (novelData) {
+          setNovel(novelData)
           if (currentUser && novelData.likedBy?.includes(currentUser.uid)) {
             setLiked(true)
           } else {
             setLiked(false)
           }
           // Set finished status based on fetched data and user's finishedReads
-          if (currentUser && currentUser.finishedReads?.includes(novelDoc.id)) {
+          if (currentUser && currentUser.finishedReads?.includes(novelData.id)) {
             setIsFinished(true)
           } else {
             setIsFinished(false)
           }
           // Handle view count increment for unique users
           if (currentUser) {
+            const novelDocRef = doc(db, "novels", id)
             const viewKey = `novel_view_${id}_${currentUser.uid}`
             const lastViewTimestamp = localStorage.getItem(viewKey)
             const now = Date.now()
@@ -263,6 +269,12 @@ const NovelOverview = () => {
       })
       // Update user's library
       await updateUserLibrary(novel.id, newLikeStatus, novel.title, novel.authorId)
+      
+      // 🔥 Invalidate cache for this novel and the general lists
+      await invalidateCache(`novel_${novel.id}`)
+      await invalidateByPrefix("novels_")
+      await invalidateByPrefix("home_") // Refresh Home page trending/new releases
+
       // Re-fetch novel data to ensure consistency
       const updatedNovelDoc = await getDoc(novelRef)
       if (updatedNovelDoc.exists()) {
@@ -321,6 +333,10 @@ const NovelOverview = () => {
 
       setNewComment("")
       showSuccessToast("Comment posted successfully!")
+
+      // 🔥 Invalidate cache for this novel
+      await invalidateCache(`novel_${novel.id}`)
+
     } catch (error) {
       console.error("Error submitting comment:", error)
       showErrorToast("Failed to post comment")
@@ -349,7 +365,6 @@ const NovelOverview = () => {
       const parentCommentDoc = await getDoc(doc(db, "comments", parentId))
       const parentCommentData = parentCommentDoc.exists() ? parentCommentDoc.data() : null
       const parentCommentAuthorId = parentCommentData?.userId
-      const parentCommentContent = parentCommentData?.content
 
       // Add notification for the novel's author (if different from current user)
       if (novel.authorId !== currentUser.uid) {
@@ -399,6 +414,10 @@ const NovelOverview = () => {
       setReplyContent("")
       setReplyingTo(null)
       showSuccessToast("Reply posted successfully!")
+
+      // 🔥 Invalidate cache for this novel
+      await invalidateCache(`novel_${novel.id}`)
+
     } catch (error) {
       console.error("Error submitting reply:", error)
       showErrorToast("Failed to post reply")
@@ -594,6 +613,10 @@ const NovelOverview = () => {
       await markNovelAsFinished(novel.id, novel.title, novel.authorId)
       setIsFinished(!currentlyFinished)
       showSuccessToast(!currentlyFinished ? "Novel marked as finished!" : "Novel unmarked as finished.")
+
+      // 🔥 Invalidate cache for this novel
+      await invalidateCache(`novel_${novel.id}`)
+
     } catch (error) {
       console.error("Error marking novel as finished:", error)
       showErrorToast("Failed to update finished status.")

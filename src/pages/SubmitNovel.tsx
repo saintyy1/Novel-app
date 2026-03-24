@@ -16,6 +16,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import InlineChatEditor from "../components/InlineChatEditor"
 import type { ChatMessage } from "../types/novel"
 import SEOHead from "../components/SEOHead"
+import { invalidateCache, invalidateByPrefix } from "../utils/cache"
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -258,15 +259,15 @@ const SubmitNovel = () => {
         for (let i = 1; i <= numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          
+
           // Collect all items with their positions and font sizes
           textContent.items.forEach((item: any) => {
             const text = item.str.trim();
             if (!text) return;
-            
+
             const y = item.transform[5];
             const fontSize = item.transform[0]; // Font size/scale
-            
+
             structuredLines.push({
               text,
               y,
@@ -289,41 +290,41 @@ const SubmitNovel = () => {
 
         structuredLines.forEach((line, index) => {
           const { text, y, pageNum } = line;
-          
+
           // Page break detection
           if (pageNum !== lastPageNum) {
             currentPageText += '\n\n';
             lastPageNum = pageNum;
             lastY = y;
           }
-          
+
           // Detect paragraph breaks based on Y position
           if (index > 0 && pageNum === lastPageNum) {
             const yDiff = Math.abs(y - lastY);
-            
+
             // Get the last few characters to check for word boundaries
             const lastChars = currentPageText.slice(-10).trim();
-            const endsWithPartialWord = lastChars.length > 0 && 
+            const endsWithPartialWord = lastChars.length > 0 &&
               !/[\s\.\,\!\?\:\;\-\n]$/.test(lastChars);
-            
+
             // Check if current text starts with lowercase (likely continuation)
             const startsWithLowercase = /^[a-z]/.test(text);
-            
+
             // Check if the previous text ended with sentence-ending punctuation
             const endsWithSentence = /[.!?]["']?\s*$/.test(currentPageText.trimEnd());
-            
+
             // Adjusted thresholds for better paragraph detection
             // Large Y difference + sentence ended = paragraph break
             // This ensures multiple sentences stay together unless there's a real gap
             if (yDiff > 12 && endsWithSentence) {
               currentPageText += '\n\n';
-            } 
+            }
             // Medium Y difference = just a space (keep sentences together in paragraph)
             else if (yDiff > 2) {
               if (currentPageText && !currentPageText.endsWith(' ') && !currentPageText.endsWith('\n')) {
                 currentPageText += ' ';
               }
-            } 
+            }
             // Very small Y difference = same line, add space or join word
             else if (yDiff <= 2) {
               // Don't add space if the last text ends with partial word and this starts lowercase
@@ -335,7 +336,7 @@ const SubmitNovel = () => {
               }
             }
           }
-          
+
           currentPageText += text;
           lastY = y;
         });
@@ -344,7 +345,7 @@ const SubmitNovel = () => {
 
         // First normalize excessive newlines but KEEP single/double newlines for chapter detection
         fullText = fullText.replace(/\n{3,}/g, '\n\n');
-        
+
         // Check for broken chapter patterns
         const brokenChapterCheck = fullText.match(/C\s+hapter|CHAPT\s+ER/gi);
         if (brokenChapterCheck) {
@@ -353,40 +354,40 @@ const SubmitNovel = () => {
 
         // Enhanced chapter detection with multiple strategies
         let chapters: { title: string; content: string }[] = [];
-        
+
         // Strategy 1: Look for explicit chapter markers in the text
         // First, try to fix any broken "C hapter" patterns
         fullText = fullText.replace(/C\s+hapter/gi, 'Chapter');
         fullText = fullText.replace(/CHAPT\s+ER/gi, 'CHAPTER');
-        
+
         // More flexible regex that handles various spacing and formats
         // Match chapter headers - we'll clean up subtitle extraction in post-processing
         const chapterRegex = /(?:^|\n\n)\s*((?:Chapter|CHAPTER|Ch\.?)\s+(?:\d+|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Eleven|Twelve|Thirteen|Fourteen|Fifteen|Sixteen|Seventeen|Eighteen|Nineteen|Twenty|[IVX]+)(?:\s*[:\-—–][^\n]+)?)/gi;
-        
+
         const matches = Array.from(fullText.matchAll(chapterRegex));
-        
+
         if (matches.length > 0) {
           matches.forEach((match, index) => {
             const fullChapterTitle = match[1].trim();
-            
+
             // Extract clean subtitle first (e.g., "Chapter One - The Beginning" -> "The Beginning")
             let chapterTitle = fullChapterTitle;
             let cleanChapterHeader = fullChapterTitle; // The actual chapter header without sentence content
-            
+
             // Match everything after the separator
             const subtitleMatch = fullChapterTitle.match(/^((?:Chapter|CHAPTER|Ch\.?)\s+(?:\d+|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Eleven|Twelve|Thirteen|Fourteen|Fifteen|Sixteen|Seventeen|Eighteen|Nineteen|Twenty|[IVX]+)\s*[:\-—–])\s*(.+)$/i);
-            
+
             if (subtitleMatch && subtitleMatch[2]) {
               const chapterPrefix = subtitleMatch[1]; // "Chapter Two –"
               let subtitle = subtitleMatch[2].trim();
-              
+
               // Clean up: Remove any sentence content that might be attached
               // Look for pattern: "Subtitle SentenceStart" where SentenceStart is Capital followed by lowercase word
               // This detects when a sentence starts: "Reckoning The air" → subtitle is "Reckoning"
               // Subtitles are usually title-case words, sentences have lowercase words after the first
               const sentencePattern = /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,4}?)\s+([A-Z][a-z]+\s+[a-z])/;
               const cleanMatch = subtitle.match(sentencePattern);
-              
+
               if (cleanMatch) {
                 // Found sentence attached, use only the subtitle part
                 chapterTitle = cleanMatch[1].trim();
@@ -404,12 +405,12 @@ const SubmitNovel = () => {
                 cleanChapterHeader = chapterTitle;
               }
             }
-            
+
             // Calculate content start: find where the clean header ends in the original text
             const chapterStartPos = match.index!;
             const cleanHeaderInText = fullText.indexOf(cleanChapterHeader, chapterStartPos);
             let contentStartPos;
-            
+
             if (cleanHeaderInText !== -1) {
               // Start after the clean header
               contentStartPos = cleanHeaderInText + cleanChapterHeader.length;
@@ -421,23 +422,23 @@ const SubmitNovel = () => {
               // Fallback: use position after the full match
               contentStartPos = match.index! + match[0].length;
             }
-            
+
             const endPos = index < matches.length - 1 ? matches[index + 1].index! : fullText.length;
             const chapterContent = fullText.substring(contentStartPos, endPos).trim();
-            
+
             // Now normalize the chapter content (join single newlines, keep paragraph breaks)
             let normalizedContent = chapterContent;
-            
+
             // Remove any single newlines (join sentences in same paragraph)
             // But preserve double newlines (actual paragraph breaks)
             normalizedContent = normalizedContent.replace(/([^\n])\n([^\n])/g, '$1 $2');
-            
+
             // Clean up multiple spaces
             normalizedContent = normalizedContent.replace(/ {2,}/g, ' ');
-            
+
             // Clean up any trailing/leading whitespace on each paragraph
             normalizedContent = normalizedContent.split('\n\n').map(para => para.trim()).join('\n\n');
-            
+
             if (normalizedContent.length > 50) { // Only add if there's substantial content
               chapters.push({
                 title: chapterTitle,
@@ -446,12 +447,12 @@ const SubmitNovel = () => {
             } else {
             }
           });
-        } 
-        
+        }
+
         // Strategy 2: If few or no chapters found, try page breaks
         if (chapters.length <= 1 && numPages > 1) {
           const pageTexts = fullText.split(/\n{4,}/); // Split on large gaps
-          
+
           if (pageTexts.length > 1) {
             chapters = pageTexts
               .filter(text => text.trim().length > 100)
@@ -460,14 +461,14 @@ const SubmitNovel = () => {
                 const lines = text.trim().split('\n');
                 const firstLine = lines[0].trim();
                 const isChapterTitle = /^(Chapter|CHAPTER)/i.test(firstLine) && firstLine.length < 50;
-                
+
                 let content = isChapterTitle ? lines.slice(1).join('\n').trim() : text.trim();
-                
+
                 // Normalize content
                 content = content.replace(/([^\n])\n([^\n])/g, '$1 $2');
                 content = content.replace(/ {2,}/g, ' ');
                 content = content.split('\n\n').map(para => para.trim()).join('\n\n');
-                
+
                 if (isChapterTitle) {
                   return {
                     title: firstLine,
@@ -482,31 +483,31 @@ const SubmitNovel = () => {
               });
           }
         }
-        
+
         // Fallback: If still no chapters, treat as single chapter
         if (chapters.length === 0) {
           let content = fullText.trim();
-          
+
           // Normalize content
           content = content.replace(/([^\n])\n([^\n])/g, '$1 $2');
           content = content.replace(/ {2,}/g, ' ');
           content = content.split('\n\n').map(para => para.trim()).join('\n\n');
-          
+
           chapters = [{
             title: "Chapter 1",
             content: content
           }];
         }
-        
+
         setChapters(chapters);
-        
+
         // Show success message with chapter count
         if (chapters.length > 1) {
           setParseError("");
         } else {
           setParseError(`Note: Only 1 chapter detected. If your PDF has multiple chapters, ensure they're clearly marked with "Chapter X" headers.`);
         }
-        
+
       } catch (error) {
         console.error("PDF parsing failed:", error);
         setParseError("Failed to parse PDF file.");
@@ -586,6 +587,7 @@ const SubmitNovel = () => {
         authorName: currentUser?.displayName,
         isPromoted: false,
         published: false,
+        publicDomain: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         coverImage: coverUrl || null,
@@ -593,6 +595,11 @@ const SubmitNovel = () => {
         likes: 0,
         views: 0,
       })
+
+      // 🔥 Invalidate relevant caches
+      await invalidateByPrefix("novels_")
+      await invalidateByPrefix("home_")
+      await invalidateCache("home_new_releases")
 
       navigate(`/profile/${currentUser?.uid}`)
       alert("Your novel has been submitted for review!")
@@ -806,8 +813,8 @@ const SubmitNovel = () => {
                 <label
                   key={genre}
                   className={`flex items-center justify-center px-3 py-2.5 rounded-lg border-2 ${genres.includes(genre)
-                      ? "bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border-purple-500/50 text-purple-200 shadow-lg shadow-purple-900/20"
-                      : "bg-gray-900/30 border-purple-900/20 text-gray-400 hover:bg-gray-900/50 hover:border-purple-800/30"
+                    ? "bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border-purple-500/50 text-purple-200 shadow-lg shadow-purple-900/20"
+                    : "bg-gray-900/30 border-purple-900/20 text-gray-400 hover:bg-gray-900/50 hover:border-purple-800/30"
                     } cursor-pointer transition-all text-sm font-medium`}
                 >
                   <input
@@ -831,8 +838,8 @@ const SubmitNovel = () => {
             </label>
             <div className="flex gap-4">
               <label className={`flex items-center px-4 py-2.5 rounded-lg border-2 cursor-pointer transition-all ${hasGraphicContent === true
-                  ? "bg-gradient-to-br from-red-900/30 to-orange-900/30 border-red-500/50 text-red-200"
-                  : "bg-gray-900/30 border-purple-900/20 text-gray-400 hover:bg-gray-900/50"
+                ? "bg-gradient-to-br from-red-900/30 to-orange-900/30 border-red-500/50 text-red-200"
+                : "bg-gray-900/30 border-purple-900/20 text-gray-400 hover:bg-gray-900/50"
                 }`}>
                 <input
                   type="radio"
@@ -845,8 +852,8 @@ const SubmitNovel = () => {
                 <span className="font-medium">Yes</span>
               </label>
               <label className={`flex items-center px-4 py-2.5 rounded-lg border-2 cursor-pointer transition-all ${hasGraphicContent === false
-                  ? "bg-gradient-to-br from-green-900/30 to-emerald-900/30 border-green-500/50 text-green-200"
-                  : "bg-gray-900/30 border-purple-900/20 text-gray-400 hover:bg-gray-900/50"
+                ? "bg-gradient-to-br from-green-900/30 to-emerald-900/30 border-green-500/50 text-green-200"
+                : "bg-gray-900/30 border-purple-900/20 text-gray-400 hover:bg-gray-900/50"
                 }`}>
                 <input
                   type="radio"

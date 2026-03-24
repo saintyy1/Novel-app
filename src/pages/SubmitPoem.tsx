@@ -9,6 +9,7 @@ import { ref, uploadBytes } from "firebase/storage"
 import { db, storage } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import SEOHead from "../components/SEOHead"
+import { invalidateCache, invalidateByPrefix } from "../utils/cache"
 
 const SubmitPoem = () => {
   const { currentUser } = useAuth()
@@ -244,6 +245,7 @@ const SubmitPoem = () => {
         poetName: currentUser?.displayName,
         isPromoted: false,
         published: false,
+        publicDomain: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         coverImage: coverUrl || null,
@@ -251,6 +253,11 @@ const SubmitPoem = () => {
         likes: 0,
         views: 0,
       })
+
+      // 🔥 Invalidate relevant caches
+      await invalidateByPrefix("poems_")
+      await invalidateByPrefix("home_")
+      await invalidateCache("home_trending_poems")
 
       navigate(`/profile/${currentUser?.uid}`)
       alert("Your poem has been submitted for review!")
@@ -463,8 +470,8 @@ const SubmitPoem = () => {
                   <label
                     key={genre}
                     className={`flex items-center justify-center px-3 py-2.5 rounded-lg border-2 ${genres.includes(genre)
-                        ? "bg-gradient-to-br from-rose-900/40 to-pink-900/40 border-rose-500/50 text-rose-200 shadow-lg shadow-rose-900/20"
-                        : "bg-gray-900/30 border-rose-900/20 text-gray-400 hover:bg-gray-900/50 hover:border-rose-800/30"
+                      ? "bg-gradient-to-br from-rose-900/40 to-pink-900/40 border-rose-500/50 text-rose-200 shadow-lg shadow-rose-900/20"
+                      : "bg-gray-900/30 border-rose-900/20 text-gray-400 hover:bg-gray-900/50 hover:border-rose-800/30"
                       } cursor-pointer transition-all text-sm font-medium`}
                   >
                     <input

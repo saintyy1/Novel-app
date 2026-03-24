@@ -1,6 +1,7 @@
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Poem } from "../types/poem"
+import { withCache, CACHE_TTL } from "../utils/cache"
 
 interface FetchPoemsOptions {
   genre?: string // 'all', specific genre
@@ -14,33 +15,37 @@ export const fetchPoems = async ({
   sortOrder = "new-releases",
 }: FetchPoemsOptions = {}): Promise<Poem[]> => {
   try {
-    const baseQuery = collection(db, "poems")
-    let q: any
+    const cacheKey = `poems_${genre}_${sortOrder}`
 
-    // Start with published poems
-    q = query(baseQuery, where("published", "==", true))
+    let poemsData = await withCache(cacheKey, async () => {
+      const baseQuery = collection(db, "poems")
+      let q: any
 
-    // Apply sorting based on sortOrder from URL
-    if (sortOrder === "trending") {
-      q = query(q, orderBy("views", "desc"))
-    } else if (sortOrder === "promotional") {
-      q = query(q, where("isPromoted", "==", true), orderBy("promotionStartDate", "desc"))
-    } else {
-      // Default to newest releases
-      q = query(q, orderBy("createdAt", "desc"))
-    }
+      // Start with published poems
+      q = query(baseQuery, where("published", "==", true))
 
-    const querySnapshot = await getDocs(q)
-    let poemsData: Poem[] = []
-    querySnapshot.forEach((doc) => {
-      const data = doc.data() as Omit<Poem, 'id'>;
-      poemsData.push({ id: doc.id, ...data });
-    })
+      // Apply sorting based on sortOrder from URL
+      if (sortOrder === "trending") {
+        q = query(q, orderBy("views", "desc"))
+      } else if (sortOrder === "promotional") {
+        q = query(q, where("isPromoted", "==", true), orderBy("promotionStartDate", "desc"))
+      } else {
+        // Default to newest releases
+        q = query(q, orderBy("createdAt", "desc"))
+      }
+
+      const querySnapshot = await getDocs(q)
+      const fetchedData: Poem[] = []
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as Omit<Poem, 'id'>
+        fetchedData.push({ id: doc.id, ...data })
+      })
+
+      return fetchedData
+    }, CACHE_TTL.FEED, (data) => data.map(p => p.coverImage)) // 🔥 Pre-fetch covers
 
     // Client-side filtering for genre and search query
-    if (genre !== "all") {
-      poemsData = poemsData.filter((poem) => poem.genres.includes(genre))
-    }
+    // Search is handled quickly over cached data
     if (searchQuery) {
       const lowerCaseQuery = searchQuery.toLowerCase()
       poemsData = poemsData.filter(

@@ -4,6 +4,7 @@ import { doc, getDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Poem } from "../types/poem"
 import SEOHead from "../components/SEOHead"
+import { withCache, CACHE_TTL } from "../utils/cache"
 import { useAuth } from "../context/AuthContext"
 
 const PoemRead = () => {
@@ -24,9 +25,15 @@ const PoemRead = () => {
       if (!id) return
 
       try {
-        const poemDoc = await getDoc(doc(db, "poems", id))
-        if (poemDoc.exists()) {
-          const poemData = { id: poemDoc.id, ...poemDoc.data() } as Poem
+        const poemData = await withCache(`poem_${id}`, async () => {
+          const poemDoc = await getDoc(doc(db, "poems", id))
+          if (poemDoc.exists()) {
+            return { id: poemDoc.id, ...poemDoc.data() } as Poem
+          }
+          return null
+        }, CACHE_TTL.CONTENT)
+        
+        if (poemData) {
           setPoem(poemData)
         }
       } catch (error) {

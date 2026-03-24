@@ -28,6 +28,7 @@ import { Gift } from "lucide-react"
 import SEOHead from "../components/SEOHead"
 import SkeletonLoader from "../components/SkeletonLoader"
 import CachedImage from "../components/CachedImage"
+import { withCache, CACHE_TTL, invalidateCache, invalidateByPrefix } from "../utils/cache"
 
 interface Comment {
   id: string
@@ -116,14 +117,18 @@ const PoemOverview = () => {
       try {
         setLoading(true)
         setError("")
-        const poemDocRef = doc(db, "poems", id)
-        const poemDoc = await getDoc(poemDocRef)
-        if (poemDoc.exists()) {
-          const poemData = poemDoc.data() as Poem
-          setPoem({
-            ...poemData,
-            id: poemDoc.id,
-          } as Poem)
+        
+        const poemData = await withCache(`poem_${id}`, async () => {
+          const poemDocRef = doc(db, "poems", id)
+          const poemDoc = await getDoc(poemDocRef)
+          if (poemDoc.exists()) {
+            return { id: poemDoc.id, ...poemDoc.data() } as Poem
+          }
+          return null
+        }, CACHE_TTL.CONTENT)
+
+        if (poemData) {
+          setPoem(poemData)
           if (currentUser && poemData.likedBy?.includes(currentUser.uid)) {
             setLiked(true)
           } else {
@@ -131,6 +136,7 @@ const PoemOverview = () => {
           }
           // Handle view count increment for unique users
           if (currentUser) {
+            const poemDocRef = doc(db, "poems", id)
             const viewKey = `poem_view_${id}_${currentUser.uid}`
             const lastViewTimestamp = localStorage.getItem(viewKey)
             const now = Date.now()
@@ -238,6 +244,12 @@ const PoemOverview = () => {
       })
       // Update user's poem library
       await updatePoemLibrary(poem.id, newLikeStatus, poem.title, poem.poetId)
+
+      // 🔥 Invalidate cache for this poem and the general lists
+      await invalidateCache(`poem_${poem.id}`)
+      await invalidateByPrefix("poems_")
+      await invalidateByPrefix("home_") // Refresh Home page trending poems
+
       // Re-fetch poem data to ensure consistency
       const updatedPoemDoc = await getDoc(poemRef)
       if (updatedPoemDoc.exists()) {
@@ -286,6 +298,10 @@ const PoemOverview = () => {
 
       setNewComment("")
       showSuccessToast("Comment posted successfully!")
+
+      // 🔥 Invalidate cache for this poem
+      await invalidateCache(`poem_${poem.id}`)
+
     } catch (error) {
       console.error("Error submitting comment:", error)
       showErrorToast("Failed to post comment")
@@ -351,6 +367,10 @@ const PoemOverview = () => {
       setReplyContent("")
       setReplyingTo(null)
       showSuccessToast("Reply posted successfully!")
+
+      // 🔥 Invalidate cache for this poem
+      await invalidateCache(`poem_${poem.id}`)
+
     } catch (error) {
       console.error("Error submitting reply:", error)
       showErrorToast("Failed to post reply")

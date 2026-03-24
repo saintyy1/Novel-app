@@ -26,6 +26,7 @@ import EditProfileModal from "../components/EditProfileModal" // Import the new 
 import UserListDrawer from "../components/UserListDrawer" // Import the new UserListDrawer
 import SEOHead from "../components/SEOHead"
 import CachedImage from "../components/CachedImage"
+import { withCache, CACHE_TTL, invalidateCache, invalidateByPrefix } from "../utils/cache"
 import { FaInstagram, FaTimes, FaFacebook, FaWhatsapp, FaCopy, FaShare } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
@@ -133,10 +134,19 @@ const Profile = () => {
         let fetchedUser: ExtendedUser | null = null
         // If viewing another user's profile, fetch their data
         if (userId && userId !== currentUser?.uid) {
-          const userDoc = await getDoc(doc(db, "users", userId))
-          if (userDoc.exists()) {
-            fetchedUser = { uid: userDoc.id, ...userDoc.data() } as ExtendedUser
-          } else {
+          fetchedUser = await withCache(
+            `profile_user_${userId}`,
+            async () => {
+              const userDoc = await getDoc(doc(db, "users", userId))
+              if (userDoc.exists()) {
+                return { uid: userDoc.id, ...userDoc.data() } as ExtendedUser
+              }
+              return null
+            },
+            CACHE_TTL.PROFILE
+          )
+          
+          if (!fetchedUser) {
             setError("User not found")
             return
           }
@@ -157,35 +167,50 @@ const Profile = () => {
         const targetUserId = userId || currentUser?.uid
         if (targetUserId) {
           // Fetch novels
-          const novelsQuery = query(
-            collection(db, "novels"),
-            where("authorId", "==", targetUserId),
-            orderBy("createdAt", "desc"),
+          const novels = await withCache(
+            `profile_novels_${targetUserId}`,
+            async () => {
+              const novelsQuery = query(
+                collection(db, "novels"),
+                where("authorId", "==", targetUserId),
+                orderBy("createdAt", "desc"),
+              )
+              const novelsSnapshot = await getDocs(novelsQuery)
+              const data: Novel[] = []
+              novelsSnapshot.forEach((doc) => {
+                data.push({
+                  id: doc.id,
+                  ...doc.data(),
+                } as Novel)
+              })
+              return data
+            },
+            CACHE_TTL.PROFILE,
+            (data) => data.map(val => (val as any).coverImage)
           )
-          const novelsSnapshot = await getDocs(novelsQuery)
-          const novels: Novel[] = []
-          novelsSnapshot.forEach((doc) => {
-            novels.push({
-              id: doc.id,
-              ...doc.data(),
-            } as Novel)
-          })
           setUserNovels(novels)
 
           // Fetch poems
-          const poemsQuery = query(
-            collection(db, "poems"),
-            where("poetId", "==", targetUserId),
-            orderBy("createdAt", "desc"),
+          const poems = await withCache(
+            `profile_poems_${targetUserId}`,
+            async () => {
+              const poemsQuery = query(
+                collection(db, "poems"),
+                where("poetId", "==", targetUserId),
+                orderBy("createdAt", "desc"),
+              )
+              const poemsSnapshot = await getDocs(poemsQuery)
+              const data: Poem[] = []
+              poemsSnapshot.forEach((doc) => {
+                data.push({
+                  id: doc.id,
+                  ...doc.data(),
+                } as Poem)
+              })
+              return data
+            },
+            CACHE_TTL.PROFILE
           )
-          const poemsSnapshot = await getDocs(poemsQuery)
-          const poems: Poem[] = []
-          poemsSnapshot.forEach((doc) => {
-            poems.push({
-              id: doc.id,
-              ...doc.data(),
-            } as Poem)
-          })
           setUserPoems(poems)
         }
       } catch (err) {
@@ -765,6 +790,12 @@ const Profile = () => {
 
       // Refresh profile user data to ensure full synchronization
       await refreshProfileUser()
+
+      // 🔥 Invalidate profile cache
+      await invalidateCache(`profile_user_${profileUser.uid}`)
+      if (currentUser) {
+        await invalidateCache(`profile_user_${currentUser.uid}`)
+      }
     } catch (err) {
       console.error("Error toggling follow:", err)
       showErrorToast("Failed to update follow status. Please try again.") // Show error toast
@@ -807,6 +838,9 @@ const Profile = () => {
 
         setNewAnnouncementContent("")
         showSuccessToast("Announcement posted!")
+
+        // 🔥 Invalidate profile cache if we cache announcements (currently onSnapshot, but good practice)
+        await invalidateCache(`profile_user_${currentUser.uid}`)
       } catch (error) {
         console.error("Error posting announcement:", error)
         showErrorToast("Failed to post announcement.")
@@ -1032,6 +1066,11 @@ const Profile = () => {
       showSuccessToast("Promotion ended successfully!")
       setShowEndPromotionConfirm(false)
       setSelectedNovel(null)
+
+      // 🔥 Invalidate relevant caches
+      await invalidateCache(`novel_${selectedNovel.id}`)
+      await invalidateByPrefix("novels_")
+      await invalidateByPrefix("home_")
     } catch (error) {
       console.error("Error ending promotion:", error)
       showErrorToast("Failed to end promotion. Please try again.")
@@ -2043,6 +2082,14 @@ const Profile = () => {
                           : prev,
                       )
                       setShowEditModal(false)
+
+                      // 🔥 Invalidate relevant caches
+                      await invalidateCache(`novel_${selectedNovel.id}`)
+                      await invalidateByPrefix("novels_")
+                      await invalidateByPrefix("home_")
+                      if (currentUser) {
+                        await invalidateCache(`profile_novels_${currentUser.uid}`)
+                      }
                     } catch (e) {
                       console.error("Error saving novel:", e)
                       setSaveNovelError("Failed to save changes. Please try again.")
@@ -2209,6 +2256,14 @@ const Profile = () => {
                       )
                       setShowEditPoemModal(false)
                       showSuccessToast("Poem updated successfully!")
+
+                      // 🔥 Invalidate relevant caches
+                      await invalidateCache(`poem_${selectedPoem.id}`)
+                      await invalidateByPrefix("poems_")
+                      await invalidateByPrefix("home_")
+                      if (currentUser) {
+                        await invalidateCache(`profile_poems_${currentUser.uid}`)
+                      }
                     } catch (e) {
                       console.error("Error saving poem:", e)
                       setSavePoemError("Failed to save changes. Please try again.")
