@@ -10,10 +10,12 @@ const LoginPage = () => {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
   const [showDisplayNameModal, setShowDisplayNameModal] = useState(false)
   const [googleUserId, setGoogleUserId] = useState("")
   const [googleUserEmail, setGoogleUserEmail] = useState("")
-  const { login, signInWithGoogle } = useAuth()
+  const { login, signInWithGoogle, sendEmailVerificationLink } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,40 +26,62 @@ const LoginPage = () => {
       setLoading(true)
       await login(email, password)
       navigate("/")
-    } catch (error) {
-      setError("Failed to log in. Please check your credentials.")
-      console.error(error)
+    } catch (err: any) {
+      if (err.message === "ACCOUNT_DISABLED") {
+        setError("Your account has been disabled by an administrator. Please contact info@novlnest.com if you believe this is an error.")
+      } else if (err.message === "ACCOUNT_UNVERIFIED") {
+        setError("ACCOUNT_UNVERIFIED")
+      } else {
+        setError("Failed to log in. Please check your credentials.")
+      }
+      console.error(err)
     } finally {
       setLoading(false)
     }
   }
 
   const handleGoogleSignIn = async () => {
-  try {
-    setError("")
-    setLoading(true)
-    await signInWithGoogle()
-    navigate("/novels")
-  } catch (error: any) {
-    if (error.message === "DISPLAY_NAME_TAKEN") {
-      // User was created with Firebase Auth but display name is taken
-      // Get the current user from Firebase Auth directly
-      const firebaseUser = auth.currentUser
-      if (firebaseUser) {
-        setGoogleUserId(firebaseUser.uid)
-        setGoogleUserEmail(firebaseUser.email || "")
-        setShowDisplayNameModal(true)
-        setError("")
-        setLoading(false)
-        return
+    try {
+      setError("")
+      setLoading(true)
+      await signInWithGoogle()
+      navigate("/novels")
+    } catch (err: any) {
+      if (err.message === "DISPLAY_NAME_TAKEN") {
+        const firebaseUser = auth.currentUser
+        if (firebaseUser) {
+          setGoogleUserId(firebaseUser.uid)
+          setGoogleUserEmail(firebaseUser.email || "")
+          setShowDisplayNameModal(true)
+          setError("")
+          setLoading(false)
+          return
+        }
+      } else if (err.message === "ACCOUNT_DISABLED") {
+        setError("Your account has been disabled by an administrator. Please contact info@novlnest.com if you believe this is an error.")
+      } else if (err.message === "ACCOUNT_UNVERIFIED") {
+        setError("ACCOUNT_UNVERIFIED")
+      } else {
+        setError(err.message || "Failed to sign in with Google")
       }
-    } else {
-      setError(error.message || "Failed to sign in with Google")
+    } finally {
+      setLoading(false)
     }
-  } finally {
-    setLoading(false)
   }
-}
+
+  const handleResendVerification = async () => {
+    try {
+      setResendLoading(true)
+      setResendSuccess(false)
+      await sendEmailVerificationLink(email, password)
+      setResendSuccess(true)
+    } catch (err: any) {
+      console.error("Error resending verification:", err)
+      alert("Failed to resend verification email. Please try again later.")
+    } finally {
+      setResendLoading(false)
+    }
+  }
 
   return (
     <>
@@ -84,26 +108,60 @@ const LoginPage = () => {
           </div>
 
           {error && (
-            <div className="rounded-md bg-red-900/30 p-4 border border-red-800">
+            <div className={`rounded-md p-4 border ${error === "ACCOUNT_UNVERIFIED" ? "bg-amber-900/30 border-amber-800" : "bg-red-900/30 border-red-800"}`}>
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg
-                    className="h-5 w-5 text-red-500"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+                  {error === "ACCOUNT_UNVERIFIED" ? (
+                    <svg className="h-5 w-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-5 w-5 text-red-500"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
                 </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-200">Authentication Error</h3>
-                  <div className="mt-2 text-sm text-red-300">{error}</div>
+                <div className="ml-3 flex-1">
+                  <h3 className={`text-sm font-medium ${error === "ACCOUNT_UNVERIFIED" ? "text-amber-200" : "text-red-200"}`}>
+                    {error === "ACCOUNT_UNVERIFIED" ? "Email Not Verified" : "Authentication Error"}
+                  </h3>
+                  <div className={`mt-2 text-sm ${error === "ACCOUNT_UNVERIFIED" ? "text-amber-300" : "text-red-300"}`}>
+                    {error === "ACCOUNT_UNVERIFIED" ? (
+                      <div className="space-y-4">
+                        <p>You need to verify your email address before you can log in. Please check your inbox for the verification link.</p>
+                        {resendSuccess ? (
+                          <p className="text-green-400 font-medium">Verification email resent successfully! Check your inbox.</p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleResendVerification}
+                            disabled={resendLoading}
+                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-amber-900 bg-amber-100 hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
+                          >
+                            {resendLoading ? (
+                              <>
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-amber-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Resending...
+                              </>
+                            ) : "Resend Verification Email"}
+                          </button>
+                        )}
+                      </div>
+                    ) : error}
+                  </div>
                 </div>
               </div>
             </div>

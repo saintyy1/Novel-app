@@ -173,7 +173,7 @@ const AdminDashboard = () => {
       
       setStats({
         totalUsers: users.length,
-        activeUsers: users.filter((user) => !user.disabled).length,
+        activeUsers: users.filter((user) => user.isActive !== false).length,
         totalAuthors: allAuthorIds.size,
         novelAuthors: novelAuthorIds.size,
         poets: poetIds.size,
@@ -359,12 +359,12 @@ const AdminDashboard = () => {
       setError("")
 
       await updateDoc(doc(db, "users", uid), {
-        disabled: !currentStatus,
+        isActive: !currentStatus,
         updatedAt: new Date().toISOString(),
       })
 
       // Update local state
-      setUsers((prev) => prev.map((user) => (user.uid === uid ? { ...user, disabled: !currentStatus } : user)))
+      setUsers((prev) => prev.map((user) => (user.uid === uid ? { ...user, isActive: !currentStatus } : user)))
     } catch (error) {
       console.error("Error updating user status:", error)
       setError("Failed to update user status")
@@ -1009,12 +1009,12 @@ const AdminDashboard = () => {
                           <td className="py-3 px-4">
                             <span
                               className={`px-2 py-1 text-xs rounded-full ${
-                                user.disabled
+                                user.isActive === false
                                   ? "bg-red-900/50 text-red-300 border border-red-700"
                                   : "bg-green-900/50 text-green-300 border border-green-700"
                               }`}
                             >
-                              {user.disabled ? "Disabled" : "Active"}
+                              {user.isActive === false ? "Disabled" : "Active"}
                             </span>
                           </td>
                           <td className="py-3 px-4">
@@ -1034,11 +1034,11 @@ const AdminDashboard = () => {
                           <td className="py-3 px-4">
                             <div className="flex justify-end gap-2">
                               <button
-                                onClick={() => toggleUserStatus(user.uid, user.disabled || false)}
+                                onClick={() => toggleUserStatus(user.uid, user.isActive !== false)}
                                 disabled={loading.action}
                                 className="p-2 hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
                               >
-                                {user.disabled ? (
+                                {user.isActive === false ? (
                                   <FaUserPlus className="h-4 w-4 text-green-400" />
                                 ) : (
                                   <FaUserMinus className="h-4 w-4 text-red-400" />

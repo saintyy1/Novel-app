@@ -39,9 +39,9 @@ const RegisterPage = () => {
       setLoading(true)
       await register(email, password, displayName)
       setEmailSent(true)
-    } catch (error: any) {
-      setError((error.message || "Unknown error"))
-      console.error(error)
+    } catch (err: any) {
+      setError((err.message || "Unknown error"))
+      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -53,40 +53,42 @@ const RegisterPage = () => {
       setLoading(true)
       await sendEmailVerificationLink()
       setError("") // Clear any previous errors
-    } catch (error: any) {
-      setError("Failed to resend verification email: " + (error.message || "Unknown error"))
-      console.error(error)
+    } catch (err: any) {
+      setError("Failed to resend verification email: " + (err.message || "Unknown error"))
+      console.error(err)
     } finally {
       setLoading(false)
     }
   }
 
   const handleGoogleSignIn = async () => {
-  try {
-    setError("")
-    setLoading(true)
-    await signInWithGoogle()
-    navigate("/novels")
-  } catch (error: any) {
-    if (error.message === "DISPLAY_NAME_TAKEN") {
-      // User was created with Firebase Auth but display name is taken
-      // Get the current user from Firebase Auth directly
-      const firebaseUser = auth.currentUser
-      if (firebaseUser) {
-        setGoogleUserId(firebaseUser.uid)
-        setGoogleUserEmail(firebaseUser.email || "")
-        setShowDisplayNameModal(true)
-        setError("")
-        setLoading(false)
-        return
+    try {
+      setError("")
+      setLoading(true)
+      await signInWithGoogle()
+      navigate("/novels")
+    } catch (err: any) {
+      if (err.message === "DISPLAY_NAME_TAKEN") {
+        const firebaseUser = auth.currentUser
+        if (firebaseUser) {
+          setGoogleUserId(firebaseUser.uid)
+          setGoogleUserEmail(firebaseUser.email || "")
+          setShowDisplayNameModal(true)
+          setError("")
+          setLoading(false)
+          return
+        }
+      } else if (err.message === "ACCOUNT_DISABLED") {
+        setError("Your account has been disabled by an administrator. Please contact info@novlnest.com if you believe this is an error.")
+      } else if (err.message === "ACCOUNT_UNVERIFIED") {
+        setError("ACCOUNT_UNVERIFIED")
+      } else {
+        setError(err.message || "Failed to sign in with Google")
       }
-    } else {
-      setError(error.message || "Failed to sign in with Google")
+    } finally {
+      setLoading(false)
     }
-  } finally {
-    setLoading(false)
   }
-}
 
   return (
     <>
@@ -111,67 +113,6 @@ const RegisterPage = () => {
               Create an account to start sharing your stories
             </p>
           </div>
-
-          {emailSent ? (
-            <div className="rounded-md bg-green-900/30 p-4 border border-green-800">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="h-5 w-5 text-green-500"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-green-200">Verification Email Sent!</h3>
-                  <div className="mt-2 text-sm text-green-300">
-                    We've sent a verification link to <strong>{email}</strong>. Please check your email and click the link to verify your account.
-                  </div>
-                  <div className="mt-3">
-                    <button
-                      onClick={handleResendVerification}
-                      disabled={loading}
-                      className="text-sm text-green-400 hover:text-green-300 underline"
-                    >
-                      {loading ? "Sending..." : "Resend verification email"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : error ? (
-            <div className="rounded-md bg-red-900/30 p-4 border border-red-800">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="h-5 w-5 text-red-500"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-200">Registration Error</h3>
-                  <div className="mt-2 text-sm text-red-300">{error}</div>
-                </div>
-              </div>
-            </div>
-          ) : null}
 
           <div className="mt-8 bg-gray-800 py-8 px-4 shadow-xl sm:rounded-xl sm:px-10 border border-gray-700">
             {emailSent ? (

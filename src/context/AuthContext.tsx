@@ -32,6 +32,7 @@ import {
   addDoc,
   orderBy,
   writeBatch,
+  onSnapshot,
 } from "firebase/firestore"
 import { auth, db, googleProvider, actionCodeSettings } from "../firebase/config"
 import { trackUserRegistration } from "../utils/Analytics-utils"
@@ -42,6 +43,8 @@ export interface ExtendedUser extends User {
   createdAt?: string
   updatedAt?: string
   disabled?: boolean
+  isActive?: boolean
+  isVerified?: boolean
   bio?: string
   followers?: string[]
   following?: string[]
@@ -62,7 +65,7 @@ interface AuthContextType {
   register: (email: string, password: string, displayName: string) => Promise<void>
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
-  sendEmailVerificationLink: () => Promise<void>
+  sendEmailVerificationLink: (email?: string, password?: string) => Promise<void>
   verifyEmail: (actionCode: string) => Promise<any>
   loading: boolean
   isAdmin: boolean
@@ -188,6 +191,9 @@ const checkPoemAddedToLibraryCooldown = (userId: string, poemId: string): boolea
   return now - Number(lastAddedTimestamp) < TWENTY_FOUR_HOURS_IN_MS
 }
 
+// Global flag to temporarily ignore auth state changes during system actions (like resending verification)
+let isSystemAuthAction = false
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<ExtendedUser | null>(null)
   const [loading, setLoading] = useState(true)
@@ -221,6 +227,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           poemLibrary: data.poemLibrary || [], // Initialize poem library
           finishedReads: data.finishedReads || [], // Add this line
           pendingEmail: data.pendingEmail, // New property for pending email change
+          isActive: data.isActive !== undefined ? data.isActive : true,
+          isVerified: data.isVerified !== undefined ? data.isVerified : false,
         } as ExtendedUser
         setCurrentUser(extendedUser)
         setFirebaseUser(user)
@@ -246,6 +254,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           library: [], // New: Initialize library
           finishedReads: [], // Add this line
           pendingEmail: null, // New property for pending email change
+          isActive: true, // Initialized for new users
+          isVerified: false, // Initialized for new users
         }
         await setDoc(doc(db, "users", user.uid), newUserData)
         const extendedUser = {
@@ -265,6 +275,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           library: newUserData.library, // New
           finishedReads: newUserData.finishedReads, // Add this line
           pendingEmail: newUserData.pendingEmail, // New property for pending email change
+          isActive: true,
+          isVerified: false,
         } as ExtendedUser
         setCurrentUser(extendedUser)
         setFirebaseUser(user)
@@ -742,6 +754,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error("This display name is already taken. Try another one.")
     }
 
+    // Validate email domain
+    const allowedDomains = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "icloud.com", "aol.com", "zoho.com", "protonmail.com"]
+    const emailDomain = email.split("@")[1]?.toLowerCase()
+    
+    if (!emailDomain || !allowedDomains.includes(emailDomain)) {
+      throw new Error(`Registration restricted to standard email providers. Allowed domains: ${allowedDomains.join(", ")}`)
+    }
+
+    if (emailDomain === "example.com") {
+      throw new Error("Generic domains like example.com are not allowed for security.")
+    }
+
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
@@ -774,44 +798,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       library: [], // New: Initialize library
       finishedReads: [], // Add this line
       pendingEmail: null, // New property for pending email change
+      isActive: true,
+      isVerified: false,
     }
     await setDoc(doc(db, "users", user.uid), newUserData)
-    // Set extended user
-    const extendedUser: ExtendedUser = {
-      ...user,
-      displayName: trimmedDisplayName,
-      photoURL: null,
-      isAdmin: false,
-      emailVisible: false,
-      createdAt: newUserData.createdAt,
-      bio: newUserData.bio, // New
-      followers: newUserData.followers, // New
-      following: newUserData.following, // New
-      instagramUrl: newUserData.instagramUrl, // New
-      twitterUrl: newUserData.twitterUrl, // New
-      supportLink: newUserData.supportLink, // New
-      location: newUserData.location, // New
-      library: newUserData.library, // New
-      finishedReads: newUserData.finishedReads, // Add this line
-      pendingEmail: newUserData.pendingEmail, // New property for pending email change
-    }
-    setCurrentUser(extendedUser)
-    setFirebaseUser(user)
+    // NOT setting current user here because we are logging them out immediately
+    // sendEmailVerification(user, actionCodeSettings) was already called above
+    await signOut(auth)
+    setCurrentUser(null)
+    setFirebaseUser(null)
   }
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password)
+    const userCredential = await signInWithEmailAndPassword(auth, email, password)
+    const user = userCredential.user
+    
+    // Fetch Firestore data specifically to check account status before allowing entry
+    const userDoc = await getDoc(doc(db, "users", user.uid))
+    if (userDoc.exists()) {
+      const data = userDoc.data()
+      
+      // Check if account is disabled by admin
+      if (data.isActive === false) {
+        await signOut(auth)
+        throw new Error("ACCOUNT_DISABLED")
+      }
+      
+      // Check for email verification
+      if (data.isVerified === false) {
+        // Double check with Firebase Auth - they might have verified while logged out
+        if (user.emailVerified) {
+          await updateDoc(doc(db, "users", user.uid), {
+            isVerified: true,
+            updatedAt: new Date().toISOString(),
+          })
+          // Sync successful, proceed with login
+        } else {
+          await signOut(auth)
+          throw new Error("ACCOUNT_UNVERIFIED")
+        }
+      }
+    }
+    
+    await fetchUserData(user)
   }
 
   const logout = async () => {
-    await signOut(auth)
+    // Clear state synchronously for immediate UI response
     setIsAdmin(false)
     setCurrentUser(null)
     setFirebaseUser(null)
+    
     // Clear all active cooldowns and unfollow timestamps on logout
     notificationCooldowns.forEach((timeout) => clearTimeout(timeout))
     notificationCooldowns.clear()
     lastUnfollowTimestamps.clear()
+
+    // Clear local storage to bypass any caching or stale state
+    if (typeof window !== "undefined") {
+      localStorage.clear()
+    }
+
+    try {
+      await signOut(auth)
+    } catch (error) {
+      console.error("Error signing out:", error)
+    }
   }
 
   const resetPassword = async (email: string) => {
@@ -820,7 +872,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await sendPasswordResetEmail(auth, email)
   }
 
-  const sendEmailVerificationLink = async () => {
+  const sendEmailVerificationLink = async (email?: string, password?: string) => {
+    // If credentials are provided, we temporarily sign in to send the link (for ACCOUNT_UNVERIFIED flow)
+    if (email && password) {
+      isSystemAuthAction = true
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password)
+        await sendEmailVerification(userCredential.user, actionCodeSettings)
+        await signOut(auth)
+      } finally {
+        // Use a small delay to ensure the signOut's onAuthStateChanged call is also ignored
+        setTimeout(() => {
+          isSystemAuthAction = false
+        }, 1000)
+      }
+      return
+    }
+
     if (!firebaseUser) throw new Error("No user logged in")
     await sendEmailVerification(firebaseUser, actionCodeSettings)
   }
@@ -836,6 +904,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Refresh the user to get updated email verification status
       if (firebaseUser) {
         await firebaseUser.reload()
+      }
+
+      // Update Firestore status by email (works even if user is logged out)
+      if (info.data.email) {
+        const q = query(collection(db, "users"), where("email", "==", info.data.email))
+        const snapshot = await getDocs(q)
+        if (!snapshot.empty) {
+          const userRef = snapshot.docs[0].ref
+          await updateDoc(userRef, {
+            isVerified: true,
+            updatedAt: new Date().toISOString(),
+          })
+        }
+      }
+      
+      if (firebaseUser) {
         await fetchUserData(firebaseUser)
       }
 
@@ -847,6 +931,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signInWithGoogle = async () => {
+    isSystemAuthAction = true
     try {
       const result = await signInWithPopup(auth, googleProvider)
       const user = result.user
@@ -892,8 +977,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
 
         if (displayNameExists) {
-          // Don't delete user yet - they'll set a new display name
-          // Just throw the error to trigger modal
           throw new Error("DISPLAY_NAME_TAKEN")
         }
 
@@ -917,17 +1000,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           library: [],
           finishedReads: [],
           pendingEmail: null,
+          isActive: true,
+          isVerified: false, // Force Google users to verify too (strict anti-bot)
         }
         await setDoc(doc(db, "users", user.uid), newUserData)
         trackUserRegistration(user.uid, "google")
-        await fetchUserData(user)
+        
+        // Send verification email to Google user
+        await sendEmailVerification(user, actionCodeSettings)
+        
+        await signOut(auth)
+        throw new Error("ACCOUNT_UNVERIFIED")
       } else {
-        // User already exists, just fetch their data
+        // User already exists, check their account status
+        const data = userDoc.data()
+        
+        if (data.isActive === false) {
+          await signOut(auth)
+          throw new Error("ACCOUNT_DISABLED")
+        }
+        
+        if (data.isVerified === false) {
+          // Double check with Firebase Auth
+          if (user.emailVerified) {
+             await updateDoc(doc(db, "users", user.uid), {
+               isVerified: true,
+               updatedAt: new Date().toISOString()
+             })
+          } else {
+            await signOut(auth)
+            throw new Error("ACCOUNT_UNVERIFIED")
+          }
+        }
+
+        isSystemAuthAction = false // Allow listener to resume for successful login
         await fetchUserData(user)
       }
     } catch (error) {
       console.error("Error signing in with Google:", error)
+      await signOut(auth).catch(() => {}) // Ensure signed out on error
       throw error
+    } finally {
+      // Use a delay to ensure any pending signOut's onAuthStateChanged call is ignored
+      setTimeout(() => {
+        isSystemAuthAction = false
+      }, 1000)
     }
   }
   const markAllNotificationsAsRead = async () => {
@@ -975,10 +1092,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeUserDoc: (() => void) | null = null
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (isSystemAuthAction) {
+        console.log("System auth action in progress. Skipping listener...")
+        return
+      }
+
       if (user) {
         await fetchUserData(user)
+        
+        // Listen for real-time account status changes (isActive)
+        if (unsubscribeUserDoc) unsubscribeUserDoc()
+        unsubscribeUserDoc = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.data()
+            if (data.isActive === false || data.isVerified === false) {
+              console.log("Account status invalid. Logging out...")
+              logout().then(() => {
+                // Hard redirect to login page to clear all app state/cache
+                window.location.href = "/login?error=" + (data.isActive === false ? "ACCOUNT_DISABLED" : "ACCOUNT_UNVERIFIED")
+              })
+            }
+          }
+        }, (error) => {
+          console.error("Error listening to user document:", error)
+        })
       } else {
+        if (unsubscribeUserDoc) {
+          unsubscribeUserDoc()
+          unsubscribeUserDoc = null
+        }
         setIsAdmin(false)
         setCurrentUser(null)
         setFirebaseUser(null)
@@ -989,7 +1134,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setLoading(false)
     })
-    return unsubscribe
+    
+    return () => {
+      unsubscribeAuth()
+      if (unsubscribeUserDoc) unsubscribeUserDoc()
+    }
   }, [])
 
   const value = {
