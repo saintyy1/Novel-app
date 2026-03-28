@@ -168,7 +168,7 @@ const Profile = () => {
         if (targetUserId) {
           // Fetch novels
           const novels = await withCache(
-            `profile_novels_${targetUserId}`,
+            `profile_novels_feed_${targetUserId}`,
             async () => {
               const novelsQuery = query(
                 collection(db, "novels"),
@@ -186,13 +186,14 @@ const Profile = () => {
               return data
             },
             CACHE_TTL.PROFILE,
-            (data) => data.map(val => (val as any).coverImage)
+            (data) => data.map(val => (val as any).coverImage),
+            'feed'
           )
           setUserNovels(novels)
 
           // Fetch poems
           const poems = await withCache(
-            `profile_poems_${targetUserId}`,
+            `profile_poems_feed_${targetUserId}`,
             async () => {
               const poemsQuery = query(
                 collection(db, "poems"),
@@ -209,7 +210,9 @@ const Profile = () => {
               })
               return data
             },
-            CACHE_TTL.PROFILE
+            CACHE_TTL.PROFILE,
+            undefined,
+            'feed'
           )
           setUserPoems(poems)
         }

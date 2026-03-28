@@ -262,14 +262,64 @@ export const ensureInitialized = () => {
 }
 
 /**
+ * 🔥 Strip large fields from data to save storage space
+ */
+export const stripLargeFields = (data: any, level: 'feed' | 'overview'): any => {
+  if (!data) return data;
+  
+  if (Array.isArray(data)) {
+    return data.map(item => stripLargeFields(item, level));
+  }
+
+  // Clone to avoid mutating original data in memory if it's still being used
+  const stripped = { ...data };
+
+  // Handle Novel-like objects
+  if (stripped.chapters !== undefined || stripped.prologue !== undefined) {
+    if (level === 'feed') {
+      // Complete removal for list views
+      delete stripped.chapters;
+      delete stripped.prologue;
+      delete stripped.epilogue;
+      delete stripped.authorsNote;
+      delete stripped.content; // In case it's a generic content field
+    } else if (level === 'overview') {
+      // Keep chapter metadata but strip content
+      if (Array.isArray(stripped.chapters)) {
+        stripped.chapters = stripped.chapters.map((ch: any) => ({
+          id: ch.id,
+          title: ch.title,
+          readingOrder: ch.readingOrder,
+          isLocked: ch.isLocked,
+          price: ch.price,
+          createdAt: ch.createdAt
+          // content and chatMessages are stripped
+        }));
+      }
+      // Prologue and Epilogue are usually small enough for Overview, but we can strip if they are huge.
+      // For now, let's keep them as they are often displayed or at least expected.
+    }
+  }
+
+  // Handle Poem-like objects
+  if (stripped.content !== undefined && level === 'feed') {
+    delete stripped.content;
+  }
+
+  return stripped;
+};
+
+/**
  * 🚀 Main caching wrapper
  * @param imageSelector Optional function to extract image URLs from data for pre-fetching
+ * @param stripLevel Optional level of field stripping to apply before caching
  */
 export const withCache = async <T>(
   key: string,
   fetcher: () => Promise<T>,
   ttl: number = CACHE_TTL.FEED,
-  imageSelector?: (data: T) => (string | undefined | null)[]
+  imageSelector?: (data: T) => (string | undefined | null)[],
+  stripLevel?: 'feed' | 'overview'
 ): Promise<T> => {
   // Wait for storage dump to complete first
   await ensureInitialized()
@@ -299,16 +349,19 @@ export const withCache = async <T>(
   // 🔥 3. Fetch and store
   const promise = fetcher()
     .then((data) => {
-      setCachedData(key, data, ttl) // Fire-and-forget storage save
+      // 🔥 Apply stripping if requested
+      const dataToCache = stripLevel ? stripLargeFields(data, stripLevel) : data;
+      
+      setCachedData(key, dataToCache, ttl) // Fire-and-forget storage save
       pendingRequests.delete(key)
       
       // 🔥 Pre-fetch images
       if (imageSelector) {
-        const uris = imageSelector(data)
+        const uris = imageSelector(dataToCache)
         prefetchImages(uris)
       }
       
-      return data
+      return dataToCache
     })
     .catch((error) => {
       pendingRequests.delete(key)

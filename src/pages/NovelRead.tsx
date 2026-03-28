@@ -1132,8 +1132,9 @@ const NovelRead = () => {
 
       try {
         setLoading(true)
-        const novelData = await withCache(`novel_${id}`, async () => {
-          const novelDoc = await getDoc(doc(db, "novels", id))
+        const novelData = await withCache(`novel_full_${id}`, async () => {
+          const novelDocRef = doc(db, "novels", id)
+          const novelDoc = await getDoc(novelDocRef)
           if (novelDoc.exists()) {
             return { id: novelDoc.id, ...novelDoc.data() } as Novel
           }

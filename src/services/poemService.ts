@@ -15,7 +15,7 @@ export const fetchPoems = async ({
   sortOrder = "new-releases",
 }: FetchPoemsOptions = {}): Promise<Poem[]> => {
   try {
-    const cacheKey = `poems_${genre}_${sortOrder}`
+    const cacheKey = `poems_feed_${genre}_${sortOrder}`
 
     let poemsData = await withCache(cacheKey, async () => {
       const baseQuery = collection(db, "poems")
@@ -42,7 +42,7 @@ export const fetchPoems = async ({
       })
 
       return fetchedData
-    }, CACHE_TTL.FEED, (data) => data.map(p => p.coverImage)) // 🔥 Pre-fetch covers
+    }, CACHE_TTL.FEED, (data) => data.map(p => p.coverImage), 'feed') // 🔥 Pre-fetch covers and strip fields
 
     // Client-side filtering for genre and search query
     // Search is handled quickly over cached data

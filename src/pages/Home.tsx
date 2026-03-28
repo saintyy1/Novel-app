@@ -106,7 +106,7 @@ const Home = () => {
             }
           }
           return dataList
-        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage))
+        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage), 'feed')
         
         setPromotionalNovels(promotionalData)
       } catch (error) {
@@ -132,7 +132,7 @@ const Home = () => {
           )
           const querySnapshot = await getDocs(trendingQuery)
           return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Novel))
-        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage))
+        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage), 'feed')
         setTrendingNovels(trendingData)
       } catch (error) {
         console.error("Error fetching trending novels:", error)
@@ -157,7 +157,7 @@ const Home = () => {
           )
           const querySnapshot = await getDocs(newReleaseQuery)
           return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Novel))
-        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage))
+        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage), 'feed')
         setNewReleaseNovels(newReleaseData)
       } catch (error) {
         console.error("Error fetching new release novels:", error)
@@ -182,7 +182,7 @@ const Home = () => {
           )
           const querySnapshot = await getDocs(timelessQuery)
           return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Novel))
-        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage))
+        }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage), 'feed')
         setTimelessStories(timelessData)
       } catch (error) {
         console.error("Error fetching timeless stories:", error)
@@ -206,7 +206,7 @@ const Home = () => {
           )
           const querySnapshot = await getDocs(poemQuery)
           return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Poem))
-        }, CACHE_TTL.FEED, (data) => data.map(p => p.coverImage))
+        }, CACHE_TTL.FEED, (data) => data.map(p => p.coverImage), 'feed')
         setTrendingPoems(poemData)
       } catch (error) {
         console.error("Error fetching trending poems:", error)

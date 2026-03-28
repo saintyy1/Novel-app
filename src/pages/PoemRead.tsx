@@ -25,7 +25,7 @@ const PoemRead = () => {
       if (!id) return
 
       try {
-        const poemData = await withCache(`poem_${id}`, async () => {
+        const poemData = await withCache(`poem_full_${id}`, async () => {
           const poemDoc = await getDoc(doc(db, "poems", id))
           if (poemDoc.exists()) {
             return { id: poemDoc.id, ...poemDoc.data() } as Poem

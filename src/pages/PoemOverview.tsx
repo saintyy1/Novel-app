@@ -118,14 +118,14 @@ const PoemOverview = () => {
         setLoading(true)
         setError("")
         
-        const poemData = await withCache(`poem_${id}`, async () => {
+        const poemData = await withCache(`poem_overview_${id}`, async () => {
           const poemDocRef = doc(db, "poems", id)
           const poemDoc = await getDoc(poemDocRef)
           if (poemDoc.exists()) {
             return { id: poemDoc.id, ...poemDoc.data() } as Poem
           }
           return null
-        }, CACHE_TTL.CONTENT)
+        }, CACHE_TTL.CONTENT, (data) => [data?.coverImage], 'overview')
 
         if (poemData) {
           setPoem(poemData)
@@ -246,7 +246,8 @@ const PoemOverview = () => {
       await updatePoemLibrary(poem.id, newLikeStatus, poem.title, poem.poetId)
 
       // 🔥 Invalidate cache for this poem and the general lists
-      await invalidateCache(`poem_${poem.id}`)
+      await invalidateCache(`poem_overview_${poem.id}`)
+      await invalidateCache(`poem_full_${poem.id}`)
       await invalidateByPrefix("poems_")
       await invalidateByPrefix("home_") // Refresh Home page trending poems
 
@@ -300,7 +301,8 @@ const PoemOverview = () => {
       showSuccessToast("Comment posted successfully!")
 
       // 🔥 Invalidate cache for this poem
-      await invalidateCache(`poem_${poem.id}`)
+      await invalidateCache(`poem_overview_${poem.id}`)
+      await invalidateCache(`poem_full_${poem.id}`)
 
     } catch (error) {
       console.error("Error submitting comment:", error)
@@ -369,7 +371,8 @@ const PoemOverview = () => {
       showSuccessToast("Reply posted successfully!")
 
       // 🔥 Invalidate cache for this poem
-      await invalidateCache(`poem_${poem.id}`)
+      await invalidateCache(`poem_overview_${poem.id}`)
+      await invalidateCache(`poem_full_${poem.id}`)
 
     } catch (error) {
       console.error("Error submitting reply:", error)
