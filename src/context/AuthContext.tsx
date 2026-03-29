@@ -1111,8 +1111,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (data.isActive === false || data.isVerified === false) {
               console.log("Account status invalid. Logging out...")
               logout().then(() => {
-                // Hard redirect to login page to clear all app state/cache
-                window.location.href = "/login?error=" + (data.isActive === false ? "ACCOUNT_DISABLED" : "ACCOUNT_UNVERIFIED")
+                // Hard redirect to login page for users NOT already on login page
+                // This prevents redundant refreshes when they just tried to log in
+                if (window.location.pathname !== "/login") {
+                  window.location.href = "/login?error=" + (data.isActive === false ? "ACCOUNT_DISABLED" : "ACCOUNT_UNVERIFIED")
+                }
               })
             }
           }
