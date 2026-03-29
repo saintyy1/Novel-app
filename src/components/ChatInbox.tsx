@@ -8,7 +8,8 @@ import {
   MoreVertical, 
   X,
   ChevronLeft,
-  Trash2
+  Trash2,
+  Info
 } from 'lucide-react'
 
 interface ChatInboxProps {
@@ -17,7 +18,7 @@ interface ChatInboxProps {
 }
 
 const ChatInbox: React.FC<ChatInboxProps> = ({ isOpen, onClose }) => {
-  const { state, loadConversations, setCurrentConversation, markAsRead, sendMessage, deleteMessage, loadMoreMessages, getUser } = useChat()
+  const { state, loadConversations, loadMessages, setCurrentConversation, markAsRead, sendMessage, deleteMessage, loadMoreMessages, getUser } = useChat()
   const { currentUser } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [messageInput, setMessageInput] = useState('')
@@ -45,6 +46,13 @@ const ChatInbox: React.FC<ChatInboxProps> = ({ isOpen, onClose }) => {
       messageInputRef.current.focus()
     }
   }, [state.currentConversation])
+
+  // Load messages when current conversation changes
+  useEffect(() => {
+    if (state.currentConversation?.id) {
+      loadMessages(state.currentConversation.id)
+    }
+  }, [state.currentConversation?.id, loadMessages])
 
   const handleConversationSelect = (conversation: ChatConversation) => {
     setCurrentConversation(conversation)
@@ -294,7 +302,7 @@ const ChatInbox: React.FC<ChatInboxProps> = ({ isOpen, onClose }) => {
 
                 {/* Loading State for Conversation */}
                 {state.currentConversation && state.loadingConversations.has(state.currentConversation.id) && (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <div className="flex-1 flex flex-col items-center justify-center min-h-[200px] text-gray-400">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mb-4"></div>
                     <p className="text-sm sm:text-base">Loading messages...</p>
                   </div>
@@ -302,7 +310,7 @@ const ChatInbox: React.FC<ChatInboxProps> = ({ isOpen, onClose }) => {
 
                 {/* No Messages State */}
                 {state.messages.length === 0 && state.currentConversation && !state.loadingConversations.has(state.currentConversation.id) && (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <div className="flex-1 flex flex-col items-center justify-center min-h-[200px] text-gray-400">
                     <MessageCircle className="h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4" />
                     <p className="text-sm sm:text-base">No messages yet</p>
                     <p className="text-xs sm:text-sm">Start the conversation!</p>
@@ -353,8 +361,21 @@ const ChatInbox: React.FC<ChatInboxProps> = ({ isOpen, onClose }) => {
                 <div ref={messagesEndRef} />
               </div>
 
+              {state.isRequestMode && (
+                <div className="px-3 py-2 sm:px-4 sm:py-3 bg-purple-500/10 border-t border-purple-500/20 flex items-center space-x-2 sm:space-x-3">
+                  <Info className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400 flex-shrink-0" />
+                  <p className="text-[10px] sm:text-xs text-gray-300">
+                    Send message request to <span className="font-semibold text-white">{(() => {
+                      const otherParticipant = state.currentConversation?.participants.find(id => id !== currentUser?.uid)
+                      const user = getUser(otherParticipant || '')
+                      return user?.displayName || 'User'
+                    })()}</span>. One message limit applies.
+                  </p>
+                </div>
+              )}
+
               {/* Message Input */}
-              <div className="p-2 sm:p-4 border-t border-gray-700 bg-gray-800">
+              <div className={`p-2 sm:p-4 border-t border-gray-700 bg-gray-800 ${!state.canSendMessage ? 'opacity-75' : ''}`}>
                 <form onSubmit={handleSendMessage} className="flex items-center space-x-1 sm:space-x-2">
                   <div className="flex-1 relative">
                     <input
@@ -362,14 +383,17 @@ const ChatInbox: React.FC<ChatInboxProps> = ({ isOpen, onClose }) => {
                       type="text"
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
-                      placeholder="Type a message..."
-                      className="w-full px-3 sm:px-4 py-2 bg-gray-700 border border-gray-600 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base"
+                      placeholder={state.canSendMessage ? "Type a message..." : "Waiting for reply..."}
+                      disabled={!state.canSendMessage}
+                      className={`w-full px-3 sm:px-4 py-2 bg-gray-700 border border-gray-600 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base ${
+                        !state.canSendMessage ? 'cursor-not-allowed opacity-50' : ''
+                      }`}
                     />
                   </div>
                   
                   <button
                     type="submit"
-                    disabled={!messageInput.trim()}
+                    disabled={!messageInput.trim() || !state.canSendMessage}
                     className="p-2 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <Send className="h-4 w-4 sm:h-5 sm:w-5" />

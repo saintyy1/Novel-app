@@ -7,7 +7,7 @@ import {
   applyActionCode,
   checkActionCode
 } from "firebase/auth"
-import { doc, updateDoc, getDoc } from "firebase/firestore"
+import { doc, updateDoc, getDoc, collection, query, where, getDocs } from "firebase/firestore"
 import SEOHead from "../components/SEOHead"
 
 const AuthAction = () => {
@@ -66,13 +66,61 @@ const AuthAction = () => {
 
   const handleEmailVerification = async (code: string) => {
     try {
-      await checkActionCode(auth, code)
+      const info = await checkActionCode(auth, code)
       await applyActionCode(auth, code)
       
-      // Reload user to get updated email verification status
+      // Reload current user if they happen to be signed in
       const currentUser = auth.currentUser
       if (currentUser) {
         await currentUser.reload()
+      }
+
+      // Update Firestore status using the email from the action code (works even if logged out)
+      if (info.data.email) {
+        const emailToMatch = info.data.email
+        console.log("Attempting to sync Firestore for email:", emailToMatch)
+        
+        // Try multiple matching strategies for robustness
+        const strategies = [
+          emailToMatch,
+          emailToMatch.trim(),
+          emailToMatch.toLowerCase(),
+          emailToMatch.trim().toLowerCase()
+        ]
+        
+        // Remove duplicates
+        const uniqueStrategies = [...new Set(strategies)]
+        
+        let foundDoc = null
+        for (const strategy of uniqueStrategies) {
+          console.log(`Trying match strategy: "${strategy}"`)
+          const q = query(collection(db, "users"), where("email", "==", strategy))
+          const snapshot = await getDocs(q)
+          if (!snapshot.empty) {
+            foundDoc = snapshot.docs[0]
+            break
+          }
+        }
+
+        if (foundDoc) {
+          await updateDoc(foundDoc.ref, {
+            isVerified: true,
+            updatedAt: new Date().toISOString(),
+          })
+          console.log("Firestore isVerified status updated successfully for:", foundDoc.data().email)
+        } else {
+          console.warn("User not found in Firestore after trying all strategies for:", emailToMatch)
+          // Fallback: If current user is signed in, use their UID
+          if (currentUser) {
+            console.log("Falling back to currentUser UID:", currentUser.uid)
+            const userRef = doc(db, "users", currentUser.uid)
+            await updateDoc(userRef, {
+              isVerified: true,
+              updatedAt: new Date().toISOString()
+            })
+            console.log("Firestore isVerified status updated via UID fallback")
+          }
+        }
       }
       
       setStatus('success')

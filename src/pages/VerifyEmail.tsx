@@ -7,7 +7,7 @@ const VerifyEmail = () => {
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
   const [error, setError] = useState("")
-  const { verifyEmail } = useAuth()
+  const { verifyEmail, syncVerifiedStatus } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -44,7 +44,8 @@ const VerifyEmail = () => {
           // Code already used - check if user is already verified
           const currentUser = auth.currentUser
           if (currentUser && currentUser.emailVerified) {
-            // User is already verified, treat as success
+            // User is already verified, ensure Firestore is synced
+            await syncVerifiedStatus()
             hasVerified = true
             setStatus('success')
             setTimeout(() => {

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react"
 import { useChat, type ChatConversation } from "../context/ChatContext"
 import { useAuth } from "../context/AuthContext"
 import SEOHead from "../components/SEOHead"
-import { MessageCircle, Search, Send, MoreVertical, ArrowLeft, Trash2 } from "lucide-react"
+import { MessageCircle, Search, Send, MoreVertical, ArrowLeft, Trash2, Info } from "lucide-react"
 import { useNavigate, useSearchParams, Link } from "react-router-dom"
 
 const Messages: React.FC = () => {
@@ -17,6 +17,7 @@ const Messages: React.FC = () => {
     sendMessage,
     deleteMessage,
     loadMoreMessages,
+    loadMessages,
     getUser,
     fetchUserData,
   } = useChat()
@@ -90,6 +91,13 @@ const Messages: React.FC = () => {
       setShowConversations(false)
     }
   }, [state.currentConversation])
+
+  // Load messages when current conversation changes
+  useEffect(() => {
+    if (state.currentConversation?.id) {
+      loadMessages(state.currentConversation.id)
+    }
+  }, [state.currentConversation?.id, loadMessages])
 
   const handleConversationSelect = (conversation: ChatConversation) => {
     setCurrentConversation(conversation)
@@ -508,7 +516,7 @@ const Messages: React.FC = () => {
 
                 {/* No Messages State */}
                 {state.messages.length === 0 && state.currentConversation && (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <div className="flex-1 flex flex-col items-center justify-center min-h-[300px] text-gray-400">
                     <div className="w-16 h-16 bg-gray-700/20 rounded-full flex items-center justify-center mb-4">
                       <MessageCircle className="h-8 w-8" />
                     </div>
@@ -555,8 +563,21 @@ const Messages: React.FC = () => {
                    )}
               </div>
 
+               {state.isRequestMode && (
+                <div className="px-6 py-3 bg-purple-500/10 border-t border-purple-500/20 flex items-center space-x-3">
+                  <Info className="h-5 w-5 text-purple-400 flex-shrink-0" />
+                  <p className="text-sm text-gray-300">
+                    Send message request to <span className="font-semibold text-white">{(() => {
+                      const otherParticipant = state.currentConversation?.participants.find(id => id !== currentUser?.uid)
+                      const user = getUser(otherParticipant || '')
+                      return user?.displayName || 'User'
+                    })()}</span>. You can only send one message until they reply.
+                  </p>
+                </div>
+              )}
+
               {/* Message Input */}
-              <div className="p-6 border-t border-gray-700 bg-gray-800/50 backdrop-blur-sm flex-shrink-0">
+              <div className={`p-6 border-t border-gray-700 bg-gray-800/50 backdrop-blur-sm flex-shrink-0 ${!state.canSendMessage ? 'opacity-75' : ''}`}>
                 <form onSubmit={handleSendMessage} className="flex items-center space-x-4">
                   <div className="flex-1 relative">
                     <input
@@ -565,14 +586,17 @@ const Messages: React.FC = () => {
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
                       onFocus={handleInputFocus}
-                      placeholder="Type a message..."
-                      className="w-full px-6 py-4 bg-gray-700 border border-gray-600 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                      placeholder={state.canSendMessage ? "Type a message..." : "Waiting for reply..."}
+                      disabled={!state.canSendMessage}
+                      className={`w-full px-6 py-4 bg-gray-700 border border-gray-600 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
+                        !state.canSendMessage ? 'cursor-not-allowed opacity-50' : ''
+                      }`}
                     />
                   </div>
 
                   <button
                     type="submit"
-                    disabled={!messageInput.trim()}
+                    disabled={!messageInput.trim() || !state.canSendMessage}
                     className="p-4 bg-purple-600 text-white rounded-2xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
                   >
                     <Send className="h-5 w-5" />

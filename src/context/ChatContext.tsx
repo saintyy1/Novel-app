@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef, useState } from 'react'
-import { collection, doc, addDoc, updateDoc, setDoc, query, where, orderBy, onSnapshot, getDocs, serverTimestamp, deleteDoc, limit } from 'firebase/firestore'
+import { collection, doc, addDoc, updateDoc, setDoc, query, where, orderBy, onSnapshot, getDocs, serverTimestamp, deleteDoc, limit, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from './AuthContext'
 
@@ -48,6 +48,8 @@ interface ChatState {
   hasMoreMessages: boolean
   isLoadingMore: boolean
   loadingConversations: Set<string>
+  canSendMessage: boolean
+  isRequestMode: boolean
 }
 
 type ChatAction =
@@ -57,7 +59,7 @@ type ChatAction =
   | { type: 'CONVERSATIONS_LOADED'; payload: ChatConversation[] }
   | { type: 'MESSAGE_RECEIVED'; payload: { conversationId: string; message: ChatMessage; conversation: ChatConversation } }
   | { type: 'MESSAGE_SENT'; payload: { message: ChatMessage } }
-  | { type: 'MESSAGES_LOADED'; payload: { conversationId: string; messages: ChatMessage[] } }
+  | { type: 'MESSAGES_LOADED'; payload: { conversationId: string; messages: ChatMessage[]; requestStatus?: { canSendMessage: boolean; isRequestMode: boolean } } }
   | { type: 'MESSAGES_APPENDED'; payload: { conversationId: string; messages: ChatMessage[] } }
   | { type: 'MESSAGES_READ'; payload: { conversationId: string; userId: string } }
   | { type: 'MESSAGE_DELETED'; payload: { messageId: string; conversationId: string } }
@@ -86,7 +88,9 @@ const initialState: ChatState = {
   messageCache: new Map(),
   hasMoreMessages: false,
   isLoadingMore: false,
-  loadingConversations: new Set()
+  loadingConversations: new Set(),
+  canSendMessage: true,
+  isRequestMode: false
 }
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -139,7 +143,8 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         messages: action.payload.messages,
         messageCache: newCache,
         isLoading: false,
-        loadingConversations: newLoadingConversationsForLoaded
+        loadingConversations: newLoadingConversationsForLoaded,
+        ...(action.payload.requestStatus || { canSendMessage: true, isRequestMode: false })
       }
     
     case 'MESSAGES_APPENDED':
@@ -246,7 +251,9 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return {
         ...state,
         currentConversation: action.payload,
-        messages: action.payload ? [] : state.messages
+        messages: action.payload ? [] : state.messages,
+        canSendMessage: true,
+        isRequestMode: false
       }
     
     case 'ADD_USER':
@@ -432,13 +439,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const fetchUserData = useCallback(async (userId: string) => {
     try {
-      const userDoc = await getDocs(query(
-        collection(db, 'users'),
-        where('__name__', '==', userId)
-      ))
+      const userDoc = await getDoc(doc(db, 'users', userId))
 
-      if (!userDoc.empty) {
-        const userData = userDoc.docs[0].data()
+      if (userDoc.exists()) {
+        const userData = userDoc.data()
         const chatUser: ChatUser = {
           id: userId,
           displayName: userData.displayName || 'Unknown User',
@@ -538,28 +542,72 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     try {
       // Get conversation participants and verify current user is a participant
-      const conversationDoc = await getDocs(query(
-        collection(db, 'conversations'),
-        where('__name__', '==', conversationId)
-      ))
-
-      if (conversationDoc.empty) return
-
-      const conversationData = conversationDoc.docs[0].data()
-      const participants = conversationData.participants || []
+      let conversationDoc;
+      let participants: string[] = [];
       
-      // SECURITY: Verify current user is a participant
+      try {
+        conversationDoc = await getDoc(doc(db, 'conversations', conversationId))
+        if (conversationDoc.exists()) {
+          participants = conversationDoc.data().participants || [];
+        } else {
+          participants = conversationId.split('_');
+        }
+      } catch (e: any) {
+        // If we get a permission error on a non-existent doc, treat it as "new"
+        if (e.code === 'permission-denied' || e.message?.includes('permissions')) {
+          console.log('Permission denied for conversation fetch, assuming new conversation status...')
+          participants = conversationId.split('_');
+        } else {
+          throw e;
+        }
+      }
+
+      // SECURITY: Verify current user is a participant (or part of the virtual ID)
       if (!participants.includes(currentUser.uid)) {
         console.error('Unauthorized access attempt to conversation:', conversationId)
         dispatch({ type: 'SET_ERROR', payload: 'Unauthorized access to conversation' })
+        dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
         return
+      }
+
+      // Handle new/virtual conversation initial state before starting listener
+      if (!conversationDoc || !conversationDoc.exists()) {
+        const otherUserId = participants.find(id => id !== currentUser.uid);
+        let requestStatus = { canSendMessage: true, isRequestMode: false };
+        
+        if (otherUserId && participants.length === 2) {
+          const isFriend = (currentUser.following || []).includes(otherUserId) && 
+                           (currentUser.followers || []).includes(otherUserId);
+          
+          if (!isFriend) {
+            requestStatus.isRequestMode = true;
+          }
+        }
+
+        // Dispatch initial "virtual" state but DON'T return; proceed to set up message listener
+        dispatch({ type: 'MESSAGES_LOADED', payload: { conversationId, messages: [], requestStatus } });
+        dispatch({ type: 'SET_HAS_MORE_MESSAGES', payload: { conversationId, hasMore: false } });
+      }
+
+      let participantsToUse = participants;
+      if (conversationDoc && conversationDoc.exists()) {
+        const conversationData = conversationDoc.data()
+        participantsToUse = conversationData.participants || participants
+        
+        // SECURITY: Verify current user is a participant
+        if (!participantsToUse.includes(currentUser.uid)) {
+          console.error('Unauthorized access attempt to conversation:', conversationId)
+          dispatch({ type: 'SET_ERROR', payload: 'Unauthorized access to conversation' })
+          dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
+          return
+        }
       }
 
       // Set up real-time listener for messages in this conversation
       const messagesQuery = query(
         collection(db, 'messages'),
-        where('senderId', 'in', participants),
-        where('receiverId', 'in', participants),
+        where('senderId', 'in', participantsToUse),
+        where('receiverId', 'in', participantsToUse),
         orderBy('timestamp', 'desc'),
         limit(50) // Load 50 messages at a time
       )
@@ -592,10 +640,32 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         // Sort messages by timestamp ascending for display
         messages.sort((a, b) => a.timestamp - b.timestamp)
 
+        // Calculate Request Status
+        let requestStatus = { canSendMessage: true, isRequestMode: false };
+        if (currentUser && participantsToUse.length === 2) {
+          const otherUserId = participantsToUse.find((id: string) => id !== currentUser.uid);
+          if (otherUserId) {
+            const isFriend = (currentUser.following || []).includes(otherUserId) && 
+                             (currentUser.followers || []).includes(otherUserId);
+            
+            if (!isFriend) {
+              const myMessages = messages.filter(m => m.senderId === currentUser.uid);
+              const theirMessages = messages.filter(m => m.senderId !== currentUser.uid);
+              
+              if (theirMessages.length === 0) {
+                requestStatus.isRequestMode = true;
+                if (myMessages.length > 0 && !currentUser.isAdmin) {
+                  requestStatus.canSendMessage = false;
+                }
+              }
+            }
+          }
+        }
+
         if (loadMore) {
           dispatch({ type: 'MESSAGES_APPENDED', payload: { conversationId, messages } })
         } else {
-          dispatch({ type: 'MESSAGES_LOADED', payload: { conversationId, messages } })
+          dispatch({ type: 'MESSAGES_LOADED', payload: { conversationId, messages, requestStatus } })
         }
 
         // Clear conversation loading state
@@ -662,14 +732,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     try {
       // Get the conversation to find all messages between participants
-      const conversationDoc = await getDocs(query(
-        collection(db, 'conversations'),
-        where('__name__', '==', conversationId)
-      ))
+      const conversationDoc = await getDoc(doc(db, 'conversations', conversationId))
 
-      if (conversationDoc.empty) return
+      if (!conversationDoc.exists()) return
 
-      const conversationData = conversationDoc.docs[0].data()
+      const conversationData = conversationDoc.data()
       const participants = conversationData.participants || []
       
       if (!participants.includes(currentUser.uid)) {
@@ -713,13 +780,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     try {
       // SECURITY: Verify user has access to this conversation
-      const conversationDoc = await getDocs(query(
-        collection(db, 'conversations'),
-        where('__name__', '==', conversationId)
-      ))
+      const conversationDoc = await getDoc(doc(db, 'conversations', conversationId))
+      const conversationData = conversationDoc.data()
 
-      if (!conversationDoc.empty) {
-        const conversationData = conversationDoc.docs[0].data()
+      if (conversationDoc.exists() && conversationData) {
         const participants = conversationData.participants || []
         
         if (!participants.includes(currentUser.uid)) {
@@ -730,20 +794,17 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       }
 
       // Get the message to verify ownership
-      const messageDoc = await getDocs(query(
-        collection(db, 'messages'),
-        where('__name__', '==', messageId)
-      ))
+      const messageDoc = await getDoc(doc(db, 'messages', messageId))
 
-      if (messageDoc.empty) {
+      if (!messageDoc.exists()) {
         dispatch({ type: 'SET_ERROR', payload: 'Message not found' })
         return
       }
 
-      const messageData = messageDoc.docs[0].data()
+      const messageDocData = messageDoc.data()
       
       // SECURITY: Only allow users to delete their own messages
-      if (messageData.senderId !== currentUser.uid) {
+      if (messageDocData.senderId !== currentUser.uid) {
         console.error('Unauthorized attempt to delete message not owned by user:', messageId)
         dispatch({ type: 'SET_ERROR', payload: 'You can only delete your own messages' })
         return
@@ -754,10 +815,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
       // Update the conversation's last message if this was the last message
       const conversationRef = doc(db, 'conversations', conversationId)
-      const conversationData = conversationDoc.docs[0].data()
-      const participants = conversationData.participants || []
       
-      if (conversationData.lastMessage?.id === messageId) {
+      if (conversationDoc.exists() && conversationData && conversationData.lastMessage?.id === messageId) {
+        const participants = conversationData.participants || []
         // Find the new last message
         const remainingMessagesQuery = query(
           collection(db, 'messages'),

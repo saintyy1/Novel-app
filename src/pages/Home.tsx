@@ -8,6 +8,7 @@ import NovelCarousel from "../components/NovelCarousel"
 import PoemCarousel from "../components/PoemCarousel"
 import InviteFriendsSection from "../components/InviteFriendsSection"
 import HeroBanner from "../components/HeroBanner"
+import VerificationBanner from "../components/VerificationBanner"
 import SEOHead from "../components/SEOHead"
 import { generateWebsiteStructuredData, generateBreadcrumbStructuredData, generateCollectionStructuredData } from "../utils/structuredData"
 import { sendPromotionEndedNotification } from "../services/notificationService"
@@ -274,6 +275,8 @@ const Home = () => {
         canonicalUrl="https://novlnest.com"
         structuredData={[generateWebsiteStructuredData(), generateBreadcrumbStructuredData([{ name: "Home", url: "https://novlnest.com" }]), generateCollectionStructuredData(uniqueNovels, "Free Online Novels & Stories | Read & Write Fiction"), generateCollectionStructuredData(uniqueNovels, "Promotional Novels"), generateCollectionStructuredData(uniqueNovels, "Trending Novels"), generateCollectionStructuredData(uniqueNovels, "New Releases")]}
       />
+
+      <VerificationBanner />
 
       {/* Hero Banner Section */}
       {loadingBanners ? (

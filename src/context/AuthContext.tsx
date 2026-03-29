@@ -80,6 +80,7 @@ interface AuthContextType {
   markAllNotificationsAsRead: () => Promise<void>
   clearAllNotifications: () => Promise<void>
   updateUserEmail: (newEmail: string, confirmEmail: string, password?: string) => Promise<void>
+  syncVerifiedStatus: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
@@ -193,6 +194,7 @@ const checkPoemAddedToLibraryCooldown = (userId: string, poemId: string): boolea
 
 // Global flag to temporarily ignore auth state changes during system actions (like resending verification)
 let isSystemAuthAction = false
+const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<ExtendedUser | null>(null)
@@ -766,7 +768,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error("Generic domains like example.com are not allowed for security.")
     }
 
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+    const trimmedEmail = email.trim()
+    const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password)
     const user = userCredential.user
 
     trackUserRegistration(user.uid, "email")
@@ -781,7 +784,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Create user document in Firestore
     const newUserData = {
       uid: user.uid,
-      email: user.email,
+      email: trimmedEmail,
       displayName: trimmedDisplayName,
       displayNameLower: normalizedDisplayName,
       photoURL: null, // Start with no photo
@@ -810,8 +813,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const login = async (email: string, password: string) => {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password)
-    const user = userCredential.user
+    const trimmedEmail = email.trim()
+    isSystemAuthAction = true
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password)
+      const user = userCredential.user
     
     // Fetch Firestore data specifically to check account status before allowing entry
     const userDoc = await getDoc(doc(db, "users", user.uid))
@@ -834,13 +840,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           })
           // Sync successful, proceed with login
         } else {
-          await signOut(auth)
-          throw new Error("ACCOUNT_UNVERIFIED")
+          // Check for 24-hour grace period from mobile app approach
+          const createdAt = data.createdAt ? new Date(data.createdAt).getTime() : new Date().getTime()
+          const now = new Date().getTime()
+          const isWithinGracePeriod = (now - createdAt) < GRACE_PERIOD_MS
+
+          if (isWithinGracePeriod) {
+            console.log("User is unverified but within 24h grace period. Allowing login.")
+            // Proceed with login
+          } else {
+            await signOut(auth)
+            throw new Error("ACCOUNT_UNVERIFIED")
+          }
         }
       }
     }
     
-    await fetchUserData(user)
+      await fetchUserData(user)
+      
+      // Explicitly allowed background listeners to resume now that we're verified and ready
+      isSystemAuthAction = false
+    } catch (error) {
+      console.error("Login Error:", error)
+      throw error
+    } finally {
+      // Small delay to ensure any pending auth state changes are handled correctly
+      setTimeout(() => {
+        isSystemAuthAction = false
+      }, 1000)
+    }
   }
 
   const logout = async () => {
@@ -908,13 +936,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Update Firestore status by email (works even if user is logged out)
       if (info.data.email) {
-        const q = query(collection(db, "users"), where("email", "==", info.data.email))
-        const snapshot = await getDocs(q)
-        if (!snapshot.empty) {
-          const userRef = snapshot.docs[0].ref
-          await updateDoc(userRef, {
+        const emailToMatch = info.data.email
+        const strategies = [
+          emailToMatch,
+          emailToMatch.trim(),
+          emailToMatch.toLowerCase(),
+          emailToMatch.trim().toLowerCase()
+        ]
+        const uniqueStrategies = [...new Set(strategies)]
+        
+        let foundDoc = null
+        for (const strategy of uniqueStrategies) {
+          const q = query(collection(db, "users"), where("email", "==", strategy))
+          const snapshot = await getDocs(q)
+          if (!snapshot.empty) {
+            foundDoc = snapshot.docs[0]
+            break
+          }
+        }
+
+        if (foundDoc) {
+          await updateDoc(foundDoc.ref, {
             isVerified: true,
             updatedAt: new Date().toISOString(),
+          })
+        } else if (firebaseUser) {
+          // Fallback to UID if signed in
+          await updateDoc(doc(db, "users", firebaseUser.uid), {
+            isVerified: true,
+            updatedAt: new Date().toISOString()
           })
         }
       }
@@ -927,6 +977,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Error verifying email:", error)
       throw error
+    }
+  }
+
+  const syncVerifiedStatus = async () => {
+    const user = auth.currentUser
+    if (!user || !user.emailVerified) return
+
+    try {
+      const userRef = doc(db, "users", user.uid)
+      const userDoc = await getDoc(userRef)
+      if (userDoc.exists() && userDoc.data().isVerified === false) {
+        console.log("Manual Sync: Updating isVerified for", user.email)
+        await updateDoc(userRef, {
+          isVerified: true,
+          updatedAt: new Date().toISOString()
+        })
+        await fetchUserData(user)
+      }
+    } catch (error) {
+      console.error("Error syncing verified status:", error)
     }
   }
 
@@ -1095,29 +1165,98 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let unsubscribeUserDoc: (() => void) | null = null
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      // If we're performing a system action (like a background login check),
+      // we don't want to trigger redirects or set up snapshots yet.
       if (isSystemAuthAction) {
-        console.log("System auth action in progress. Skipping listener...")
+        console.log("System auth action in progress. Skipping listener logic...")
+        // If there's no user, we still want to clear local state and observers
+        if (!user) {
+          if (unsubscribeUserDoc) {
+            unsubscribeUserDoc()
+            unsubscribeUserDoc = null
+          }
+          setIsAdmin(false)
+          setCurrentUser(null)
+          setFirebaseUser(null)
+        }
         return
       }
 
       if (user) {
+        // Manual reload to ensure we have the absolute latest verification status from Firebase
+        await user.reload().catch(() => {}) 
         await fetchUserData(user)
+        
+        // Self-healing: If user is verified in Auth (via reload) but not in Firestore, sync it now
+        if (user.emailVerified) {
+          const userRef = doc(db, "users", user.uid)
+          const userDoc = await getDoc(userRef)
+          if (userDoc.exists() && userDoc.data().isVerified === false) {
+            console.log("Self-healing: Syncing isVerified status for", user.email)
+            await updateDoc(userRef, {
+              isVerified: true,
+              updatedAt: new Date().toISOString()
+            })
+            // Refresh local state to ensure UI updates immediately
+            await fetchUserData(user)
+          }
+        }
         
         // Listen for real-time account status changes (isActive)
         if (unsubscribeUserDoc) unsubscribeUserDoc()
         unsubscribeUserDoc = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
           if (snapshot.exists()) {
             const data = snapshot.data()
-            if (data.isActive === false || data.isVerified === false) {
-              console.log("Account status invalid. Logging out...")
+            if (data.isActive === false) {
+              console.log("Account disabled. Logging out...")
               logout().then(() => {
-                // Hard redirect to login page for users NOT already on login page
-                // This prevents redundant refreshes when they just tried to log in
                 if (window.location.pathname !== "/login") {
-                  window.location.href = "/login?error=" + (data.isActive === false ? "ACCOUNT_DISABLED" : "ACCOUNT_UNVERIFIED")
+                  window.location.href = "/login?error=ACCOUNT_DISABLED"
                 }
               })
+              return
+            } else if (data.isVerified === false) {
+              // Check for 24-hour grace period
+              const createdAt = data.createdAt ? new Date(data.createdAt).getTime() : new Date().getTime()
+              const now = new Date().getTime()
+              const isWithinGracePeriod = (now - createdAt) < GRACE_PERIOD_MS
+
+              if (!isWithinGracePeriod) {
+                console.log("Grace period expired for unverified account. Logging out...")
+                logout().then(() => {
+                  if (window.location.pathname !== "/login") {
+                    window.location.href = "/login?error=ACCOUNT_UNVERIFIED"
+                  }
+                })
+                return
+              }
             }
+
+            // Sync full user data in real-time
+            setCurrentUser((prev) => {
+              if (!prev) return prev
+              return {
+                ...prev,
+                isAdmin: data.isAdmin || false,
+                emailVisible: data.emailVisible || false,
+                photoURL: data.photoURL || user.photoURL,
+                displayName: data.displayName || user.displayName || user.email?.split("@")[0] || "User",
+                bio: data.bio || "",
+                followers: data.followers || [],
+                following: data.following || [],
+                instagramUrl: data.instagramUrl || "",
+                twitterUrl: data.twitterUrl || "",
+                supportLink: data.supportLink || "",
+                location: data.location || "",
+                library: data.library || [],
+                poemLibrary: data.poemLibrary || [],
+                finishedReads: data.finishedReads || [],
+                pendingEmail: data.pendingEmail,
+                isActive: data.isActive !== undefined ? data.isActive : true,
+                isVerified: data.isVerified !== undefined ? data.isVerified : false,
+              }
+            })
+            setIsAdmin(data.isAdmin === true)
           }
         }, (error) => {
           console.error("Error listening to user document:", error)
@@ -1165,6 +1304,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     markAllNotificationsAsRead,
     clearAllNotifications,
     updateUserEmail,
+    syncVerifiedStatus,
   }
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>
