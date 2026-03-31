@@ -28,7 +28,7 @@ import { Gift } from "lucide-react"
 import SEOHead from "../components/SEOHead"
 import SkeletonLoader from "../components/SkeletonLoader"
 import CachedImage from "../components/CachedImage"
-import { withCache, CACHE_TTL, invalidateCache, invalidateByPrefix } from "../utils/cache"
+import { withCache, CACHE_TTL, invalidatePoemCache } from "../utils/cache"
 
 interface Comment {
   id: string
@@ -245,11 +245,8 @@ const PoemOverview = () => {
       // Update user's poem library
       await updatePoemLibrary(poem.id, newLikeStatus, poem.title, poem.poetId)
 
-      // 🔥 Invalidate cache for this poem and the general lists
-      await invalidateCache(`poem_overview_${poem.id}`)
-      await invalidateCache(`poem_full_${poem.id}`)
-      await invalidateByPrefix("poems_")
-      await invalidateByPrefix("home_") // Refresh Home page trending poems
+      // 🔥 Invalidate cache for this poem and the general lists using centralized helper
+      await invalidatePoemCache(poem.id)
 
       // Re-fetch poem data to ensure consistency
       const updatedPoemDoc = await getDoc(poemRef)
@@ -301,8 +298,7 @@ const PoemOverview = () => {
       showSuccessToast("Comment posted successfully!")
 
       // 🔥 Invalidate cache for this poem
-      await invalidateCache(`poem_overview_${poem.id}`)
-      await invalidateCache(`poem_full_${poem.id}`)
+      await invalidatePoemCache(poem.id)
 
     } catch (error) {
       console.error("Error submitting comment:", error)
@@ -371,8 +367,7 @@ const PoemOverview = () => {
       showSuccessToast("Reply posted successfully!")
 
       // 🔥 Invalidate cache for this poem
-      await invalidateCache(`poem_overview_${poem.id}`)
-      await invalidateCache(`poem_full_${poem.id}`)
+      await invalidatePoemCache(poem.id)
 
     } catch (error) {
       console.error("Error submitting reply:", error)

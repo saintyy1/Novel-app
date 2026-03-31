@@ -247,6 +247,43 @@ export const invalidateCache = async (key: string): Promise<void> => {
 }
 
 /**
+ * 📚 Centralized Novel Invalidation
+ * Ensures all related views (Overview, Full Reader, Lists, Home) are cleared
+ */
+export const invalidateNovelCache = async (novelId: string): Promise<void> => {
+  // Clear specific novel caches
+  await invalidateCache(`novel_overview_${novelId}`)
+  await invalidateCache(`novel_full_${novelId}`)
+  await invalidateCache(`novel_${novelId}`) // Legacy/fallback key
+  
+  // Clear all chapter caches for this novel
+  if (novelId) {
+    await invalidateByPrefix(`chapter_${novelId}_`)
+  }
+
+  // Clear general novel related keys
+  await invalidateByPrefix("novels_")
+  await invalidateByPrefix("home_")
+  await invalidateCache("home_new_releases")
+  await invalidateCache("home_trending")
+}
+
+/**
+ * ✍️ Centralized Poem Invalidation
+ */
+export const invalidatePoemCache = async (poemId: string): Promise<void> => {
+  // Clear specific poem caches
+  await invalidateCache(`poem_overview_${poemId}`)
+  await invalidateCache(`poem_full_${poemId}`)
+  await invalidateCache(`poem_${poemId}`) // Legacy/fallback key
+  
+  // Clear general poem related keys
+  await invalidateByPrefix("poems_")
+  await invalidateByPrefix("home_")
+  await invalidateCache("home_trending_poems")
+}
+
+/**
  * Optional logging
  */
 const log = (message: string) => {

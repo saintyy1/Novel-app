@@ -12,7 +12,7 @@ import ReactMarkdown from "react-markdown"
 import { useSwipeable } from "react-swipeable"
 import { useRef as useReactRef } from "react"
 import { BookOpen, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Trash2, Reply } from "lucide-react"
-import { withCache, CACHE_TTL, invalidateCache } from "../utils/cache"
+import { withCache, CACHE_TTL, invalidateNovelCache } from "../utils/cache"
 
 interface Comment {
   id: string
@@ -1277,8 +1277,7 @@ const NovelRead = () => {
       }
 
       // 🔥 Invalidate relevant caches
-      await invalidateCache(`chapter_${novel.id}_${currentChapter}`)
-      await invalidateCache(`novel_${novel.id}`)
+      await invalidateNovelCache(novel.id)
 
       // Send notification to novel author when chapter is liked (not unliked)
       if (newLikeStatus && novel.authorId !== currentUser.uid) {
@@ -1336,8 +1335,7 @@ const NovelRead = () => {
       }
 
       // 🔥 Invalidate relevant caches
-      await invalidateCache(`chapter_${novel.id}_${currentChapter}`)
-      await invalidateCache(`novel_${novel.id}`)
+      await invalidateNovelCache(novel.id)
 
       // Send notification to novel author if different from current user
       if (novel.authorId !== currentUser.uid) {
@@ -1396,8 +1394,7 @@ const NovelRead = () => {
       })
 
       // 🔥 Invalidate relevant caches
-      await invalidateCache(`chapter_${novel.id}_${currentChapter}`)
-      await invalidateCache(`novel_${novel.id}`)
+      await invalidateNovelCache(novel.id)
 
       // Send notification to novel author if different from current user
       if (novel.authorId !== currentUser.uid) {
@@ -1469,8 +1466,7 @@ const NovelRead = () => {
       })
       
       // 🔥 Invalidate relevant caches
-      await invalidateCache(`chapter_${novel.id}_${currentChapter}`)
-      await invalidateCache(`novel_${novel.id}`)
+      await invalidateNovelCache(novel.id)
       
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
@@ -1520,8 +1516,7 @@ const NovelRead = () => {
       })
       
       // 🔥 Invalidate relevant caches
-      await invalidateCache(`chapter_${novel.id}_${currentChapter}`)
-      await invalidateCache(`novel_${novel.id}`)
+      await invalidateNovelCache(novel.id)
       
       // Send notification only when liking (not unliking) and only to comment author if different from current user
       if (!isLiked && commentAuthorId !== currentUser.uid) {

@@ -2,6 +2,9 @@
 // Exchange rates are approximate and should be updated regularly
 // For production, consider using a real-time exchange rate API
 
+const RATES_STORAGE_KEY = 'novlnest_currency_rates'
+const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 hours
+
 export interface Currency {
   code: string
   symbol: string
@@ -11,16 +14,92 @@ export interface Currency {
 
 export const CURRENCIES: Record<string, Currency> = {
   NGN: { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', rateToNaira: 1 },
-  USD: { code: 'USD', symbol: '$', name: 'US Dollar', rateToNaira: 1500 }, // 1 USD = 1500 Naira
-  EUR: { code: 'EUR', symbol: '€', name: 'Euro', rateToNaira: 1650 }, // 1 EUR = 1650 Naira
-  GBP: { code: 'GBP', symbol: '£', name: 'British Pound', rateToNaira: 1900 }, // 1 GBP = 1900 Naira
-  CAD: { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', rateToNaira: 1100 }, // 1 CAD = 1100 Naira
-  AUD: { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', rateToNaira: 1000 }, // 1 AUD = 1000 Naira
-  JPY: { code: 'JPY', symbol: '¥', name: 'Japanese Yen', rateToNaira: 10 }, // 1 JPY = 10 Naira
-  GHS: { code: 'GHS', symbol: '₵', name: 'Ghanaian Cedi', rateToNaira: 120 }, // 1 GHS = 120 Naira
+  USD: { code: 'USD', symbol: '$', name: 'US Dollar', rateToNaira: 1560 }, // 1 USD = 1560 Naira
+  EUR: { code: 'EUR', symbol: '€', name: 'Euro', rateToNaira: 1720 }, // 1 EUR = 1720 Naira
+  GBP: { code: 'GBP', symbol: '£', name: 'British Pound', rateToNaira: 2000 }, // 1 GBP = 2000 Naira
+  CAD: { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', rateToNaira: 1150 }, // 1 CAD = 1150 Naira
+  AUD: { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', rateToNaira: 1050 }, // 1 AUD = 1050 Naira
+  JPY: { code: 'JPY', symbol: '¥', name: 'Japanese Yen', rateToNaira: 11 }, // 1 JPY = 11 Naira
+  GHS: { code: 'GHS', symbol: '₵', name: 'Ghanaian Cedi', rateToNaira: 105 }, // 1 GHS = 105 Naira
   KES: { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling', rateToNaira: 12 }, // 1 KES = 12 Naira
-  ZAR: { code: 'ZAR', symbol: 'R', name: 'South African Rand', rateToNaira: 80 }, // 1 ZAR = 80 Naira
-  EGP: { code: 'EGP', symbol: 'E£', name: 'Egyptian Pound', rateToNaira: 30 }, // 1 EGP = 30 Naira
+  ZAR: { code: 'ZAR', symbol: 'R', name: 'South African Rand', rateToNaira: 85 }, // 1 ZAR = 85 Naira
+  EGP: { code: 'EGP', symbol: 'E£', name: 'Egyptian Pound', rateToNaira: 32 }, // 1 EGP = 32 Naira
+}
+
+/**
+ * Update CURRENCIES object from a simple map of rateToNaira
+ */
+const updateCurrencyRatesInObject = (rates: Record<string, number>) => {
+  for (const code in rates) {
+    if (CURRENCIES[code]) {
+      CURRENCIES[code].rateToNaira = rates[code]
+    }
+  }
+}
+
+/**
+ * Fetch latest rates from open.er-api.com with 24-hour caching
+ */
+export const fetchLatestRates = async (): Promise<boolean> => {
+  if (typeof window === 'undefined') return false
+
+  try {
+    // 1. Try to load from cache first
+    const cachedData = localStorage.getItem(RATES_STORAGE_KEY)
+    if (cachedData) {
+      try {
+        const { rates, timestamp } = JSON.parse(cachedData)
+        
+        // If cache is still valid, update the object and return
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          updateCurrencyRatesInObject(rates)
+          console.log('[Currency] Using cached rates from', new Date(timestamp).toLocaleString())
+          return true
+        }
+      } catch (e) {
+        console.error('Error parsing cached rates:', e)
+      }
+    }
+
+    // 2. Fetch fresh rates
+    console.log('[Currency] Fetching fresh rates...')
+    const response = await fetch('https://open.er-api.com/v6/latest/USD')
+    const data = await response.json()
+
+    if (data.result === 'success') {
+      const ngnRate = data.rates['NGN']
+      if (!ngnRate) throw new Error('NGN rate not found in API response')
+
+      const updatedRates: Record<string, number> = {}
+      
+      // Calculate rateToNaira for each currency we support
+      // Formula: 1 unit of foreign currency = (1 / usd_per_foreign) * ngn_per_usd NGN
+      for (const code in CURRENCIES) {
+        if (code === 'NGN') {
+          updatedRates[code] = 1
+        } else if (data.rates[code]) {
+          updatedRates[code] = ngnRate / data.rates[code]
+        }
+      }
+
+      // 3. Save to cache and update object
+      localStorage.setItem(RATES_STORAGE_KEY, JSON.stringify({
+        rates: updatedRates,
+        timestamp: Date.now()
+      }))
+      
+      updateCurrencyRatesInObject(updatedRates)
+      console.log('[Currency] Rates updated successfully')
+      return true
+    } else {
+      console.error('Failed to fetch currency rates:', data['error-type'])
+      return false
+    }
+  } catch (error) {
+    console.error('Error in fetchLatestRates:', error)
+    // Fall back to hardcoded rates (already in CURRENCIES)
+    return false
+  }
 }
 
 // Default currency fallback

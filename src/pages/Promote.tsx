@@ -9,7 +9,8 @@ import {
   convertFromNaira, 
   formatCurrency, 
   getAvailableCurrencies, 
-  getCurrencyByCode
+  getCurrencyByCode,
+  fetchLatestRates
 } from "../utils/currencyUtils"
 import CachedImage from "../components/CachedImage"
 
@@ -27,8 +28,12 @@ const Promote = () => {
 
   // Detect user currency on component mount
   useEffect(() => {
-    const detectedCurrency = detectUserCurrency()
-    setSelectedCurrency(detectedCurrency)
+    const initCurrency = async () => {
+      await fetchLatestRates()
+      const detectedCurrency = detectUserCurrency()
+      setSelectedCurrency(detectedCurrency)
+    }
+    initCurrency()
   }, [])
 
   // Close currency selector when clicking outside

@@ -31,7 +31,7 @@ import SEOHead from "../components/SEOHead"
 import { generateNovelStructuredData, generateBreadcrumbStructuredData } from "../utils/structuredData"
 import SkeletonLoader from "../components/SkeletonLoader"
 import CachedImage from "../components/CachedImage"
-import { withCache, CACHE_TTL, invalidateCache, invalidateByPrefix } from "../utils/cache"
+import { withCache, CACHE_TTL, invalidateNovelCache } from "../utils/cache"
 
 interface Comment {
   id: string
@@ -270,11 +270,8 @@ const NovelOverview = () => {
       // Update user's library
       await updateUserLibrary(novel.id, newLikeStatus, novel.title, novel.authorId)
       
-      // 🔥 Invalidate cache for this novel and the general lists
-      await invalidateCache(`novel_overview_${novel.id}`)
-      await invalidateCache(`novel_full_${novel.id}`)
-      await invalidateByPrefix("novels_")
-      await invalidateByPrefix("home_") // Refresh Home page trending/new releases
+      // 🔥 Invalidate cache for this novel and the general lists using centralized helper
+      await invalidateNovelCache(novel.id)
 
       // Re-fetch novel data to ensure consistency
       const updatedNovelDoc = await getDoc(novelRef)
@@ -336,8 +333,7 @@ const NovelOverview = () => {
       showSuccessToast("Comment posted successfully!")
 
       // 🔥 Invalidate cache for this novel
-      await invalidateCache(`novel_overview_${novel.id}`)
-      await invalidateCache(`novel_full_${novel.id}`)
+      await invalidateNovelCache(novel.id)
 
     } catch (error) {
       console.error("Error submitting comment:", error)
@@ -418,8 +414,7 @@ const NovelOverview = () => {
       showSuccessToast("Reply posted successfully!")
 
       // 🔥 Invalidate cache for this novel
-      await invalidateCache(`novel_overview_${novel.id}`)
-      await invalidateCache(`novel_full_${novel.id}`)
+      await invalidateNovelCache(novel.id)
 
     } catch (error) {
       console.error("Error submitting reply:", error)
@@ -618,8 +613,7 @@ const NovelOverview = () => {
       showSuccessToast(!currentlyFinished ? "Novel marked as finished!" : "Novel unmarked as finished.")
 
       // 🔥 Invalidate cache for this novel
-      await invalidateCache(`novel_overview_${novel.id}`)
-      await invalidateCache(`novel_full_${novel.id}`)
+      await invalidateNovelCache(novel.id)
 
     } catch (error) {
       console.error("Error marking novel as finished:", error)

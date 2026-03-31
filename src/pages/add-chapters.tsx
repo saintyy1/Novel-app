@@ -10,7 +10,7 @@ import MDEditor from "@uiw/react-md-editor"
 import rehypeSanitize from "rehype-sanitize"
 import InlineChatEditor from "../components/InlineChatEditor"
 import CachedImage from "../components/CachedImage"
-import { invalidateCache, invalidateByPrefix } from "../utils/cache"
+import { invalidateNovelCache } from "../utils/cache"
 
 interface Chapter {
   title: string
@@ -163,9 +163,7 @@ const AddChapters = () => {
       setNewChapters([{ title: "", content: "" }])
 
       // 🔥 Invalidate relevant caches
-      await invalidateCache(`novel_${novelId}`)
-      await invalidateByPrefix("novels_")
-      await invalidateByPrefix("home_")
+      await invalidateNovelCache(novelId)
 
       // Redirect after a short delay
       setTimeout(() => {

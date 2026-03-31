@@ -26,7 +26,7 @@ import EditProfileModal from "../components/EditProfileModal" // Import the new 
 import UserListDrawer from "../components/UserListDrawer" // Import the new UserListDrawer
 import SEOHead from "../components/SEOHead"
 import CachedImage from "../components/CachedImage"
-import { withCache, CACHE_TTL, invalidateCache, invalidateByPrefix } from "../utils/cache"
+import { withCache, CACHE_TTL, invalidateCache, invalidateNovelCache, invalidatePoemCache } from "../utils/cache"
 import { FaInstagram, FaTimes, FaFacebook, FaWhatsapp, FaCopy, FaShare } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
@@ -1071,9 +1071,7 @@ const Profile = () => {
       setSelectedNovel(null)
 
       // 🔥 Invalidate relevant caches
-      await invalidateCache(`novel_${selectedNovel.id}`)
-      await invalidateByPrefix("novels_")
-      await invalidateByPrefix("home_")
+      await invalidateNovelCache(selectedNovel.id)
     } catch (error) {
       console.error("Error ending promotion:", error)
       showErrorToast("Failed to end promotion. Please try again.")
@@ -2087,9 +2085,7 @@ const Profile = () => {
                       setShowEditModal(false)
 
                       // 🔥 Invalidate relevant caches
-                      await invalidateCache(`novel_${selectedNovel.id}`)
-                      await invalidateByPrefix("novels_")
-                      await invalidateByPrefix("home_")
+                      await invalidateNovelCache(selectedNovel.id)
                       if (currentUser) {
                         await invalidateCache(`profile_novels_${currentUser.uid}`)
                       }
@@ -2261,9 +2257,7 @@ const Profile = () => {
                       showSuccessToast("Poem updated successfully!")
 
                       // 🔥 Invalidate relevant caches
-                      await invalidateCache(`poem_${selectedPoem.id}`)
-                      await invalidateByPrefix("poems_")
-                      await invalidateByPrefix("home_")
+                      await invalidatePoemCache(selectedPoem.id)
                       if (currentUser) {
                         await invalidateCache(`profile_poems_${currentUser.uid}`)
                       }
