@@ -74,7 +74,7 @@ export const initCacheFromStorage = async () => {
         // Note: We don't load blobUrls into imageMetaCache here because they are invalid across sessions.
         // We just keep the knowledge that they ARE in the persistent storage for optimization,
         // but it's safer to just let getOrDownloadImage re-generate them from Cache API.
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (keysToRemove.length > 0) {
@@ -100,17 +100,17 @@ const evictOldestStorage = async () => {
             const parsed = JSON.parse(itemStr)
             items.push({ key, timestamp: parsed.timestamp })
           }
-        } catch (e) {}
+        } catch (e) { }
       }
     }
-    
+
     // Sort oldest first
     items.sort((a, b) => a.timestamp - b.timestamp)
-    
+
     // Delete the oldest 30% of cache items to free up bulk space
     const toDelete = Math.max(1, Math.floor(items.length * 0.3))
     const keysToRemove = items.slice(0, toDelete).map(item => item.key)
-    
+
     if (keysToRemove.length > 0) {
       keysToRemove.forEach(k => localStorage.removeItem(k))
     }
@@ -132,7 +132,7 @@ export const getCachedData = <T>(key: string): T | null => {
     memoryCache.delete(key)
     try {
       localStorage.removeItem(STORAGE_PREFIX + key)
-    } catch(e) {}
+    } catch (e) { }
     return null
   }
 
@@ -152,13 +152,13 @@ export const setCachedData = async <T>(
     timestamp: Date.now(),
     ttl,
   }
-  
+
   memoryCache.set(key, cacheItem)
-  
+
   // 🔥 Also save to localStorage for cross-refresh persistence
   try {
     const stringified = JSON.stringify(cacheItem)
-    
+
     // If a single item is insanely large (e.g. > 2.5MB), don't even try to store it
     if (stringified.length > 2500000) {
       console.warn(`[CACHE] Item ${key} is too large for localStorage (${Math.round(stringified.length / 1024)}KB)`)
@@ -193,7 +193,7 @@ export const clearCache = async (key?: string): Promise<void> => {
     memoryCache.delete(key)
     try {
       localStorage.removeItem(STORAGE_PREFIX + key)
-    } catch(e) {}
+    } catch (e) { }
   } else {
     memoryCache.clear()
     imageMetaCache.clear()
@@ -207,12 +207,12 @@ export const clearCache = async (key?: string): Promise<void> => {
         }
       }
       keysToRemove.forEach(k => localStorage.removeItem(k))
-      
+
       // Also clear Cache API (images)
       await caches.delete(IMAGE_CACHE_NAME);
       imageCacheInitialized = false;
 
-    } catch(e) {}
+    } catch (e) { }
   }
 }
 
@@ -228,11 +228,11 @@ export const invalidateByPrefix = async (prefix: string): Promise<void> => {
       keysToRemove.push(STORAGE_PREFIX + key)
     }
   }
-  
+
   if (keysToRemove.length > 0) {
     try {
       keysToRemove.forEach(k => localStorage.removeItem(k))
-    } catch(e) {}
+    } catch (e) { }
   }
 }
 
@@ -243,7 +243,7 @@ export const invalidateCache = async (key: string): Promise<void> => {
   memoryCache.delete(key)
   try {
     localStorage.removeItem(STORAGE_PREFIX + key)
-  } catch(e) {}
+  } catch (e) { }
 }
 
 /**
@@ -255,7 +255,7 @@ export const invalidateNovelCache = async (novelId: string): Promise<void> => {
   await invalidateCache(`novel_overview_${novelId}`)
   await invalidateCache(`novel_full_${novelId}`)
   await invalidateCache(`novel_${novelId}`) // Legacy/fallback key
-  
+
   // Clear all chapter caches for this novel
   if (novelId) {
     await invalidateByPrefix(`chapter_${novelId}_`)
@@ -276,7 +276,7 @@ export const invalidatePoemCache = async (poemId: string): Promise<void> => {
   await invalidateCache(`poem_overview_${poemId}`)
   await invalidateCache(`poem_full_${poemId}`)
   await invalidateCache(`poem_${poemId}`) // Legacy/fallback key
-  
+
   // Clear general poem related keys
   await invalidateByPrefix("poems_")
   await invalidateByPrefix("home_")
@@ -303,7 +303,7 @@ export const ensureInitialized = () => {
  */
 export const stripLargeFields = (data: any, level: 'feed' | 'overview'): any => {
   if (!data) return data;
-  
+
   if (Array.isArray(data)) {
     return data.map(item => stripLargeFields(item, level));
   }
@@ -365,13 +365,6 @@ export const withCache = async <T>(
   const cachedData = getCachedData<T>(key)
   if (cachedData !== null) {
     log(`[CACHE HIT] ${key}`)
-    
-    // 🔥 Background pre-fetch images even on cache hit (to ensure they are in Cache API)
-    if (imageSelector) {
-      const uris = imageSelector(cachedData)
-      prefetchImages(uris)
-    }
-    
     return cachedData
   }
 
@@ -388,16 +381,16 @@ export const withCache = async <T>(
     .then((data) => {
       // 🔥 Apply stripping if requested
       const dataToCache = stripLevel ? stripLargeFields(data, stripLevel) : data;
-      
+
       setCachedData(key, dataToCache, ttl) // Fire-and-forget storage save
       pendingRequests.delete(key)
-      
+
       // 🔥 Pre-fetch images
       if (imageSelector) {
         const uris = imageSelector(dataToCache)
         prefetchImages(uris)
       }
-      
+
       return dataToCache
     })
     .catch((error) => {
@@ -423,20 +416,28 @@ export const setImageCachedPath = async (uri: string, localPath: string): Promis
   try {
     const metaObj = Object.fromEntries(imageMetaCache.entries());
     localStorage.setItem(IMAGE_META_KEY, JSON.stringify(metaObj));
-  } catch (e) {}
+  } catch (e) { }
 }
 
 /**
  * 🔥 Prefetch a single image into the persistent cache
  */
+
+// 🔥 Track already-prefetched images (session-level dedupe)
+const prefetched = new Set<string>();
+
 export const prefetchImage = async (uri: string): Promise<void> => {
   if (!uri || uri.startsWith('data:') || uri.startsWith('blob:')) return;
-  
+
+  // ✅ Prevent duplicate prefetches
+  if (prefetched.has(uri)) return;
+  prefetched.add(uri);
+
   try {
     await ensureImageCache();
     const cache = await caches.open(IMAGE_CACHE_NAME);
     const cachedResponse = await cache.match(uri);
-    
+
     if (!cachedResponse) {
       const response = await fetch(uri, { mode: 'cors' });
       if (response.ok) {
@@ -461,17 +462,17 @@ export const prefetchImages = (uris: (string | undefined | null)[]): void => {
 
 export const getOrDownloadImage = async (uri: string): Promise<string> => {
   await ensureInitialized();
-  
+
   // 1. Check Meta Cache (memory) - these blobUrls are valid for the CURRENT session
   if (imageMetaCache.has(uri)) {
-      return imageMetaCache.get(uri)!;
+    return imageMetaCache.get(uri)!;
   }
 
   // 2. Check Cache API (persistent)
   await ensureImageCache();
   const cache = await caches.open(IMAGE_CACHE_NAME);
   const cachedResponse = await cache.match(uri);
-  
+
   if (cachedResponse) {
     try {
       const blob = await cachedResponse.blob();
@@ -504,17 +505,17 @@ export const getOrDownloadImage = async (uri: string): Promise<string> => {
 export const invalidateCacheForImage = async (uri: string): Promise<void> => {
   const cache = await caches.open(IMAGE_CACHE_NAME);
   await cache.delete(uri);
-  
+
   const blobUrl = imageMetaCache.get(uri);
   if (blobUrl && blobUrl.startsWith('blob:')) {
     URL.revokeObjectURL(blobUrl);
   }
-  
+
   imageMetaCache.delete(uri);
   // Update localStorage
   try {
     const metaObj = Object.fromEntries(imageMetaCache.entries());
     localStorage.setItem(IMAGE_META_KEY, JSON.stringify(metaObj));
-  } catch (e) {}
+  } catch (e) { }
 }
 
