@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef, useState } from 'react'
-import { collection, doc, addDoc, updateDoc, setDoc, query, where, orderBy, onSnapshot, getDocs, serverTimestamp, deleteDoc, limit, getDoc } from 'firebase/firestore'
+import { collection, doc, addDoc, updateDoc, setDoc, query, where, orderBy, onSnapshot, getDocs, getDoc, serverTimestamp, deleteDoc, limit } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from './AuthContext'
 
@@ -13,6 +13,11 @@ export interface ChatMessage {
   read: boolean
   type: 'text' | 'image' | 'file'
   metadata?: any
+  replyToId?: string
+  replyOriginalContent?: string
+  replyOriginalSender?: string
+  isEdited?: boolean
+  updatedAt?: number
 }
 
 export interface ChatConversation {
@@ -63,6 +68,7 @@ type ChatAction =
   | { type: 'MESSAGES_APPENDED'; payload: { conversationId: string; messages: ChatMessage[] } }
   | { type: 'MESSAGES_READ'; payload: { conversationId: string; userId: string } }
   | { type: 'MESSAGE_DELETED'; payload: { messageId: string; conversationId: string } }
+  | { type: 'MESSAGE_UPDATED'; payload: { messageId: string; conversationId: string; content: string; updatedAt: number } }
   | { type: 'CONVERSATION_UPDATED'; payload: { conversationId: string; lastMessage?: ChatMessage } }
   | { type: 'SET_HAS_MORE_MESSAGES'; payload: { conversationId: string; hasMore: boolean } }
   | { type: 'SET_LOADING_MORE'; payload: boolean }
@@ -90,49 +96,49 @@ const initialState: ChatState = {
   isLoadingMore: false,
   loadingConversations: new Set(),
   canSendMessage: true,
-  isRequestMode: false
+  isRequestMode: false,
 }
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload }
-    
+
     case 'SET_ERROR':
       return { ...state, error: action.payload, isLoading: false }
-    
+
     case 'SET_CONNECTED':
       return { ...state, isConnected: action.payload }
-    
+
     case 'CONVERSATIONS_LOADED':
       return { ...state, conversations: action.payload, isLoading: false }
-    
+
     case 'MESSAGE_RECEIVED':
       const { conversationId, message, conversation } = action.payload
       const conversations = Array.isArray(state.conversations) ? state.conversations : []
-      const updatedConversations = conversations.map(conv => 
+      const updatedConversations = conversations.map(conv =>
         conv.id === conversationId ? conversation : conv
       )
-      
+
       // Add new conversation if it doesn't exist
       if (!conversations.find(conv => conv.id === conversationId)) {
         updatedConversations.unshift(conversation)
       }
-      
+
       return {
         ...state,
         conversations: updatedConversations,
-        messages: state.currentConversation?.id === conversationId 
+        messages: state.currentConversation?.id === conversationId
           ? [...state.messages, message]
           : state.messages
       }
-    
+
     case 'MESSAGE_SENT':
       return {
         ...state,
         messages: [...state.messages, action.payload.message]
       }
-    
+
     case 'MESSAGES_LOADED':
       const newCache = new Map(state.messageCache)
       newCache.set(action.payload.conversationId, action.payload.messages)
@@ -143,70 +149,71 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         messages: action.payload.messages,
         messageCache: newCache,
         isLoading: false,
+        isLoadingMore: false,
         loadingConversations: newLoadingConversationsForLoaded,
         ...(action.payload.requestStatus || { canSendMessage: true, isRequestMode: false })
       }
-    
+
     case 'MESSAGES_APPENDED':
       const updatedCache = new Map(state.messageCache)
       const existingMessages = updatedCache.get(action.payload.conversationId) || []
-      const combinedMessages = [...action.payload.messages, ...existingMessages]
+      const combinedMessages = [...existingMessages, ...action.payload.messages]
       updatedCache.set(action.payload.conversationId, combinedMessages)
       return {
         ...state,
-        messages: state.currentConversation?.id === action.payload.conversationId 
-          ? combinedMessages 
+        messages: state.currentConversation?.id === action.payload.conversationId
+          ? combinedMessages
           : state.messages,
         messageCache: updatedCache,
         isLoadingMore: false
       }
-    
+
     case 'SET_HAS_MORE_MESSAGES':
       return {
         ...state,
         hasMoreMessages: action.payload.hasMore
       }
-    
+
     case 'SET_LOADING_MORE':
       return {
         ...state,
         isLoadingMore: action.payload
       }
-    
+
     case 'MESSAGES_READ':
       const { conversationId: readConvId, userId } = action.payload
       const conversationsForRead = Array.isArray(state.conversations) ? state.conversations : []
       return {
         ...state,
-        conversations: conversationsForRead.map(conv => 
-          conv.id === readConvId 
+        conversations: conversationsForRead.map(conv =>
+          conv.id === readConvId
             ? { ...conv, unreadCount: 0 }
             : conv
         ),
-        messages: Array.isArray(state.messages) ? state.messages.map(msg => 
+        messages: Array.isArray(state.messages) ? state.messages.map(msg =>
           msg.receiverId === userId && !msg.read
             ? { ...msg, read: true }
             : msg
         ) : []
       }
-    
+
     case 'MESSAGE_DELETED':
       const { messageId, conversationId: deleteConvId } = action.payload
       const filteredMessages = Array.isArray(state.messages) ? state.messages.filter(msg => msg.id !== messageId) : []
-      
+
       return {
         ...state,
         messages: filteredMessages,
         conversations: Array.isArray(state.conversations) ? state.conversations.map(conv => {
           if (conv.id === deleteConvId && conv.lastMessage?.id === messageId) {
             // If deleted message was the last message, find the new last message from filtered messages
-            const conversationMessages = filteredMessages.filter(msg => 
+            const conversationMessages = filteredMessages.filter(msg =>
               conv.participants.includes(msg.senderId) && conv.participants.includes(msg.receiverId)
             )
-            const newLastMessage = conversationMessages.length > 0 
+            const newLastMessage = conversationMessages.length > 0
               ? conversationMessages[conversationMessages.length - 1]
               : undefined
-            
+
             return {
               ...conv,
               lastMessage: newLastMessage ? {
@@ -215,6 +222,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
                 receiverId: newLastMessage.receiverId,
                 content: newLastMessage.content,
                 timestamp: newLastMessage.timestamp,
+                updatedAt: newLastMessage.updatedAt || newLastMessage.timestamp,
                 read: newLastMessage.read,
                 type: newLastMessage.type
               } : undefined
@@ -223,56 +231,78 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
           return conv
         }) : []
       }
-    
+
+    case 'MESSAGE_UPDATED':
+      const { messageId: editId, content: newContent, updatedAt } = action.payload
+      return {
+        ...state,
+        messages: Array.isArray(state.messages) ? state.messages.map(msg =>
+          msg.id === editId ? { ...msg, content: newContent, isEdited: true, updatedAt } : msg
+        ) : [],
+        conversations: Array.isArray(state.conversations) ? state.conversations.map(conv => {
+          if (conv.id === action.payload.conversationId && conv.lastMessage?.id === editId) {
+            return {
+              ...conv,
+              lastMessage: {
+                ...conv.lastMessage,
+                content: newContent,
+                isEdited: true
+              }
+            } as ChatConversation
+          }
+          return conv
+        }) : []
+      }
+
     case 'CONVERSATION_UPDATED':
       const { conversationId: updateConvId, lastMessage: newLastMessage } = action.payload
       return {
         ...state,
-        conversations: Array.isArray(state.conversations) ? state.conversations.map(conv => 
-          conv.id === updateConvId 
+        conversations: Array.isArray(state.conversations) ? state.conversations.map(conv =>
+          conv.id === updateConvId
             ? { ...conv, lastMessage: newLastMessage }
             : conv
         ) : []
       }
-    
+
     case 'TYPING_UPDATE':
       const { conversationId: typingConvId, typingUsers } = action.payload
       const conversationsForTyping = Array.isArray(state.conversations) ? state.conversations : []
       return {
         ...state,
-        conversations: conversationsForTyping.map(conv => 
-          conv.id === typingConvId 
+        conversations: conversationsForTyping.map(conv =>
+          conv.id === typingConvId
             ? { ...conv, typingUsers, isTyping: typingUsers.length > 0 }
             : conv
         )
       }
-    
+
     case 'SET_CURRENT_CONVERSATION':
       return {
         ...state,
         currentConversation: action.payload,
         messages: action.payload ? [] : state.messages,
         canSendMessage: true,
-        isRequestMode: false
+        isRequestMode: false,
       }
-    
+
     case 'ADD_USER':
     case 'UPDATE_USER':
     case 'SET_USER':
       const newUsers = new Map(state.users)
       newUsers.set(action.payload.id, action.payload)
       return { ...state, users: newUsers }
-    
+
     case 'SEARCH_RESULTS':
       return {
         ...state,
         searchResults: action.payload.results,
         isSearching: false
       }
-    
+
     case 'SET_SEARCHING':
       return { ...state, isSearching: action.payload }
-    
+
     case 'SET_CONVERSATION_LOADING':
       const newLoadingConversations = new Set(state.loadingConversations)
       if (action.payload.isLoading) {
@@ -281,7 +311,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         newLoadingConversations.delete(action.payload.conversationId)
       }
       return { ...state, loadingConversations: newLoadingConversations }
-    
+
     default:
       return state
   }
@@ -289,9 +319,10 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
 interface ChatContextType {
   state: ChatState
-  sendMessage: (receiverId: string, content: string, type?: 'text' | 'image' | 'file') => void
+  sendMessage: (receiverId: string, content: string, type?: 'text' | 'image' | 'file', replyData?: { id: string; content: string; sender: string }) => void
+  editMessage: (messageId: string, conversationId: string, newContent: string) => Promise<void>
   loadConversations: () => void
-  loadMessages: (conversationId: string, loadMore?: boolean) => void
+  loadMessages: (conversationId: string, limitCount?: number, loadMore?: boolean) => void
   loadMoreMessages: (conversationId: string) => void
   setCurrentConversation: (conversation: ChatConversation | null) => void
   markAsRead: (conversationId: string) => void
@@ -325,6 +356,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(chatReducer, initialState)
   const { currentUser } = useAuth()
   const [unreadCount, setUnreadCount] = useState(0)
+  const [messagesLimit, setMessagesLimit] = useState(20)
+
+  // Use a ref for currentUser to avoid closure staleness in onSnapshot callbacks
+  const currentUserRef = useRef(currentUser)
+  useEffect(() => {
+    currentUserRef.current = currentUser
+  }, [currentUser])
 
   // Real-time listener for unread conversations count (not total messages)
   useEffect(() => {
@@ -351,7 +389,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
         // Count unique senders/conversations with unread messages
         const uniqueSenders = new Set<string>()
-        
+
         messagesSnapshot.forEach((doc) => {
           const data = doc.data()
           uniqueSenders.add(data.senderId)
@@ -361,7 +399,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         setUnreadCount(conversationsWithUnread)
       },
       (error) => {
-        console.error('❌ Error listening to unread messages:', error)
+        if (error.code === 'permission-denied') {
+          console.log('Permission denied in unread messages listener (likely logout)');
+        } else {
+          console.error('❌ Error listening to unread messages:', error);
+        }
       }
     )
 
@@ -381,7 +423,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
   }, [currentUser])
 
-  const sendMessage = useCallback(async (receiverId: string, content: string, type: 'text' | 'image' | 'file' = 'text') => {
+  const sendMessage = useCallback(async (
+    receiverId: string,
+    content: string,
+    type: 'text' | 'image' | 'file' = 'text',
+    replyData?: { id: string; content: string; sender: string }
+  ) => {
     if (!currentUser) return
 
     // Create optimistic message
@@ -392,7 +439,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       content,
       type,
       timestamp: Date.now(),
-      read: false
+      updatedAt: Date.now(),
+      read: false,
+      ...(replyData && {
+        replyToId: replyData.id,
+        replyOriginalContent: replyData.content,
+        replyOriginalSender: replyData.sender
+      })
     }
 
     // Add optimistic message to UI immediately
@@ -400,14 +453,21 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     try {
       // Create message document
-      const messageData = {
+      const messageData: any = {
         senderId: currentUser.uid,
         receiverId,
         content,
         type,
         timestamp: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         read: false,
         createdAt: new Date().toISOString()
+      }
+
+      if (replyData) {
+        messageData.replyToId = replyData.id;
+        messageData.replyOriginalContent = replyData.content;
+        messageData.replyOriginalSender = replyData.sender;
       }
 
       // Add message to messages collection
@@ -416,7 +476,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Update or create conversation
       const conversationId = [currentUser.uid, receiverId].sort().join('_')
       const conversationRef = doc(db, 'conversations', conversationId)
-      
+
       // Use setDoc with merge to create or update conversation
       await setDoc(conversationRef, {
         id: conversationId,
@@ -428,6 +488,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           timestamp: serverTimestamp()
         },
         lastActivity: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         createdAt: serverTimestamp()
       }, { merge: true })
 
@@ -439,10 +500,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const fetchUserData = useCallback(async (userId: string) => {
     try {
-      const userDoc = await getDoc(doc(db, 'users', userId))
+      const userDoc = await getDocs(query(
+        collection(db, 'users'),
+        where('__name__', '==', userId)
+      ))
 
-      if (userDoc.exists()) {
-        const userData = userDoc.data()
+      if (!userDoc.empty) {
+        const userData = userDoc.docs[0].data()
         const chatUser: ChatUser = {
           id: userId,
           displayName: userData.displayName || 'Unknown User',
@@ -451,7 +515,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           lastSeen: userData.lastSeen?.toDate?.()?.getTime() || Date.now(),
           isAdmin: userData.isAdmin || false
         }
-        
+
         dispatch({ type: 'SET_USER', payload: chatUser })
         return chatUser
       }
@@ -493,10 +557,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
       const unsubscribe = onSnapshot(conversationsQuery, (snapshot) => {
         const conversations: ChatConversation[] = []
-        
+
         snapshot.forEach((doc) => {
           const data = doc.data()
-          
+
           conversations.push({
             id: doc.id,
             participants: data.participants || [],
@@ -506,6 +570,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
               receiverId: data.participants.find((id: string) => id !== data.lastMessage.senderId) || '',
               content: data.lastMessage.content,
               timestamp: data.lastMessage.timestamp?.toDate?.()?.getTime() || Date.now(),
+              updatedAt: data.lastMessage.updatedAt?.toDate?.()?.getTime() || data.lastMessage.timestamp?.toDate?.()?.getTime() || Date.now(),
               read: data.lastMessage.read || false,
               type: 'text'
             } : undefined,
@@ -517,9 +582,16 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         })
 
         dispatch({ type: 'CONVERSATIONS_LOADED', payload: conversations })
-        
+
         // Fetch user data for all participants
         fetchUsersForConversations(conversations)
+      }, (error) => {
+        if (error.code === 'permission-denied') {
+          console.log('Permission denied in conversations listener (likely logout)');
+        } else {
+          console.error('Error loading conversations:', error);
+          dispatch({ type: 'SET_ERROR', payload: 'Failed to load conversations' });
+        }
       })
 
       // Store unsubscribe function for cleanup
@@ -530,7 +602,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
   }, [currentUser, fetchUsersForConversations])
 
-  const loadMessages = useCallback(async (conversationId: string, loadMore: boolean = false) => {
+  const loadMessages = useCallback(async (conversationId: string, limitCount: number = 20, loadMore: boolean = false) => {
     if (!currentUser) return
 
     if (loadMore) {
@@ -542,74 +614,49 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     try {
       // Get conversation participants and verify current user is a participant
-      let conversationDoc;
-      let participants: string[] = [];
-      
-      try {
-        conversationDoc = await getDoc(doc(db, 'conversations', conversationId))
-        if (conversationDoc.exists()) {
-          participants = conversationDoc.data().participants || [];
-        } else {
-          participants = conversationId.split('_');
-        }
-      } catch (e: any) {
-        // If we get a permission error on a non-existent doc, treat it as "new"
-        if (e.code === 'permission-denied' || e.message?.includes('permissions')) {
-          console.log('Permission denied for conversation fetch, assuming new conversation status...')
-          participants = conversationId.split('_');
-        } else {
-          throw e;
-        }
-      }
+      const conversationDoc = await getDoc(doc(db, 'conversations', conversationId))
 
-      // SECURITY: Verify current user is a participant (or part of the virtual ID)
-      if (!participants.includes(currentUser.uid)) {
-        console.error('Unauthorized access attempt to conversation:', conversationId)
-        dispatch({ type: 'SET_ERROR', payload: 'Unauthorized access to conversation' })
-        dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
-        return
-      }
+      if (!conversationDoc.exists()) {
+        // Conversation does not exist yet (new conversation)
+        // Extract other user ID from conversationId (format: uid1_uid2)
+        const participantsFromId = conversationId.split('_');
+        const otherUserId = participantsFromId.find(id => id !== currentUser.uid);
 
-      // Handle new/virtual conversation initial state before starting listener
-      if (!conversationDoc || !conversationDoc.exists()) {
-        const otherUserId = participants.find(id => id !== currentUser.uid);
         let requestStatus = { canSendMessage: true, isRequestMode: false };
-        
-        if (otherUserId && participants.length === 2) {
-          const isFriend = (currentUser.following || []).includes(otherUserId) && 
-                           (currentUser.followers || []).includes(otherUserId);
-          
+        const latestUser = currentUserRef.current;
+        if (otherUserId && participantsFromId.length === 2 && latestUser) {
+          const isFriend = (latestUser.following || []).includes(otherUserId) &&
+            (latestUser.followers || []).includes(otherUserId);
+
           if (!isFriend) {
             requestStatus.isRequestMode = true;
           }
         }
 
-        // Dispatch initial "virtual" state but DON'T return; proceed to set up message listener
         dispatch({ type: 'MESSAGES_LOADED', payload: { conversationId, messages: [], requestStatus } });
+        dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } });
         dispatch({ type: 'SET_HAS_MORE_MESSAGES', payload: { conversationId, hasMore: false } });
+        return;
       }
 
-      let participantsToUse = participants;
-      if (conversationDoc && conversationDoc.exists()) {
-        const conversationData = conversationDoc.data()
-        participantsToUse = conversationData.participants || participants
-        
-        // SECURITY: Verify current user is a participant
-        if (!participantsToUse.includes(currentUser.uid)) {
-          console.error('Unauthorized access attempt to conversation:', conversationId)
-          dispatch({ type: 'SET_ERROR', payload: 'Unauthorized access to conversation' })
-          dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
-          return
-        }
+      const conversationData = conversationDoc.data()
+      const participants = conversationData.participants || []
+
+      // SECURITY: Verify current user is a participant
+      if (!participants.includes(currentUser.uid)) {
+        console.error('Unauthorized: User not in participants list');
+        dispatch({ type: 'SET_ERROR', payload: 'Unauthorized access to conversation' })
+        dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } });
+        return
       }
 
       // Set up real-time listener for messages in this conversation
       const messagesQuery = query(
         collection(db, 'messages'),
-        where('senderId', 'in', participantsToUse),
-        where('receiverId', 'in', participantsToUse),
+        where('senderId', 'in', participants),
+        where('receiverId', 'in', participants),
         orderBy('timestamp', 'desc'),
-        limit(50) // Load 50 messages at a time
+        limit(limitCount)
       )
 
       // Clean up existing listener for this conversation
@@ -622,7 +669,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Set up real-time listener
       const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
         const messages: ChatMessage[] = []
-        
+
         snapshot.forEach((doc) => {
           const data = doc.data()
           messages.push({
@@ -630,31 +677,43 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             senderId: data.senderId,
             receiverId: data.receiverId,
             content: data.content,
-            timestamp: data.timestamp?.toDate?.()?.getTime() || Date.now(),
+            timestamp: (() => {
+              const ts = data.timestamp?.toDate ? data.timestamp.toDate().getTime() : data.timestamp;
+              if (typeof ts === 'number' && ts < 10000000000) return ts * 1000;
+              return ts || Date.now();
+            })(),
             read: data.read || false,
             type: data.type || 'text',
-            metadata: data.metadata
+            metadata: data.metadata,
+            replyToId: data.replyToId,
+            replyOriginalContent: data.replyOriginalContent,
+            replyOriginalSender: data.replyOriginalSender,
+            isEdited: data.isEdited,
+            updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().getTime() : data.updatedAt
           })
         })
 
-        // Sort messages by timestamp ascending for display
-        messages.sort((a, b) => a.timestamp - b.timestamp)
+        // Sort messages by timestamp ascending for correct chronological display
+        const sortedMessages = [...messages].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
         // Calculate Request Status
         let requestStatus = { canSendMessage: true, isRequestMode: false };
-        if (currentUser && participantsToUse.length === 2) {
-          const otherUserId = participantsToUse.find((id: string) => id !== currentUser.uid);
+        const latestUser = currentUserRef.current;
+        if (latestUser && participants.length === 2) {
+          const otherUserId = participants.find((id: string) => id !== latestUser.uid);
           if (otherUserId) {
-            const isFriend = (currentUser.following || []).includes(otherUserId) && 
-                             (currentUser.followers || []).includes(otherUserId);
-            
+            // Normalized mutual follow check
+            const isFollowingOther = (latestUser.following || []).some(id => id === otherUserId);
+            const isFollowedByOther = (latestUser.followers || []).some(id => id === otherUserId);
+            const isFriend = isFollowingOther && isFollowedByOther;
+
             if (!isFriend) {
-              const myMessages = messages.filter(m => m.senderId === currentUser.uid);
-              const theirMessages = messages.filter(m => m.senderId !== currentUser.uid);
-              
+              const myMessages = sortedMessages.filter(m => m.senderId === latestUser.uid);
+              const theirMessages = sortedMessages.filter(m => m.senderId !== latestUser.uid);
+
               if (theirMessages.length === 0) {
                 requestStatus.isRequestMode = true;
-                if (myMessages.length > 0 && !currentUser.isAdmin) {
+                if (myMessages.length > 0 && !latestUser.isAdmin) {
                   requestStatus.canSendMessage = false;
                 }
               }
@@ -662,20 +721,20 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           }
         }
 
-        if (loadMore) {
-          dispatch({ type: 'MESSAGES_APPENDED', payload: { conversationId, messages } })
-        } else {
-          dispatch({ type: 'MESSAGES_LOADED', payload: { conversationId, messages, requestStatus } })
-        }
+        dispatch({ type: 'MESSAGES_LOADED', payload: { conversationId, messages: sortedMessages, requestStatus } })
 
         // Clear conversation loading state
         dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
 
         // Set pagination state
-        dispatch({ type: 'SET_HAS_MORE_MESSAGES', payload: { conversationId, hasMore: messages.length === 50 } })
+        dispatch({ type: 'SET_HAS_MORE_MESSAGES', payload: { conversationId, hasMore: messages.length >= limitCount } })
       }, (error) => {
-        console.error('Error in messages listener:', error)
-        dispatch({ type: 'SET_ERROR', payload: 'Failed to load messages' })
+        if (error.code === 'permission-denied') {
+          console.log('Permission denied in messages listener (likely logout)');
+        } else {
+          console.error('Error in messages listener:', error)
+          dispatch({ type: 'SET_ERROR', payload: 'Failed to load messages' })
+        }
         dispatch({ type: 'SET_CONVERSATION_LOADING', payload: { conversationId, isLoading: false } })
       })
 
@@ -691,8 +750,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   }, [currentUser])
 
   const loadMoreMessages = useCallback(async (conversationId: string) => {
-    await loadMessages(conversationId, true)
-  }, [loadMessages])
+    if (state.isLoadingMore || !state.hasMoreMessages) return
+    const nextLimit = messagesLimit + 20
+    setMessagesLimit(nextLimit)
+    await loadMessages(conversationId, nextLimit, true)
+  }, [messagesLimit, loadMessages, state.isLoadingMore, state.hasMoreMessages])
 
   // Store active listeners
   const messageListeners = useRef<Map<string, () => void>>(new Map())
@@ -706,9 +768,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     messageListeners.current.clear()
 
     dispatch({ type: 'SET_CURRENT_CONVERSATION', payload: conversation })
-    
+
     if (conversation) {
-      loadMessages(conversation.id)
+      setMessagesLimit(20)
+      loadMessages(conversation.id, 20)
     }
   }, [loadMessages])
 
@@ -719,7 +782,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         unsubscribe()
       })
       messageListeners.current.clear()
-      
+
       if (conversationListener.current) {
         conversationListener.current()
         conversationListener.current = null
@@ -732,13 +795,16 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     try {
       // Get the conversation to find all messages between participants
-      const conversationDoc = await getDoc(doc(db, 'conversations', conversationId))
+      const conversationDoc = await getDocs(query(
+        collection(db, 'conversations'),
+        where('__name__', '==', conversationId)
+      ))
 
-      if (!conversationDoc.exists()) return
+      if (conversationDoc.empty) return
 
-      const conversationData = conversationDoc.data()
+      const conversationData = conversationDoc.docs[0].data()
       const participants = conversationData.participants || []
-      
+
       if (!participants.includes(currentUser.uid)) {
         console.error('Unauthorized access attempt to mark messages as read:', conversationId)
         return
@@ -752,7 +818,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       )
 
       const messagesSnapshot = await getDocs(unreadMessagesQuery)
-      
+
       // Filter messages that are part of this conversation
       const messagesToUpdate = messagesSnapshot.docs.filter(doc => {
         const data = doc.data()
@@ -760,13 +826,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       })
 
       // Update messages as read
-      const updatePromises = messagesToUpdate.map(doc => 
+      const updatePromises = messagesToUpdate.map(doc =>
         updateDoc(doc.ref, { read: true })
       )
 
       await Promise.all(updatePromises)
-      
-      console.log('✅ Marked', messagesToUpdate.length, 'messages as read in conversation', conversationId)
 
       // Update local state
       dispatch({ type: 'MESSAGES_READ', payload: { conversationId, userId: currentUser.uid } })
@@ -775,17 +839,69 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
   }, [currentUser])
 
+  const editMessage = useCallback(async (messageId: string, conversationId: string, newContent: string) => {
+    if (!currentUser) return;
+    try {
+      const messageRef = doc(db, 'messages', messageId);
+      const msgDoc = await getDoc(messageRef);
+
+      if (!msgDoc.exists()) throw new Error('Message not found');
+
+      const msgData = msgDoc.data();
+      if (msgData.senderId !== currentUser.uid) throw new Error('Unauthorized');
+
+      // 15 minute lock validation
+      const msgTimestamp = msgData.timestamp?.toDate ? msgData.timestamp.toDate().getTime() : msgData.timestamp;
+      const ts = typeof msgTimestamp === 'number' && msgTimestamp < 10000000000 ? msgTimestamp * 1000 : msgTimestamp || Date.now();
+
+      if (Date.now() - ts > 15 * 60 * 1000) {
+        throw new Error('Message is older than 15 minutes and cannot be edited');
+      }
+
+      const updatedTime = Date.now();
+
+      await updateDoc(messageRef, {
+        content: newContent,
+        isEdited: true,
+        updatedAt: serverTimestamp()
+      });
+
+      // Optimistic update
+      dispatch({ type: 'MESSAGE_UPDATED', payload: { messageId, conversationId, content: newContent, updatedAt: updatedTime } });
+
+      // Update lastMessage inside Conversations if applicable
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const convDoc = await getDoc(conversationRef);
+      if (convDoc.exists()) {
+        const convData = convDoc.data();
+        if (convData.lastMessage?.id === messageId) {
+          await updateDoc(conversationRef, {
+            'lastMessage.content': newContent,
+            'lastMessage.isEdited': true
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error editing message:', err);
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to edit message' });
+      throw err;
+    }
+  }, [currentUser]);
+
   const deleteMessage = useCallback(async (messageId: string, conversationId: string) => {
     if (!currentUser) return
 
     try {
       // SECURITY: Verify user has access to this conversation
-      const conversationDoc = await getDoc(doc(db, 'conversations', conversationId))
-      const conversationData = conversationDoc.data()
+      const conversationDoc = await getDocs(query(
+        collection(db, 'conversations'),
+        where('__name__', '==', conversationId)
+      ))
 
-      if (conversationDoc.exists() && conversationData) {
+      if (!conversationDoc.empty) {
+        const conversationData = conversationDoc.docs[0].data()
         const participants = conversationData.participants || []
-        
+
         if (!participants.includes(currentUser.uid)) {
           console.error('Unauthorized access attempt to delete message:', conversationId)
           dispatch({ type: 'SET_ERROR', payload: 'Unauthorized access to delete message' })
@@ -794,17 +910,20 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       }
 
       // Get the message to verify ownership
-      const messageDoc = await getDoc(doc(db, 'messages', messageId))
+      const messageDoc = await getDocs(query(
+        collection(db, 'messages'),
+        where('__name__', '==', messageId)
+      ))
 
-      if (!messageDoc.exists()) {
+      if (messageDoc.empty) {
         dispatch({ type: 'SET_ERROR', payload: 'Message not found' })
         return
       }
 
-      const messageDocData = messageDoc.data()
-      
+      const messageData = messageDoc.docs[0].data()
+
       // SECURITY: Only allow users to delete their own messages
-      if (messageDocData.senderId !== currentUser.uid) {
+      if (messageData.senderId !== currentUser.uid) {
         console.error('Unauthorized attempt to delete message not owned by user:', messageId)
         dispatch({ type: 'SET_ERROR', payload: 'You can only delete your own messages' })
         return
@@ -815,9 +934,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
       // Update the conversation's last message if this was the last message
       const conversationRef = doc(db, 'conversations', conversationId)
-      
-      if (conversationDoc.exists() && conversationData && conversationData.lastMessage?.id === messageId) {
-        const participants = conversationData.participants || []
+      const conversationData = conversationDoc.docs[0].data()
+      const participants = conversationData.participants || []
+
+      if (conversationData.lastMessage?.id === messageId) {
         // Find the new last message
         const remainingMessagesQuery = query(
           collection(db, 'messages'),
@@ -826,9 +946,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           orderBy('timestamp', 'desc'),
           limit(1)
         )
-        
+
         const remainingMessagesSnapshot = await getDocs(remainingMessagesQuery)
-        
+
         if (!remainingMessagesSnapshot.empty) {
           const newLastMessageData = remainingMessagesSnapshot.docs[0].data()
           const newLastMessage: ChatMessage = {
@@ -837,19 +957,21 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             receiverId: newLastMessageData.receiverId,
             content: newLastMessageData.content,
             timestamp: newLastMessageData.timestamp?.toDate?.()?.getTime() || Date.now(),
+            updatedAt: newLastMessageData.updatedAt?.toDate?.()?.getTime() || newLastMessageData.timestamp?.toDate?.()?.getTime() || Date.now(),
             read: newLastMessageData.read || false,
             type: newLastMessageData.type || 'text'
           }
-          
+
           await setDoc(conversationRef, {
             lastMessage: {
               id: newLastMessage.id,
               content: newLastMessage.content,
               senderId: newLastMessage.senderId,
-              timestamp: newLastMessage.timestamp
+              timestamp: newLastMessage.timestamp,
+              updatedAt: newLastMessage.updatedAt
             }
           }, { merge: true })
-          
+
           // Update local state with new last message
           dispatch({ type: 'CONVERSATION_UPDATED', payload: { conversationId, lastMessage: newLastMessage } })
         } else {
@@ -857,7 +979,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           await setDoc(conversationRef, {
             lastMessage: null
           }, { merge: true })
-          
+
           // Update local state to clear last message
           dispatch({ type: 'CONVERSATION_UPDATED', payload: { conversationId, lastMessage: undefined } })
         }
@@ -865,7 +987,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
       // Update local state to remove message
       dispatch({ type: 'MESSAGE_DELETED', payload: { messageId, conversationId } })
-      
+
     } catch (error) {
       console.error('Error deleting message:', error)
       dispatch({ type: 'SET_ERROR', payload: 'Failed to delete message' })
@@ -900,6 +1022,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const value: ChatContextType = {
     state,
     sendMessage,
+    editMessage,
     loadConversations,
     loadMessages,
     loadMoreMessages,
