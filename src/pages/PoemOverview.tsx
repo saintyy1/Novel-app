@@ -146,8 +146,10 @@ const PoemOverview = () => {
                 await updateDoc(poemDocRef, {
                   views: increment(1),
                 })
-                localStorage.setItem(viewKey, now.toString())
-                setPoem((prev) => (prev ? { ...prev, views: (prev.views || 0) + 1 } : null))
+                 localStorage.setItem(viewKey, now.toString())
+                 setPoem((prev) => (prev ? { ...prev, views: (prev.views || 0) + 1 } : null))
+                 // 🔥 Invalidate cache to show updated views to others
+                 await invalidatePoemCache(id)
               } catch (updateError) {
                 console.error("Failed to update view count:", updateError)
               }
@@ -383,8 +385,10 @@ const PoemOverview = () => {
     if (!confirmDelete) return
     try {
       setDeletingComment(commentId)
-      await deleteDoc(doc(db, "poemComments", commentId))
-      showSuccessToast("Comment deleted successfully!")
+       await deleteDoc(doc(db, "poemComments", commentId))
+       showSuccessToast("Comment deleted successfully!")
+       // 🔥 Invalidate poem cache
+       if (poem?.id) await invalidatePoemCache(poem.id)
     } catch (error) {
       console.error("Error deleting comment:", error)
       showErrorToast("Failed to delete comment")

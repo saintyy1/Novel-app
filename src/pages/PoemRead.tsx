@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react"
 import { useParams, Link } from "react-router-dom"
-import { doc, getDoc } from "firebase/firestore"
+import { doc, getDoc, updateDoc, increment } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Poem } from "../types/poem"
 import SEOHead from "../components/SEOHead"
-import { withCache, CACHE_TTL } from "../utils/cache"
+import { withCache, CACHE_TTL, invalidatePoemCache } from "../utils/cache"
 import { useAuth } from "../context/AuthContext"
 
 const PoemRead = () => {
@@ -33,9 +33,31 @@ const PoemRead = () => {
           return null
         }, CACHE_TTL.CONTENT)
         
-        if (poemData) {
-          setPoem(poemData)
-        }
+          if (poemData) {
+            setPoem(poemData)
+
+            // Handle unique view count increment
+            if (currentUser) {
+              const poemDocRef = doc(db, "poems", id)
+              const viewKey = `poem_view_${id}_${currentUser.uid}`
+              const lastViewTimestamp = localStorage.getItem(viewKey)
+              const now = Date.now()
+              const twentyFourHours = 24 * 60 * 60 * 1000
+              
+              if (!lastViewTimestamp || now - Number(lastViewTimestamp) > twentyFourHours) {
+                try {
+                  await updateDoc(poemDocRef, {
+                    views: increment(1),
+                  })
+                  localStorage.setItem(viewKey, now.toString())
+                  // 🔥 Invalidate cache to show updated views
+                  await invalidatePoemCache(id)
+                } catch (updateError) {
+                  console.error("Failed to update view count:", updateError)
+                }
+              }
+            }
+          }
       } catch (error) {
         console.error("Error fetching poem:", error)
       } finally {

@@ -36,6 +36,7 @@ import {
 } from "firebase/firestore"
 import { auth, db, googleProvider, actionCodeSettings } from "../firebase/config"
 import { trackUserRegistration } from "../utils/Analytics-utils"
+import { invalidateProfileCache } from "../utils/cache"
 
 // Extend the Firebase User type with our custom properties
 export interface ExtendedUser extends User {
@@ -312,6 +313,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       // Update local state immediately
       setCurrentUser((prev) => (prev ? { ...prev, photoURL: photoBase64 } : null))
+
+      // 🔥 Invalidate profile cache
+      await invalidateProfileCache(currentUser.uid)
     } catch (error) {
       console.error("Error updating user photo:", error)
       throw error
@@ -335,18 +339,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (firebaseUser.displayName !== displayName) {
         await updateProfile(firebaseUser, { displayName })
       }
-      // Update authorName in all novels by this user if display name changed
+      // Update author/poet name in all content by this user if display name changed
       if (currentUser.displayName !== displayName) {
+        const userId = currentUser.uid
+
+        // Update Novels
         const novelsRef = collection(db, "novels")
-        const q = query(novelsRef, where("authorId", "==", currentUser.uid))
-        const querySnapshot = await getDocs(q)
-        for (const novelDoc of querySnapshot.docs) {
-          const novelRef = doc(db, "novels", novelDoc.id)
-          await updateDoc(novelRef, { authorName: displayName })
-        }
+        const novelsQuery = query(novelsRef, where("authorId", "==", userId))
+        const novelsSnapshot = await getDocs(novelsQuery)
+        const novelUpdatePromises = novelsSnapshot.docs.map((novelDoc) =>
+          updateDoc(doc(db, "novels", novelDoc.id), { authorName: displayName }),
+        )
+
+        // Update Poems
+        const poemsRef = collection(db, "poems")
+        const poemsQuery = query(poemsRef, where("poetId", "==", userId))
+        const poemsSnapshot = await getDocs(poemsQuery)
+        const poemUpdatePromises = poemsSnapshot.docs.map((poemDoc) =>
+          updateDoc(doc(db, "poems", poemDoc.id), { poetName: displayName }),
+        )
+
+        await Promise.all([...novelUpdatePromises, ...poemUpdatePromises])
       }
+
       // Update local state
-      setCurrentUser((prev) => (prev ? { ...prev, displayName, bio, instagramUrl, twitterUrl, supportLink, location } : null))
+      setCurrentUser((prev) =>
+        prev ? { ...prev, displayName, bio, instagramUrl, twitterUrl, supportLink, location } : null,
+      )
+
+      // 🔥 Invalidate profile cache
+      await invalidateProfileCache(currentUser.uid)
     } catch (error) {
       console.error("Error updating user profile:", error)
       throw error
@@ -509,6 +531,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Record the unfollow timestamp
         lastUnfollowTimestamps.set(cooldownKey, Date.now())
       }
+
+      // 🔥 Invalidate profile cache for both users
+      await invalidateProfileCache(targetUserId)
+      await invalidateProfileCache(currentUser.uid)
 
       // Refresh current user's data to reflect changes
       await refreshUser()

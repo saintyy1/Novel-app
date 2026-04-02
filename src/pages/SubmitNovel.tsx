@@ -16,7 +16,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import InlineChatEditor from "../components/InlineChatEditor"
 import type { ChatMessage } from "../types/novel"
 import SEOHead from "../components/SEOHead"
-import { invalidateCache, invalidateByPrefix } from "../utils/cache"
+import { invalidateCache, invalidateByPrefix, invalidateProfileCache } from "../utils/cache"
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -600,6 +600,7 @@ const SubmitNovel = () => {
       await invalidateByPrefix("novels_")
       await invalidateByPrefix("home_")
       await invalidateCache("home_new_releases")
+      await invalidateProfileCache(currentUser?.uid || "")
 
       navigate(`/profile/${currentUser?.uid}`)
       alert("Your novel has been submitted for review!")

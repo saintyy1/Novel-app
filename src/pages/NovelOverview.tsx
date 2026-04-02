@@ -163,6 +163,8 @@ const NovelOverview = () => {
                 localStorage.setItem(viewKey, now.toString())
                 // Update local novel state to reflect new view count
                 setNovel((prev) => (prev ? { ...prev, views: (prev.views || 0) + 1 } : null))
+                // 🔥 Invalidate cache to show updated views to others
+                await invalidateNovelCache(id)
               } catch (error) {
                 console.error("Failed to update view count:", error)
               }
@@ -432,6 +434,8 @@ const NovelOverview = () => {
       setDeletingComment(commentId)
       await deleteDoc(doc(db, "comments", commentId))
       showSuccessToast("Comment deleted successfully!")
+      // 🔥 Invalidate novel cache
+      if (novel?.id) await invalidateNovelCache(novel.id)
     } catch (error) {
       console.error("Error deleting comment:", error)
       showErrorToast("Failed to delete comment")

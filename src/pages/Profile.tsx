@@ -793,12 +793,6 @@ const Profile = () => {
 
       // Refresh profile user data to ensure full synchronization
       await refreshProfileUser()
-
-      // 🔥 Invalidate profile cache
-      await invalidateCache(`profile_user_${profileUser.uid}`)
-      if (currentUser) {
-        await invalidateCache(`profile_user_${currentUser.uid}`)
-      }
     } catch (err) {
       console.error("Error toggling follow:", err)
       showErrorToast("Failed to update follow status. Please try again.") // Show error toast

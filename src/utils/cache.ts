@@ -282,6 +282,24 @@ export const invalidatePoemCache = async (poemId: string): Promise<void> => {
   await invalidateByPrefix("home_")
   await invalidateCache("home_trending_poems")
 }
+/**
+ * 👤 Centralized Profile Invalidation
+ */
+export const invalidateProfileCache = async (userId: string): Promise<void> => {
+  if (!userId) return
+
+  // Clear specific profile user cache
+  await invalidateCache(`profile_user_${userId}`)
+
+  // Clear profile feeds (novels and poems)
+  await invalidateCache(`profile_novels_feed_${userId}`)
+  await invalidateCache(`profile_poems_feed_${userId}`)
+
+  // Clear general feeds that might be affected
+  await invalidateByPrefix("home_")
+  await invalidateByPrefix("novels_")
+  await invalidateByPrefix("poems_")
+}
 
 /**
  * Optional logging

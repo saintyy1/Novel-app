@@ -1167,6 +1167,8 @@ const NovelRead = () => {
             await updateDoc(doc(db, "novels", id), {
               views: increment(1),
             })
+            // 🔥 Invalidate cache to show updated views
+            await invalidateNovelCache(id)
           }
         } else {
           setError("Novel not found")

@@ -12,7 +12,7 @@ import VerificationBanner from "../components/VerificationBanner"
 import SEOHead from "../components/SEOHead"
 import { generateWebsiteStructuredData, generateBreadcrumbStructuredData, generateCollectionStructuredData } from "../utils/structuredData"
 import { sendPromotionEndedNotification } from "../services/notificationService"
-import { withCache, CACHE_TTL } from "../utils/cache"
+import { withCache, CACHE_TTL, invalidateByPrefix } from "../utils/cache"
 
 interface BannerSlide {
   id: string
@@ -102,6 +102,8 @@ const Home = () => {
                 promotionPlan: null,
                 promotionEndNotificationSent: true
               })
+              // 🔥 Invalidate home cache so the expired promotion disappears immediately for all users
+              await invalidateByPrefix("home_")
             } else {
               dataList.push({ id: docSnap.id, ...data } as Novel)
             }
