@@ -170,8 +170,8 @@ const Navbar = () => {
             <Link
               to="/"
               className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/")
-                  ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
-                  : "text-[#E0E0E0]"
+                ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
+                : "text-[#E0E0E0]"
                 }`}
             >
               <div className="flex items-center">
@@ -196,8 +196,8 @@ const Navbar = () => {
               <button
                 onClick={() => setIsBrowseDropdownOpen(!isBrowseDropdownOpen)}
                 className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors flex items-center ${isActive("/novels") || isActive("/poems")
-                    ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
-                    : "text-[#E0E0E0]"
+                  ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
+                  : "text-[#E0E0E0]"
                   }`}
               >
                 <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -268,8 +268,8 @@ const Navbar = () => {
                 <Link
                   to="/library"
                   className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/library")
-                      ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
-                      : "text-[#E0E0E0]"
+                    ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
+                    : "text-[#E0E0E0]"
                     }`}
                 >
                   <div className="flex items-center">
@@ -304,8 +304,8 @@ const Navbar = () => {
                   <button
                     onClick={() => setIsSubmitDropdownOpen(!isSubmitDropdownOpen)}
                     className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors flex items-center ${isActive("/submit") || isActive("/submit-poem")
-                        ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
-                        : "text-[#E0E0E0]"
+                      ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
+                      : "text-[#E0E0E0]"
                       }`}
                   >
                     <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -374,8 +374,8 @@ const Navbar = () => {
                 <Link
                   to="/notifications"
                   className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/notifications")
-                      ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
-                      : "text-[#E0E0E0]"
+                    ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
+                    : "text-[#E0E0E0]"
                     }`}
                 >
                   <div className="flex items-center">
@@ -401,8 +401,8 @@ const Navbar = () => {
                     <Link
                       to="/admin"
                       className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/admin")
-                          ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
-                          : "text-[#E0E0E0]"
+                        ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
+                        : "text-[#E0E0E0]"
                         }`}
                     >
                       <div className="flex items-center">
@@ -606,42 +606,57 @@ const Navbar = () => {
                           Home
                         </div>
                       </Link>
-                      <Link
-                        to="/novels"
-                        onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/novels") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                          }`}
+                      {/* Browse Dropdown */}
+                      <div
+                        className="relative"
+                        ref={browseDropdownRef}
                       >
-                        <div className="flex items-center">
-                          <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                            />
-                          </svg>
-                          Novels
-                        </div>
-                      </Link>
-                      <Link
-                        to="/poems"
-                        onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/poems") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                          }`}
-                      >
-                        <div className="flex items-center">
-                          <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
-                            />
-                          </svg>
-                          Poems
-                        </div>
-                      </Link>
+                        <button
+                          onClick={() => setIsBrowseDropdownOpen(!isBrowseDropdownOpen)}
+                          className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/novels") || isActive("/poems") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                            }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                                />
+                              </svg>
+                              Browse
+                            </div>
+                            <svg
+                              className={`h-4 w-4 transition-transform ${isBrowseDropdownOpen ? "rotate-180" : ""}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </button>
+                        {isBrowseDropdownOpen && (
+                          <div className="bg-gray-900/50 py-1 space-y-1">
+                            <Link
+                              to="/novels"
+                              onClick={closeDropdown}
+                              className={`block px-4 py-2 text-sm pl-11 hover:bg-gray-700 transition-colors ${isActive("/novels") ? "text-purple-400" : "text-gray-400"}`}
+                            >
+                              Novels
+                            </Link>
+                            <Link
+                              to="/poems"
+                              onClick={closeDropdown}
+                              className={`block px-4 py-2 text-sm pl-11 hover:bg-gray-700 transition-colors ${isActive("/poems") ? "text-purple-400" : "text-gray-400"}`}
+                            >
+                              Poems
+                            </Link>
+                          </div>
+                        )}
+                      </div>
                       <Link
                         to="/library"
                         onClick={closeDropdown}
@@ -670,42 +685,57 @@ const Navbar = () => {
                           Library
                         </div>
                       </Link>
-                      <Link
-                        to="/submit"
-                        onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/submit") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                          }`}
+                      {/* Submit Dropdown */}
+                      <div
+                        className="relative"
+                        ref={submitDropdownRef}
                       >
-                        <div className="flex items-center">
-                          <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                            />
-                          </svg>
-                          Submit Novel
-                        </div>
-                      </Link>
-                      <Link
-                        to="/submit-poem"
-                        onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/submit-poem") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                          }`}
-                      >
-                        <div className="flex items-center">
-                          <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                            />
-                          </svg>
-                          Submit Poem
-                        </div>
-                      </Link>
+                        <button
+                          onClick={() => setIsSubmitDropdownOpen(!isSubmitDropdownOpen)}
+                          className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/submit") || isActive("/submit-poem") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                            }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                />
+                              </svg>
+                              Submit
+                            </div>
+                            <svg
+                              className={`h-4 w-4 transition-transform ${isSubmitDropdownOpen ? "rotate-180" : ""}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </button>
+                        {isSubmitDropdownOpen && (
+                          <div className="bg-gray-900/50 py-1 space-y-1">
+                            <Link
+                              to="/submit"
+                              onClick={closeDropdown}
+                              className={`block px-4 py-2 text-sm pl-11 hover:bg-gray-700 transition-colors ${isActive("/submit") ? "text-purple-400" : "text-gray-400"}`}
+                            >
+                              Submit Novel
+                            </Link>
+                            <Link
+                              to="/submit-poem"
+                              onClick={closeDropdown}
+                              className={`block px-4 py-2 text-sm pl-11 hover:bg-gray-700 transition-colors ${isActive("/submit-poem") ? "text-purple-400" : "text-gray-400"}`}
+                            >
+                              Submit Poem
+                            </Link>
+                          </div>
+                        )}
+                      </div>
                       <Link
                         to="/notifications"
                         onClick={closeDropdown}

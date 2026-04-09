@@ -238,16 +238,16 @@ const CreatorTools: React.FC = () => {
 
             {/* Achievement Preview */}
             <div className="relative group overflow-hidden bg-gradient-to-br from-[#1a1a1c] to-black border border-white/5 rounded-3xl p-8 text-center">
-              <div className={`absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity ${currentUser && (currentUser.followers?.length || 0) >= 100 ? 'text-yellow-500' : 'text-purple-500'}`}>
+              <div className={`absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity ${currentUser && (currentUser.followers?.length || 0) >= 50 ? 'text-yellow-500' : 'text-purple-500'}`}>
                 <Award className="h-20 w-20" />
               </div>
-              <div className={`mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-6 ${currentUser && (currentUser.followers?.length || 0) >= 100 ? 'bg-yellow-500/20' : 'bg-purple-500/10'}`}>
-                <Award className={`h-8 w-8 ${currentUser && (currentUser.followers?.length || 0) >= 100 ? 'text-yellow-400' : 'text-purple-500'}`} />
+              <div className={`mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-6 ${currentUser && (currentUser.followers?.length || 0) >= 50 ? 'bg-yellow-500/20' : 'bg-purple-500/10'}`}>
+                <Award className={`h-8 w-8 ${currentUser && (currentUser.followers?.length || 0) >= 50 ? 'text-yellow-400' : 'text-purple-500'}`} />
               </div>
               <h3 className="text-lg font-bold mb-2">
                 <span className="cursor-default select-none">Author Milestone</span>
               </h3>
-              {currentUser && (currentUser.followers?.length || 0) >= 100 ? (
+              {currentUser && (currentUser.followers?.length || 0) >= 50 ? (
                 <>
                   <p className="text-xs text-yellow-400/80 mb-6 font-medium">Congratulations! You've unlocked the "Rising Star" status.</p>
                   <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-2">
@@ -257,11 +257,11 @@ const CreatorTools: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <p className="text-xs text-gray-500 mb-6">Reach 100 followers to unlock the "Rising Star" verified badge.</p>
+                  <p className="text-xs text-gray-500 mb-6">Reach 50 followers to unlock the "Rising Star" verified badge.</p>
                   <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-2">
-                    <div className="bg-purple-500 h-full transition-all duration-1000 ease-out" style={{ width: `${Math.min((((currentUser?.followers?.length || 0) / 100) * 100), 100)}%` }} />
+                    <div className="bg-purple-500 h-full transition-all duration-1000 ease-out" style={{ width: `${Math.min((((currentUser?.followers?.length || 0) / 50) * 100), 100)}%` }} />
                   </div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{currentUser?.followers?.length || 0}/100 Followers</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{currentUser?.followers?.length || 0}/50 Followers</p>
                 </>
               )}
             </div>
