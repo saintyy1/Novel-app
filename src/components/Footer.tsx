@@ -91,6 +91,37 @@ const Footer: React.FC = () => {
               </li>
             </ul>
           </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Mobile App</h3>
+            <p className="mt-4 text-xs text-gray-400 mb-4">Get the best experience on our mobile app.</p>
+            <div className="flex flex-col space-y-4">
+              <a 
+                href="https://apps.apple.com/us/app/novlnest/id6758026471" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="transition-opacity hover:opacity-80 inline-block"
+              >
+                <img 
+                  src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg" 
+                  alt="Download on the App Store" 
+                  style={{ height: '40px', width: 'auto' }}
+                />
+              </a>
+              <a 
+                href="https://play.google.com/store/apps/details?id=com.novlnest" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="transition-opacity hover:opacity-80 inline-block"
+              >
+                <img 
+                  src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" 
+                  alt="Get it on Google Play" 
+                  style={{ height: '40px', width: 'auto' }}
+                />
+              </a>
+            </div>
+          </div>
         </div>
 
         <div className="mt-12 pt-8 border-t border-gray-800">

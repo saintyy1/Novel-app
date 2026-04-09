@@ -36,5 +36,9 @@ export interface Novel {
   coverImage?: string | null
   coverSmallImage?: string | null
   publicDomain: boolean
-
+  status?: 'ongoing' | 'completed';
+  epilogue?: {
+    title: string;
+    content: string;
+  };
 }

@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react"
-import { useParams, Link } from "react-router-dom"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { useParams, Link, useNavigate } from "react-router-dom"
+import { Sparkles, Award } from "lucide-react"
 import { doc, getDoc, updateDoc, increment } from "firebase/firestore"
 import { db } from "../firebase/config"
 import type { Poem } from "../types/poem"
@@ -9,16 +10,61 @@ import { useAuth } from "../context/AuthContext"
 
 const PoemRead = () => {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [poem, setPoem] = useState<Poem | null>(null)
   const [loading, setLoading] = useState(true)
   const [fontSize, setFontSize] = useState(18)
+  const [poetData, setPoetData] = useState<any>(null)
   const { currentUser, isAdmin } = useAuth()
   const poemContentRef = useRef<HTMLDivElement>(null)
+
+  const [selectedQuote, setSelectedQuote] = useState("")
+  const [showShareButton, setShowShareButton] = useState(false)
+  const [buttonPosition, setButtonPosition] = useState({ top: 0, left: 0 })
 
   // Determine permission to copy/paste: allowed if admin or the poem's author
   const canCopyContent = !!(
     isAdmin || (currentUser && poem && currentUser.uid === poem.poetId)
   )
+
+  const handleCreateCard = () => {
+    if (!poem) return
+    navigate('/creator-studio/quote', { 
+      state: { 
+        quote: selectedQuote,
+        novelTitle: poem.title,
+        authorName: poem.poetName || "Author"
+      } 
+    })
+  }
+
+  const handleTextSelection = useCallback(() => {
+    if (!canCopyContent) return
+
+    const selection = window.getSelection()
+    const selectedText = selection?.toString().trim()
+
+    if (selectedText && selectedText.length > 5) {
+      const range = selection?.getRangeAt(0)
+      const rect = range?.getBoundingClientRect()
+
+      if (rect) {
+        setButtonPosition({
+          top: rect.top + window.scrollY - 50,
+          left: rect.left + window.scrollX + rect.width / 2,
+        })
+        setSelectedQuote(selectedText)
+        setShowShareButton(true)
+      }
+    } else {
+      setShowShareButton(false)
+    }
+  }, [canCopyContent])
+
+  useEffect(() => {
+    document.addEventListener("selectionchange", handleTextSelection)
+    return () => document.removeEventListener("selectionchange", handleTextSelection)
+  }, [handleTextSelection])
 
   useEffect(() => {
     const fetchPoem = async () => {
@@ -35,6 +81,11 @@ const PoemRead = () => {
         
           if (poemData) {
             setPoem(poemData)
+
+            if (poemData.poetId) {
+              const poetDoc = await getDoc(doc(db, "users", poemData.poetId))
+              if (poetDoc.exists()) setPoetData(poetDoc.data())
+            }
 
             // Handle unique view count increment
             if (currentUser) {
@@ -211,8 +262,13 @@ const PoemRead = () => {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-gray-800/50 rounded-xl p-8 md:p-12 relative">
           {/* Watermark */}
-          <div className="absolute top-4 left-4 text-xs text-gray-400 italic">
+          <div className="absolute top-4 left-4 text-xs text-gray-400 italic flex items-center">
             Written by {poem.poetName}
+            {(poetData?.followers?.length || 0) >= 100 && (
+              <span title="Rising Star" className="ml-1 text-yellow-400 bg-yellow-400/10 p-0.5 rounded-full inline-flex">
+                <Award className="h-3 w-3" />
+              </span>
+            )}
           </div>
 
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-4 text-center">
@@ -263,6 +319,22 @@ const PoemRead = () => {
           </div>
         </div>
       </div>
+
+      {/* Floating Share Quote Button */}
+      {showShareButton && (
+        <button
+          onClick={handleCreateCard}
+          style={{
+            top: `${buttonPosition.top}px`,
+            left: `${buttonPosition.left}px`,
+            transform: 'translateX(-50%)'
+          }}
+          className="fixed z-[100] flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-full shadow-lg transition-all animate-in fade-in zoom-in slide-in-from-bottom-2 duration-200"
+        >
+          <Sparkles className="h-4 w-4" />
+          <span className="text-xs font-bold">Create Quote Card</span>
+        </button>
+      )}
     </div>
   )
 }

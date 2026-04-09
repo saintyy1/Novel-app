@@ -16,7 +16,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import InlineChatEditor from "../components/InlineChatEditor"
 import type { ChatMessage } from "../types/novel"
 import SEOHead from "../components/SEOHead"
-import { invalidateCache, invalidateByPrefix, invalidateProfileCache } from "../utils/cache"
+import { invalidateProfileCache, invalidateNovelCache } from "../utils/cache"
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -592,14 +592,13 @@ const SubmitNovel = () => {
         updatedAt: new Date().toISOString(),
         coverImage: coverUrl || null,
         coverSmallImage: coverSmallUrl || null,
+        status: "ongoing",
         likes: 0,
         views: 0,
       })
 
       // 🔥 Invalidate relevant caches
-      await invalidateByPrefix("novels_")
-      await invalidateByPrefix("home_")
-      await invalidateCache("home_new_releases")
+      await invalidateNovelCache(docRef.id)
       await invalidateProfileCache(currentUser?.uid || "")
 
       navigate(`/profile/${currentUser?.uid}`)

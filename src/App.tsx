@@ -42,6 +42,8 @@ import AdminSupport from "./pages/AdminSupport"
 import WattpadAlternative from "./pages/WattpadAlternative"
 import TopNovelWebsites from "./pages/TopNovelWebsites"
 import SitemapIndex from "./pages/SitemapIndex"
+import CreatorTools from "./pages/CreatorTools"
+import QuoteStudio from "./pages/QuoteStudio"
 import { AuthProvider } from "./context/AuthContext"
 import { NotificationProvider } from "./context/NotificationContext"
 import { TranslationProvider } from "./context/TranslationContext"
@@ -49,12 +51,14 @@ import { ChatProvider, useChat } from "./context/ChatContext"
 import ToastContainer from "./components/ToastContainer"
 import MobileChatButton from "./components/MobileChatButton"
 import NavigationLoader from "./components/NavigationLoader"
+import AppDownloadModal from "./components/AppDownloadModal"
 
 function AppContent() {
   const location = useLocation()
   const { currentUser } = useAuth()
   const isNovelReadPage = /^\/novel\/[^/]+\/read$/.test(location.pathname)
   const isPoemReadPage = /^\/poem\/[^/]+\/read$/.test(location.pathname)
+  const isQuoteStudioPage = /^\/creator-studio\/quote$/.test(location.pathname)
 
   // Wrapper component to access chat context
   function MobileChatButtonWrapper() {
@@ -64,7 +68,7 @@ function AppContent() {
       : 0
 
     // Hide mobile chat button on NovelRead page to prevent interference with page navigation
-    if (isNovelReadPage || isPoemReadPage) {
+    if (isNovelReadPage || isPoemReadPage || isQuoteStudioPage) {
       return null
     }
 
@@ -100,7 +104,7 @@ function AppContent() {
     <div className="min-h-screen bg-[#121212] flex flex-col">
       <NavigationLoader />
       {!isNovelReadPage && !isPoemReadPage && <Navbar />}
-      <main className={`flex-grow ${!isNovelReadPage && !isPoemReadPage ? "px-3 py-8" : "px-0 py-0"}`}>
+      <main className={`flex-grow ${!isNovelReadPage && !isPoemReadPage && !isQuoteStudioPage ? "px-3 py-8" : "px-0 py-0"}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/promote" element={<Promote />} />
@@ -145,11 +149,15 @@ function AppContent() {
           <Route path="/top-novel-websites" element={<TopNovelWebsites />} />
           <Route path="/free-novel-platform" element={<TopNovelWebsites />} />
           <Route path="/sitemap" element={<SitemapIndex />} />
+          <Route path="/creator-tools" element={<AdminRoute><CreatorTools /></AdminRoute>} />
+          <Route path="/creator-studio/quote" element={<AdminRoute><QuoteStudio /></AdminRoute>} />
         </Routes>
       </main>
       {!isNovelReadPage && !isPoemReadPage && <Footer />}
       {/* Mobile Chat Button - Always visible on mobile */}
       <MobileChatButtonWrapper />
+      {/* Global App Download Modal */}
+      <AppDownloadModal />
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { useNotifications } from "../context/NotificationContext"
 import { useChat } from "../context/ChatContext"
-import { Bell, Settings, HelpCircle } from "lucide-react" // Import the Bell icon
+import { Bell, Settings, HelpCircle, Sparkles } from "lucide-react" // Import the Bell icon
 import ChatButton from "./ChatButton"
 
 const Navbar = () => {
@@ -12,9 +12,9 @@ const Navbar = () => {
   const { unreadCount } = useNotifications()
   const { state: chatState } = useChat()
   const navigate = useNavigate()
-  
+
   // Calculate total unread count safely
-  const totalUnreadCount = Array.isArray(chatState?.conversations) 
+  const totalUnreadCount = Array.isArray(chatState?.conversations)
     ? chatState.conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0)
     : 0
   const location = useLocation()
@@ -169,11 +169,10 @@ const Navbar = () => {
           <div className="hidden lg:flex items-center space-x-1">
             <Link
               to="/"
-              className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
-                isActive("/")
+              className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/")
                   ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
                   : "text-[#E0E0E0]"
-              }`}
+                }`}
             >
               <div className="flex items-center">
                 <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -188,19 +187,18 @@ const Navbar = () => {
               </div>
             </Link>
             {/* Browse Dropdown */}
-            <div 
-              className="relative" 
+            <div
+              className="relative"
               ref={browseDropdownRef}
               onMouseEnter={handleBrowseMouseEnter}
               onMouseLeave={handleBrowseMouseLeave}
             >
               <button
                 onClick={() => setIsBrowseDropdownOpen(!isBrowseDropdownOpen)}
-                className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors flex items-center ${
-                  isActive("/novels") || isActive("/poems")
+                className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors flex items-center ${isActive("/novels") || isActive("/poems")
                     ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
                     : "text-[#E0E0E0]"
-                }`}
+                  }`}
               >
                 <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -221,7 +219,7 @@ const Navbar = () => {
                 </svg>
               </button>
               {isBrowseDropdownOpen && (
-                <div 
+                <div
                   className="absolute left-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
                   onMouseEnter={handleBrowseMouseEnter}
                   onMouseLeave={handleBrowseMouseLeave}
@@ -269,11 +267,10 @@ const Navbar = () => {
               <>
                 <Link
                   to="/library"
-                  className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
-                    isActive("/library")
+                  className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/library")
                       ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
                       : "text-[#E0E0E0]"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center">
                     <svg
@@ -298,19 +295,18 @@ const Navbar = () => {
                   </div>
                 </Link>
                 {/* Submit Dropdown */}
-                <div 
-                  className="relative" 
+                <div
+                  className="relative"
                   ref={submitDropdownRef}
                   onMouseEnter={handleSubmitMouseEnter}
                   onMouseLeave={handleSubmitMouseLeave}
                 >
                   <button
                     onClick={() => setIsSubmitDropdownOpen(!isSubmitDropdownOpen)}
-                    className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors flex items-center ${
-                      isActive("/submit") || isActive("/submit-poem")
+                    className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors flex items-center ${isActive("/submit") || isActive("/submit-poem")
                         ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
                         : "text-[#E0E0E0]"
-                    }`}
+                      }`}
                   >
                     <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -331,7 +327,7 @@ const Navbar = () => {
                     </svg>
                   </button>
                   {isSubmitDropdownOpen && (
-                    <div 
+                    <div
                       className="absolute left-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
                       onMouseEnter={handleSubmitMouseEnter}
                       onMouseLeave={handleSubmitMouseLeave}
@@ -377,11 +373,10 @@ const Navbar = () => {
                 </div>
                 <Link
                   to="/notifications"
-                  className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
-                    isActive("/notifications")
+                  className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/notifications")
                       ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
                       : "text-[#E0E0E0]"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center">
                     <Bell className="h-4 w-4 mr-1" />
@@ -396,7 +391,7 @@ const Navbar = () => {
                 {/* Chat Button */}
                 {currentUser && (
                   <div className="px-3 py-2">
-                    <ChatButton 
+                    <ChatButton
                       unreadCount={totalUnreadCount}
                     />
                   </div>
@@ -405,11 +400,10 @@ const Navbar = () => {
                   <>
                     <Link
                       to="/admin"
-                      className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${
-                        isActive("/admin")
+                      className={`px-3 py-2 text-sm text-[#E0E0E0] font-medium relative hover:text-white transition-colors ${isActive("/admin")
                           ? "after:absolute after:content-[''] after:bg-[#E0E0E0] after:h-[2px] after:w-1/2 after:left-3 after:-bottom-0"
                           : "text-[#E0E0E0]"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center">
                         <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -478,12 +472,26 @@ const Navbar = () => {
                             Profile
                           </div>
                         </Link>
+                        {isAdmin && (
+                          <>
+                            <Link
+                              to="/creator-tools"
+                              onClick={closeDropdown}
+                              className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/creator-tools") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                                }`}
+                            >
+                              <div className="flex items-center text-purple-400">
+                                <Sparkles className="h-4 w-4 mr-2" />
+                                Creator Tools
+                              </div>
+                            </Link>
+                          </>
+                        )}
                         <Link
                           to="/support"
                           onClick={closeDropdown}
-                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                            isActive("/support") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                          }`}
+                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/support") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                            }`}
                         >
                           <div className="flex items-center">
                             <HelpCircle className="h-4 w-4 mr-2" />
@@ -491,17 +499,16 @@ const Navbar = () => {
                           </div>
                         </Link>
                         <Link
-                        to="/settings"
-                        onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/settings") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
-                      >
-                        <div className="flex items-center">
-                          <Settings className="h-4 w-4 mr-2" />
-                          Settings
-                        </div>
-                      </Link>
+                          to="/settings"
+                          onClick={closeDropdown}
+                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/settings") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                            }`}
+                        >
+                          <div className="flex items-center">
+                            <Settings className="h-4 w-4 mr-2" />
+                            Settings
+                          </div>
+                        </Link>
                         <button
                           onClick={handleLogout}
                           className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30 transition-colors"
@@ -584,9 +591,8 @@ const Navbar = () => {
                       <Link
                         to="/"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -603,9 +609,8 @@ const Navbar = () => {
                       <Link
                         to="/novels"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/novels") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/novels") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -622,9 +627,8 @@ const Navbar = () => {
                       <Link
                         to="/poems"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/poems") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/poems") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -641,9 +645,8 @@ const Navbar = () => {
                       <Link
                         to="/library"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/library") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/library") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
                       >
                         <div className="flex items-center">
                           <svg
@@ -670,9 +673,8 @@ const Navbar = () => {
                       <Link
                         to="/submit"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/submit") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/submit") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -689,9 +691,8 @@ const Navbar = () => {
                       <Link
                         to="/submit-poem"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/submit-poem") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/submit-poem") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -708,9 +709,8 @@ const Navbar = () => {
                       <Link
                         to="/notifications"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/notifications") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/notifications") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
@@ -726,7 +726,7 @@ const Navbar = () => {
                       </Link>
                       {/* Messages Link for Mobile */}
                       <div className="px-4 py-2">
-                        <ChatButton 
+                        <ChatButton
                           unreadCount={totalUnreadCount}
                           className="w-full justify-start"
                         />
@@ -736,9 +736,8 @@ const Navbar = () => {
                           <Link
                             to="/admin"
                             onClick={closeDropdown}
-                            className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                              isActive("/admin") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                            }`}
+                            className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/admin") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                              }`}
                           >
                             <div className="flex items-center">
                               <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -764,9 +763,8 @@ const Navbar = () => {
                         <Link
                           to={`/profile/${currentUser.uid}`}
                           onClick={closeDropdown}
-                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                            isActive(`/profile/${currentUser.uid}`) ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                          }`}
+                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive(`/profile/${currentUser.uid}`) ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                            }`}
                         >
                           <div className="flex items-center">
                             <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -781,11 +779,21 @@ const Navbar = () => {
                           </div>
                         </Link>
                         <Link
+                          to="/creator-tools"
+                          onClick={closeDropdown}
+                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/creator-tools") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                            }`}
+                        >
+                          <div className="flex items-center text-purple-400">
+                            <Sparkles className="h-4 w-4 mr-3" />
+                            Creator Tools
+                          </div>
+                        </Link>
+                        <Link
                           to="/support"
                           onClick={closeDropdown}
-                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                            isActive("/support") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                          }`}
+                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/support") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                            }`}
                         >
                           <div className="flex items-center">
                             <HelpCircle className="h-4 w-4 mr-3" />
@@ -793,17 +801,16 @@ const Navbar = () => {
                           </div>
                         </Link>
                         <Link
-                        to="/settings"
-                        onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/settings") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
-                      >
-                        <div className="flex items-center">
-                          <Settings className="h-4 w-4 mr-3" />
-                          Settings
-                        </div>
-                      </Link>
+                          to="/settings"
+                          onClick={closeDropdown}
+                          className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/settings") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                            }`}
+                        >
+                          <div className="flex items-center">
+                            <Settings className="h-4 w-4 mr-3" />
+                            Settings
+                          </div>
+                        </Link>
                         <button
                           onClick={handleLogout}
                           className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30 transition-colors"
@@ -828,9 +835,8 @@ const Navbar = () => {
                       <Link
                         to="/"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -847,9 +853,8 @@ const Navbar = () => {
                       <Link
                         to="/novels"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/novels") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/novels") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -866,9 +871,8 @@ const Navbar = () => {
                       <Link
                         to="/poems"
                         onClick={closeDropdown}
-                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
-                          isActive("/poems") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
-                        }`}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${isActive("/poems") ? "text-purple-400 bg-purple-900/20" : "text-gray-300"
+                          }`}
                       >
                         <div className="flex items-center">
                           <svg className="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

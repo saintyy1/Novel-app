@@ -5,6 +5,7 @@ import { collection, query, getDocs, doc, updateDoc, deleteDoc, onSnapshot } fro
 import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
 import type { Poem } from "../types/poem"
+import { invalidateNovelCache, invalidatePoemCache } from "../utils/cache"
 import type { ExtendedUser } from "../context/AuthContext"
 import {
   FaChartBar,
@@ -243,6 +244,9 @@ const AdminDashboard = () => {
 
       // Update local state
       setNovels((prev) => prev.map((novel) => (novel.id === id ? { ...novel, published: true } : novel)))
+
+      // 🔥 Invalidate cache
+      await invalidateNovelCache(id)
     } catch (error) {
       console.error("Error approving novel:", error)
       setError("Failed to approve novel")
@@ -263,6 +267,9 @@ const AdminDashboard = () => {
 
       // Update local state
       setNovels((prev) => prev.map((novel) => (novel.id === id ? { ...novel, published: false } : novel)))
+
+      // 🔥 Invalidate cache
+      await invalidateNovelCache(id)
     } catch (error) {
       console.error("Error unpublishing novel:", error)
       setError("Failed to unpublish novel")
@@ -284,6 +291,9 @@ const AdminDashboard = () => {
 
       // Update local state
       setNovels((prev) => prev.filter((novel) => novel.id !== id))
+
+      // 🔥 Invalidate cache
+      await invalidateNovelCache(id)
     } catch (error) {
       console.error("Error deleting novel:", error)
       setError("Failed to delete novel")
@@ -304,6 +314,9 @@ const AdminDashboard = () => {
 
       // Update local state
       setPoems((prev) => prev.map((poem) => (poem.id === id ? { ...poem, published: true } : poem)))
+
+      // 🔥 Invalidate cache
+      await invalidatePoemCache(id)
     } catch (error) {
       console.error("Error approving poem:", error)
       setError("Failed to approve poem")
@@ -324,6 +337,9 @@ const AdminDashboard = () => {
 
       // Update local state
       setPoems((prev) => prev.map((poem) => (poem.id === id ? { ...poem, published: false } : poem)))
+
+      // 🔥 Invalidate cache
+      await invalidatePoemCache(id)
     } catch (error) {
       console.error("Error unpublishing poem:", error)
       setError("Failed to unpublish poem")
@@ -345,6 +361,9 @@ const AdminDashboard = () => {
 
       // Update local state
       setPoems((prev) => prev.filter((poem) => poem.id !== id))
+
+      // 🔥 Invalidate cache
+      await invalidatePoemCache(id)
     } catch (error) {
       console.error("Error deleting poem:", error)
       setError("Failed to delete poem")

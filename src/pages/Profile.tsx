@@ -46,6 +46,7 @@ import {
   TrendingUp,
   Gift,
   MessageCircle,
+  Award
 } from "lucide-react" // Use Lucide icons
 
 interface Announcement {
@@ -70,10 +71,10 @@ const Profile = () => {
   const [photoError, setPhotoError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
-  
+
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false)
   const [copySuccess, setCopySuccess] = useState<boolean>(false)
-  
+
   // States for follow feature
   const [isFollowing, setIsFollowing] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
@@ -96,8 +97,15 @@ const Profile = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showDeletePoemConfirm, setShowDeletePoemConfirm] = useState(false)
   const [isTipModalOpen, setIsTipModalOpen] = useState(false)
-  
-  
+
+  // Epilogue and Status State
+  const [showCompletingModal, setShowCompletingModal] = useState<any | null>(null)
+  const [showEpilogueInputModal, setShowEpilogueInputModal] = useState<any | null>(null)
+  const [epilogueTitle, setEpilogueTitle] = useState("Epilogue")
+  const [epilogueContent, setEpilogueContent] = useState("")
+  const [isEpilogueLoading, setIsEpilogueLoading] = useState(false)
+
+
   // Edit Novel modal form state
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
@@ -107,7 +115,7 @@ const Profile = () => {
   const [savingNovel, setSavingNovel] = useState(false)
   const [saveNovelError, setSaveNovelError] = useState("")
   const [showEndPromotionConfirm, setShowEndPromotionConfirm] = useState(false)
-  
+
   // Poem edit modal states
   const [showEditPoemModal, setShowEditPoemModal] = useState(false)
   const [selectedPoem, setSelectedPoem] = useState<any>(null)
@@ -118,9 +126,49 @@ const Profile = () => {
   const [savePoemError, setSavePoemError] = useState("")
 
   const [emailVisible, setEmailVisible] = useState(profileUser?.emailVisible ?? false)
-  
+
   const isOwnProfile = !userId || userId === currentUser?.uid
   const displayName = profileUser?.displayName || currentUser?.displayName || "User"
+
+  // 🔥 Lock background scroll when modals are open
+  useEffect(() => {
+    const isAnyModalOpen =
+      showCompletingModal ||
+      showEpilogueInputModal ||
+      showEditModal ||
+      showDeleteConfirm ||
+      showEditProfileModal ||
+      showPhotoModal ||
+      showDeletePoemConfirm ||
+      showEditPoemModal ||
+      showProfileModal ||
+      showFollowListDrawer ||
+      isTipModalOpen ||
+      showEndPromotionConfirm
+
+    if (isAnyModalOpen) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = "unset"
+    }
+
+    return () => {
+      document.body.style.overflow = "unset"
+    }
+  }, [
+    showCompletingModal,
+    showEpilogueInputModal,
+    showEditModal,
+    showDeleteConfirm,
+    showEditProfileModal,
+    showPhotoModal,
+    showDeletePoemConfirm,
+    showEditPoemModal,
+    showProfileModal,
+    showFollowListDrawer,
+    isTipModalOpen,
+    showEndPromotionConfirm,
+  ])
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -145,7 +193,7 @@ const Profile = () => {
             },
             CACHE_TTL.PROFILE
           )
-          
+
           if (!fetchedUser) {
             setError("User not found")
             return
@@ -273,7 +321,7 @@ const Profile = () => {
       document.body.style.overflow = "unset"
     }
   }, [showEditPoemModal])
-  
+
   // Prevent background scrolling when delete poem modal is open
   useEffect(() => {
     if (showDeletePoemConfirm) {
@@ -282,7 +330,7 @@ const Profile = () => {
       document.body.style.overflow = "unset"
     }
   }, [showDeletePoemConfirm])
-  
+
   // Prevent background scrolling when edit profile modal is open
   useEffect(() => {
     if (showEditProfileModal) {
@@ -514,7 +562,7 @@ const Profile = () => {
   const novelEditCoverFileInputRef = useRef<HTMLInputElement>(null)
   const [uploadingEditCover, setUploadingEditCover] = useState(false)
   const [editCoverError, setEditCoverError] = useState("")
-  
+
   // Poem edit modal: cover management state
   const poemEditCoverFileInputRef = useRef<HTMLInputElement>(null)
   const [uploadingEditPoemCover, setUploadingEditPoemCover] = useState(false)
@@ -944,7 +992,7 @@ const Profile = () => {
     setEditPrologue(novel.prologue || "")
     setSaveNovelError("")
   }
-  
+
   const handleEditPoem = (poem: any) => {
     setSelectedPoem(poem)
     setShowEditPoemModal(true)
@@ -954,7 +1002,7 @@ const Profile = () => {
     setEditPoemContent(poem.content || "")
     setSavePoemError("")
   }
-  
+
   const handleDeleteNovel = (novel: any) => {
     setSelectedNovel(novel)
     setShowDeleteConfirm(true)
@@ -1001,17 +1049,17 @@ const Profile = () => {
   // Check if a novel is currently on promotion
   const isNovelOnPromotion = (novel: Novel) => {
     if (!novel.isPromoted || !novel.promotionEndDate) return false
-    
+
     const now = new Date()
     let endDate: Date
-    
+
     // Handle Firestore Timestamp objects
     if (novel.promotionEndDate && typeof novel.promotionEndDate === 'object' && 'toDate' in novel.promotionEndDate) {
       endDate = (novel.promotionEndDate as any).toDate()
     } else {
       endDate = new Date(novel.promotionEndDate)
     }
-    
+
     return endDate > now
   }
 
@@ -1049,13 +1097,13 @@ const Profile = () => {
         prevNovels.map((novel) =>
           novel.id === selectedNovel.id
             ? {
-                ...novel,
-                isPromoted: false,
-                promotionStartDate: undefined,
-                promotionEndDate: undefined,
-                reference: undefined,
-                promotionPlan: undefined
-              }
+              ...novel,
+              isPromoted: false,
+              promotionStartDate: undefined,
+              promotionEndDate: undefined,
+              reference: undefined,
+              promotionPlan: undefined
+            }
             : novel
         )
       )
@@ -1094,6 +1142,63 @@ const Profile = () => {
       showErrorToast("Failed to update email visibility settings")
     }
   }, [currentUser, emailVisible])
+
+  // --- Epilogue and Status Handlers ---
+
+  const handleMarkAsCompletedClick = (novel: any) => {
+    if (novel.epilogue) {
+      handleSubmitCompletion(novel)
+    } else {
+      setShowCompletingModal(novel)
+    }
+  }
+
+  const handleSubmitCompletion = async (novel: any, epilogue?: { title: string; content: string }) => {
+    try {
+      setIsEpilogueLoading(true)
+      const updateData: any = { status: "completed" }
+      if (epilogue) {
+        updateData.epilogue = epilogue
+      }
+      await updateDoc(doc(db, "novels", novel.id), updateData)
+      setUserNovels((prev) =>
+        prev.map((n) => (n.id === novel.id ? { ...n, ...updateData } : n)),
+      )
+      await invalidateNovelCache(novel.id)
+      showSuccessToast(epilogue ? "Epilogue added and Novel marked as completed!" : "Novel marked as completed!")
+    } catch (error) {
+      console.error("Error completing novel:", error)
+      showErrorToast("Failed to complete novel.")
+    } finally {
+      setIsEpilogueLoading(false)
+      setShowCompletingModal(null)
+      setShowEpilogueInputModal(null)
+      setEpilogueTitle("")
+      setEpilogueContent("")
+    }
+  }
+
+  const handleMarkAsOngoing = async (novel: any) => {
+    try {
+      await updateDoc(doc(db, "novels", novel.id), { status: "ongoing" })
+      setUserNovels((prev) =>
+        prev.map((n) => (n.id === novel.id ? { ...n, status: "ongoing" } : n)),
+      )
+      await invalidateNovelCache(novel.id)
+      showSuccessToast("Novel marked as ongoing!")
+    } catch (error) {
+      console.error("Error updating status:", error)
+      showErrorToast("Failed to update status.")
+    }
+  }
+
+  const submitEpilogue = () => {
+    if (!epilogueTitle.trim() || !epilogueContent.trim()) {
+      showErrorToast("Epilogue title and content are required.")
+      return
+    }
+    handleSubmitCompletion(showEpilogueInputModal!, { title: epilogueTitle, content: epilogueContent })
+  }
 
   if (!currentUser && !userId) {
     return (
@@ -1231,10 +1336,15 @@ const Profile = () => {
               )}
             </div>
             <div className="flex-1 text-center sm:text-left w-full sm:ml-4 ml-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white break-words">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white break-words flex items-center justify-center sm:justify-start gap-2">
                 {profileUser?.displayName || "User"}
+                {(profileUser?.followers?.length || 0) >= 100 && (
+                  <span title="Rising Star" className="text-yellow-400 bg-yellow-400/10 p-1 rounded-full">
+                    <Award className="h-5 w-5 sm:h-6 sm:w-6" />
+                  </span>
+                )}
               </h1>
-              
+
               {/* Email Section with Privacy Toggle */}
               <div className="flex items-center justify-center sm:justify-start gap-2 mt-1">
                 {emailVisible && (
@@ -1259,7 +1369,7 @@ const Profile = () => {
                         <path d="M15.171 11.586a4 4 0 111.414-1.414l.707.707a1 1 0 01-1.414 1.414l-.707-.707z" />
                       </svg>
                     )}
-                    
+
                     {/* Tooltip */}
                     <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                       {emailVisible ? "Click to make private" : "Click to make public"}
@@ -1311,9 +1421,8 @@ const Profile = () => {
               {/* Photo Error/Success Message */}
               {isOwnProfile && photoError && (
                 <div
-                  className={`mt-2 text-xs sm:text-sm ${
-                    photoError.includes("successfully") ? "text-green-400" : "text-red-400"
-                  }`}
+                  className={`mt-2 text-xs sm:text-sm ${photoError.includes("successfully") ? "text-green-400" : "text-red-400"
+                    }`}
                 >
                   {photoError}
                 </div>
@@ -1397,9 +1506,8 @@ const Profile = () => {
                     <button
                       onClick={handleFollowToggle}
                       disabled={!currentUser || !profileUser || isTogglingFollow}
-                      className={`inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors w-full ${
-                        isFollowing ? "bg-gray-600 hover:bg-gray-700" : "bg-purple-600 hover:bg-purple-700"
-                      } ${isTogglingFollow ? "opacity-50 cursor-not-allowed" : ""}`}
+                      className={`inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white transition-colors w-full ${isFollowing ? "bg-gray-600 hover:bg-gray-700" : "bg-purple-600 hover:bg-purple-700"
+                        } ${isTogglingFollow ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                       {isTogglingFollow ? (
                         <>
@@ -1430,7 +1538,7 @@ const Profile = () => {
                         </>
                       )}
                     </button>
-                    
+
                     {/* Message and Share buttons side-by-side on small screens, stacked on sm+ */}
                     <div className="flex flex-row sm:flex-col gap-2">
                       {/* Message Button - only show if not own profile */}
@@ -1443,7 +1551,7 @@ const Profile = () => {
                           Message
                         </button>
                       )}
-                      
+
                       {/* Share Button */}
                       <button
                         onClick={handleShare}
@@ -1587,22 +1695,20 @@ const Profile = () => {
             <div className="flex space-x-2">
               <button
                 onClick={() => setContentType("novels")}
-                className={`flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                  contentType === "novels"
-                    ? "bg-purple-600 text-white shadow-lg"
-                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
+                className={`flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-all ${contentType === "novels"
+                  ? "bg-purple-600 text-white shadow-lg"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
               >
                 <BookOpen className="h-4 w-4 mr-2" />
                 Novels ({userNovels.length})
               </button>
               <button
                 onClick={() => setContentType("poems")}
-                className={`flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                  contentType === "poems"
-                    ? "bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg"
-                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
+                className={`flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-all ${contentType === "poems"
+                  ? "bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
               >
                 <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
@@ -1617,37 +1723,34 @@ const Profile = () => {
             <nav className="flex space-x-4 px-6" aria-label="Tabs">
               <button
                 onClick={() => setActiveTab("all")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === "all"
-                    ? contentType === "poems"
-                      ? "border-rose-500 text-rose-400"
-                      : "border-purple-500 text-purple-400"
-                    : "border-transparent text-gray-400 hover:text-gray-300"
-                }`}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === "all"
+                  ? contentType === "poems"
+                    ? "border-rose-500 text-rose-400"
+                    : "border-purple-500 text-purple-400"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+                  }`}
               >
                 All {contentType === "novels" ? `Novels (${userNovels.length})` : `Poems (${userPoems.length})`}
               </button>
               <button
                 onClick={() => setActiveTab("published")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === "published"
-                    ? contentType === "poems"
-                      ? "border-rose-500 text-rose-400"
-                      : "border-purple-500 text-purple-400"
-                    : "border-transparent text-gray-400 hover:text-gray-300"
-                }`}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === "published"
+                  ? contentType === "poems"
+                    ? "border-rose-500 text-rose-400"
+                    : "border-purple-500 text-purple-400"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+                  }`}
               >
                 Published ({contentType === "novels" ? userNovels.filter((novel) => novel.published).length : userPoems.filter((poem) => poem.published).length})
               </button>
               <button
                 onClick={() => setActiveTab("pending")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === "pending"
-                    ? contentType === "poems"
-                      ? "border-rose-500 text-rose-400"
-                      : "border-purple-500 text-purple-400"
-                    : "border-transparent text-gray-400 hover:text-gray-300"
-                }`}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === "pending"
+                  ? contentType === "poems"
+                    ? "border-rose-500 text-rose-400"
+                    : "border-purple-500 text-purple-400"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+                  }`}
               >
                 Pending ({contentType === "novels" ? userNovels.filter((novel) => !novel.published).length : userPoems.filter((poem) => !poem.published).length})
               </button>
@@ -1661,147 +1764,164 @@ const Profile = () => {
               </div>
             ) : contentType === "novels" ? (
               filteredNovels.length === 0 ? (
-              <div className="text-center py-12">
-                <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                  />
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-white">
-                  {activeTab === "all"
-                    ? "No novels yet"
-                    : activeTab === "published"
-                      ? "No published novels"
-                      : "No pending novels"}
-                </h3>
-                <p className="mt-1 text-sm text-gray-400">
-                  {activeTab === "all"
-                    ? "Get started by submitting your first novel."
-                    : activeTab === "published"
-                      ? "Your published novels will appear here."
-                      : "Novels awaiting review will appear here."}
-                </p>
-                {activeTab === "all" && isOwnProfile && (
-                  <div className="mt-6">
-                    <Link
-                      to="/submit"
-                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Submit Your First Novel
-                    </Link>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                {filteredNovels.map((novel) => (
-                  <div key={novel.id} className="group flex flex-col">
-                    {/* Book Cover */}
-                    <div className="relative aspect-[3/4] mb-3">
-                      <Link to={novel.published ? `/novel/${novel.id}` : "#"}>
-                        <div className="w-full h-full rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-                          {novel.coverImage ? (
-                            <CachedImage
-                              uri={getFirebaseDownloadUrl(novel.coverImage) || "/placeholder.svg"}
-                              alt={novel.title}
-                              loading="lazy"
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div
-                              className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(
-                                novel.genres || []
-                              )} relative overflow-hidden`}
-                            >
-                              <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
-                              <div className="absolute inset-0 opacity-10">
-                                <div className="absolute top-2 left-2 w-4 h-4 border border-white rounded-full"></div>
-                                <div className="absolute top-6 right-3 w-2 h-2 bg-white rounded-full"></div>
-                                <div className="absolute bottom-3 left-3 w-3 h-3 border border-white"></div>
+                <div className="text-center py-12">
+                  <svg
+                    className="mx-auto h-12 w-12 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                    />
+                  </svg>
+                  <h3 className="mt-2 text-sm font-medium text-white">
+                    {activeTab === "all"
+                      ? "No novels yet"
+                      : activeTab === "published"
+                        ? "No published novels"
+                        : "No pending novels"}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-400">
+                    {activeTab === "all"
+                      ? "Get started by submitting your first novel."
+                      : activeTab === "published"
+                        ? "Your published novels will appear here."
+                        : "Novels awaiting review will appear here."}
+                  </p>
+                  {activeTab === "all" && isOwnProfile && (
+                    <div className="mt-6">
+                      <Link
+                        to="/submit"
+                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Submit Your First Novel
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                  {filteredNovels.map((novel) => (
+                    <div key={novel.id} className="group flex flex-col">
+                      {/* Book Cover */}
+                      <div className="relative aspect-[3/4] mb-3">
+                        <Link to={novel.published ? `/novel/${novel.id}` : "#"}>
+                          <div className="w-full h-full rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                            {novel.coverImage ? (
+                              <CachedImage
+                                uri={getFirebaseDownloadUrl(novel.coverImage) || "/placeholder.svg"}
+                                alt={novel.title}
+                                loading="lazy"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div
+                                className={`w-full h-full bg-gradient-to-br ${getGenreColorClass(
+                                  novel.genres || []
+                                )} relative overflow-hidden`}
+                              >
+                                <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
+                                <div className="absolute inset-0 opacity-10">
+                                  <div className="absolute top-2 left-2 w-4 h-4 border border-white rounded-full"></div>
+                                  <div className="absolute top-6 right-3 w-2 h-2 bg-white rounded-full"></div>
+                                  <div className="absolute bottom-3 left-3 w-3 h-3 border border-white"></div>
+                                </div>
+                                <div className="absolute inset-0 flex flex-col justify-center items-center p-3 text-center">
+                                  <h3 className="text-white text-sm font-bold leading-tight line-clamp-2 mb-1">{novel.title}</h3>
+                                  <div className="w-8 h-px bg-white opacity-50 mb-1"></div>
+                                  <p className="text-white text-xs opacity-75 truncate w-full">{novel.authorName}</p>
+                                </div>
+                                <div className="absolute right-0 top-1 w-px h-full bg-white opacity-20"></div>
+                                <div className="absolute right-1 top-1 w-px h-full bg-white opacity-15"></div>
                               </div>
-                              <div className="absolute inset-0 flex flex-col justify-center items-center p-3 text-center">
-                                <h3 className="text-white text-sm font-bold leading-tight line-clamp-2 mb-1">{novel.title}</h3>
-                                <div className="w-8 h-px bg-white opacity-50 mb-1"></div>
-                                <p className="text-white text-xs opacity-75 truncate w-full">{novel.authorName}</p>
-                              </div>
-                              <div className="absolute right-0 top-1 w-px h-full bg-white opacity-20"></div>
-                              <div className="absolute right-1 top-1 w-px h-full bg-white opacity-15"></div>
+                            )}
+                          </div>
+                        </Link>
+
+                      </div>
+
+                      {/* Kebab Menu */}
+                      {isOwnProfile && (
+                        <div className="relative flex justify-end">
+                          <button
+                            onClick={() => setOpenKebabMenu(openKebabMenu === novel.id ? null : novel.id)}
+                            className="p-1 text-gray-400 hover:text-white transition-colors"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+
+                          {/* Dropdown Menu */}
+                          {openKebabMenu === novel.id && (
+                            <div className="absolute top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-10 min-w-[140px]">
+                              <button
+                                onClick={() => handleEditNovel(novel)}
+                                className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2 rounded-t-lg"
+                              >
+                                <Edit className="h-3 w-3" />
+                                Edit
+                              </button>
+                              <Link
+                                to={`/novel/${novel.id}/add-chapters`}
+                                className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2"
+                              >
+                                <Plus className="h-3 w-3" />
+                                Add Chapters
+                              </Link>
+                              {isNovelOnPromotion(novel) ? (
+                                <button
+                                  onClick={() => handleEndPromotion(novel)}
+                                  className="w-full px-3 py-2 text-left text-sm text-orange-400 hover:text-orange-300 hover:bg-gray-700 flex items-center gap-2"
+                                >
+                                  <TrendingUp className="h-3 w-3" />
+                                  End Promotion
+                                </button>
+                              ) : (
+                                <Link
+                                  to="/promote"
+                                  className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2"
+                                >
+                                  <TrendingUp className="h-3 w-3" />
+                                  Promote
+                                </Link>
+                              )}
+                              {(novel.status === 'ongoing' || !novel.status) ? (
+                                <button
+                                  onClick={() => handleMarkAsCompletedClick(novel)}
+                                  className="w-full px-3 py-2 text-left text-sm text-green-400 hover:text-green-300 hover:bg-gray-700 flex items-center gap-2"
+                                >
+                                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                  Mark as Completed
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleMarkAsOngoing(novel)}
+                                  className="w-full px-3 py-2 text-left text-sm text-blue-400 hover:text-blue-300 hover:bg-gray-700 flex items-center gap-2"
+                                >
+                                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                  Mark as Ongoing
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteNovel(novel)}
+                                className="w-full px-3 py-2 text-left text-sm text-red-400 hover:text-red-300 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                Delete
+                              </button>
                             </div>
                           )}
                         </div>
-                      </Link>
-                      
+                      )}
                     </div>
-
-                    {/* Kebab Menu */}
-                    {isOwnProfile && (
-                      <div className="relative flex justify-end">
-                        <button
-                          onClick={() => setOpenKebabMenu(openKebabMenu === novel.id ? null : novel.id)}
-                          className="p-1 text-gray-400 hover:text-white transition-colors"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
-
-                        {/* Dropdown Menu */}
-                        {openKebabMenu === novel.id && (
-                          <div className="absolute top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-10 min-w-[140px]">
-                            <button
-                              onClick={() => handleEditNovel(novel)}
-                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2 rounded-t-lg"
-                            >
-                              <Edit className="h-3 w-3" />
-                              Edit
-                            </button>
-                            <Link
-                              to={`/novel/${novel.id}/add-chapters`}
-                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2"
-                            >
-                              <Plus className="h-3 w-3" />
-                              Add Chapters
-                            </Link>
-                            {isNovelOnPromotion(novel) ? (
-                              <button
-                                onClick={() => handleEndPromotion(novel)}
-                                className="w-full px-3 py-2 text-left text-sm text-orange-400 hover:text-orange-300 hover:bg-gray-700 flex items-center gap-2"
-                              >
-                                <TrendingUp className="h-3 w-3" />
-                                End Promotion
-                              </button>
-                            ) : (
-                              <Link
-                                to="/promote"
-                                className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white hover:bg-gray-700 flex items-center gap-2"
-                              >
-                                <TrendingUp className="h-3 w-3" />
-                                Promote
-                              </Link>
-                            )}
-                            <button
-                              onClick={() => handleDeleteNovel(novel)}
-                              className="w-full px-3 py-2 text-left text-sm text-red-400 hover:text-red-300 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )
+                  ))}
+                </div>
+              )
             ) : (
               // Poems Display
               filteredPoems.length === 0 ? (
@@ -2091,9 +2211,8 @@ const Profile = () => {
                     }
                   }}
                   disabled={savingNovel || !editTitle.trim()}
-                  className={`flex-1 px-4 py-2 rounded-lg transition-colors text-white ${
-                    savingNovel ? "bg-purple-700 opacity-70 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"
-                  }`}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors text-white ${savingNovel ? "bg-purple-700 opacity-70 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"
+                    }`}
                 >
                   {savingNovel ? "Saving..." : "Save"}
                 </button>
@@ -2263,9 +2382,8 @@ const Profile = () => {
                     }
                   }}
                   disabled={savingPoem || !editPoemTitle.trim()}
-                  className={`flex-1 px-4 py-2 rounded-lg transition-colors text-white ${
-                    savingPoem ? "bg-rose-700 opacity-70 cursor-not-allowed" : "bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700"
-                  }`}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors text-white ${savingPoem ? "bg-rose-700 opacity-70 cursor-not-allowed" : "bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700"
+                    }`}
                 >
                   {savingPoem ? "Saving..." : "Save"}
                 </button>
@@ -2379,9 +2497,8 @@ const Profile = () => {
                   </div>
                   <button
                     onClick={handleCopyLink}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
-                    }`}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${copySuccess ? "bg-green-600 text-white" : "bg-purple-600 hover:bg-purple-700 text-white"
+                      }`}
                   >
                     <FaCopy className="h-4 w-4 mr-2" />
                     {copySuccess ? "Copied!" : "Copy"}
@@ -2417,7 +2534,7 @@ const Profile = () => {
         </div>
       )}
 
-      
+
 
       {/* Edit Profile Modal */}
       {isOwnProfile && profileUser && (
@@ -2439,7 +2556,7 @@ const Profile = () => {
             >
               <FaTimes className="h-6 w-6" />
             </button>
-            
+
             <div className="text-center mb-6">
               <Gift className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-white mb-2">Want to tip this author?</h2>
@@ -2452,16 +2569,16 @@ const Profile = () => {
                 {(() => {
                   const supportLink = (profileUser as any).supportLink
                   const isUrl = supportLink?.startsWith('http')
-                  
+
                   if (isUrl) {
                     // For international users with URLs
                     return (
                       <div className="space-y-2">
                         <div className="flex flex-col justify-between">
                           <span className="text-gray-300">Support Link:</span>
-                          <a 
-                            href={supportLink} 
-                            target="_blank" 
+                          <a
+                            href={supportLink}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-400 hover:text-blue-300 underline break-all"
                           >
@@ -2523,10 +2640,10 @@ const Profile = () => {
                   const supportText = (profileUser as any).supportLink
                   if (supportText) {
                     const isUrl = supportText.startsWith('http')
-                    const shareText = isUrl 
+                    const shareText = isUrl
                       ? `Support this author: ${supportText}`
                       : `Support this author: ${supportText}`
-                    
+
                     if (navigator.share) {
                       navigator.share({ text: shareText })
                     } else {
@@ -2575,7 +2692,7 @@ const Profile = () => {
                   Ending this promotion will immediately remove your novel from all promoted sections and you will not be refunded for the remaining promotion time.
                 </p>
               </div>
-              
+
               <p className="text-gray-300 mb-2">Are you sure you want to end the promotion for "{selectedNovel.title}"?</p>
               <p className="text-sm text-gray-400">
                 This action cannot be undone. Your novel will no longer appear in promoted sections.
@@ -2608,6 +2725,115 @@ const Profile = () => {
           userIds={displayedUserIds}
           title={followListType === "followers" ? "Followers" : "Following"}
         />
+      )}
+
+      {/* Novel Completion Modal (2 options) */}
+      {showCompletingModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-gray-700 shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-xl font-bold text-white flex items-center">
+                <svg className="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                Mark Novel as Completed
+              </h3>
+              <button
+                onClick={() => setShowCompletingModal(null)}
+                className="text-gray-400 hover:text-white transition-colors"
+                disabled={isEpilogueLoading}
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-gray-300 text-sm mb-6 leading-relaxed">
+              You are about to mark your novel as completed. Do you want to add an Epilogue before completion, or complete without an Epilogue?
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowEpilogueInputModal(showCompletingModal);
+                  setShowCompletingModal(null);
+                }}
+                disabled={isEpilogueLoading}
+                className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl text-sm transition-all"
+              >
+                Yes, Add an Epilogue
+              </button>
+              <button
+                onClick={() => handleSubmitCompletion(showCompletingModal)}
+                disabled={isEpilogueLoading}
+                className="w-full px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-xl text-sm transition-all"
+              >
+                {isEpilogueLoading ? "Processing..." : "Complete without Epilogue"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Epilogue Input Modal */}
+      {showEpilogueInputModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-2xl p-6 max-w-2xl w-full mx-4 border border-gray-700 shadow-xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-xl font-bold text-white">
+                Add Epilogue
+              </h3>
+              <button
+                onClick={() => setShowEpilogueInputModal(null)}
+                className="text-gray-400 hover:text-white transition-colors"
+                disabled={isEpilogueLoading}
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
+                <input
+                  type="text"
+                  value={epilogueTitle}
+                  onChange={(e) => setEpilogueTitle(e.target.value)}
+                  placeholder="e.g. Ten Years Later..."
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                  disabled={isEpilogueLoading}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Content</label>
+                <textarea
+                  value={epilogueContent}
+                  onChange={(e) => setEpilogueContent(e.target.value)}
+                  placeholder="Write your epilogue here..."
+                  rows={8}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"
+                  disabled={isEpilogueLoading}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowEpilogueInputModal(null)}
+                disabled={isEpilogueLoading}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitEpilogue}
+                disabled={isEpilogueLoading || !epilogueTitle.trim() || !epilogueContent.trim()}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-semibold flex items-center"
+              >
+                {isEpilogueLoading && (
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                Publish Epilogue
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

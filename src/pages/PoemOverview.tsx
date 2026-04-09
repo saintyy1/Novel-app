@@ -24,7 +24,7 @@ import type { Poem } from "../types/poem"
 import { FaShare, FaCopy, FaFacebook, FaWhatsapp, FaTimes, FaReply, FaTrash } from "react-icons/fa"
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
 import { FaXTwitter } from "react-icons/fa6"
-import { Gift } from "lucide-react"
+import { Gift, Award } from "lucide-react"
 import SEOHead from "../components/SEOHead"
 import SkeletonLoader from "../components/SkeletonLoader"
 import CachedImage from "../components/CachedImage"
@@ -35,12 +35,14 @@ interface Comment {
   userId: string
   userName: string
   userPhoto?: string
-  content: string
+  text?: string
+  content?: string
   createdAt: string
   likes: number
   likedBy: string[]
   parentId?: string
   replies?: Comment[]
+  followersCount?: number
 }
 
 // Get poetry genre-based color gradients
@@ -183,7 +185,7 @@ const PoemOverview = () => {
           commentsData.push(comment)
           uniqueUserIds.add(comment.userId)
         })
-        const usersMap = new Map<string, { displayName: string; photoURL?: string }>()
+        const usersMap = new Map<string, { displayName: string; photoURL?: string; followersCount: number }>()
         const userPromises = Array.from(uniqueUserIds).map(async (uid) => {
           const userDoc = await getDoc(doc(db, "users", uid))
           if (userDoc.exists()) {
@@ -191,9 +193,10 @@ const PoemOverview = () => {
             usersMap.set(uid, {
               displayName: userData.displayName || "Anonymous",
               photoURL: userData.photoURL || undefined,
+              followersCount: userData.followers?.length || 0,
             })
           } else {
-            usersMap.set(uid, { displayName: "Deleted User", photoURL: undefined })
+            usersMap.set(uid, { displayName: "Deleted User", photoURL: undefined, followersCount: 0 })
           }
         })
         await Promise.all(userPromises)
@@ -203,6 +206,7 @@ const PoemOverview = () => {
             ...comment,
             userName: userData?.displayName || comment.userName,
             userPhoto: userData?.photoURL || comment.userPhoto,
+            followersCount: userData?.followersCount || 0,
           }
         })
         const topLevelComments = enrichedComments.filter((comment) => !comment.parentId)
@@ -651,13 +655,18 @@ const PoemOverview = () => {
           </Link>
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-1">
-              <h4 className="text-white text-sm font-semibold">
+              <h4 className="text-white text-sm font-semibold flex items-center flex-wrap">
                 {isReply && comment.parentId ? (
-                  <span>
-                    <Link to={`/profile/${comment.userId}`} className="hover:underline">
+                  <span className="flex items-center">
+                    <Link to={`/profile/${comment.userId}`} className="hover:underline flex items-center">
                       {comment.userName}
+                      {(comment.followersCount || 0) >= 100 && (
+                        <span title="Rising Star" className="ml-1 text-yellow-400 bg-yellow-400/10 p-0.5 rounded-full inline-flex">
+                          <Award className="h-3 w-3" />
+                        </span>
+                      )}
                     </Link>
-                    <span className="text-gray-400 font-normal"> &gt; </span>
+                    <span className="text-gray-400 font-normal mx-1"> &gt; </span>
                     {(() => {
                       const parent = getParentCommentData(comment.parentId)
                       return parent ? (
@@ -668,8 +677,13 @@ const PoemOverview = () => {
                     })()}
                   </span>
                 ) : (
-                  <Link to={`/profile/${comment.userId}`} className="hover:underline">
+                  <Link to={`/profile/${comment.userId}`} className="hover:underline flex items-center">
                     {comment.userName}
+                    {(comment.followersCount || 0) >= 100 && (
+                      <span title="Rising Star" className="ml-1 text-yellow-400 bg-yellow-400/10 p-0.5 rounded-full inline-flex">
+                        <Award className="h-3 w-3" />
+                      </span>
+                    )}
                   </Link>
                 )}
               </h4>
@@ -680,7 +694,7 @@ const PoemOverview = () => {
                 </span>
               )}
             </div>
-            <p className="text-gray-300 text-sm leading-relaxed mb-2">{comment.content}</p>
+            <p className="text-gray-300 text-sm leading-relaxed mb-2">{comment.text || comment.content}</p>
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => handleCommentLike(comment.id, comment.likedBy?.includes(currentUser?.uid || ""))}
@@ -927,9 +941,14 @@ const PoemOverview = () => {
                   </p>
                   <Link
                     to={`/profile/${poem.poetId}`}
-                    className="block mb-3 sm:mb-4 text-sm text-rose-400 hover:text-rose-300 font-serif"
+                    className="flex items-center mb-3 sm:mb-4 text-sm text-rose-400 hover:text-rose-300 font-serif w-fit"
                   >
                     By {poem.poetName}
+                    {(poetData?.followers?.length || 0) >= 100 && (
+                      <span title="Rising Star" className="ml-1.5 text-yellow-400 bg-yellow-400/10 p-0.5 rounded-full flex items-center justify-center">
+                        <Award className="h-3 w-3" />
+                      </span>
+                    )}
                   </Link>
                   {/* Genres */}
                   <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">

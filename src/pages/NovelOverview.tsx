@@ -25,7 +25,7 @@ import { FaShare, FaCopy, FaFacebook, FaWhatsapp, FaTimes, FaReply, FaTrash } fr
 import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
 import { trackPageView, trackNovelInteraction } from '../utils/Analytics-utils';
 import { FaXTwitter } from "react-icons/fa6" // Import FaXTwitter
-import { CheckCircle, Gift } from "lucide-react" // Import CheckCircle and Gift
+import { CheckCircle, Gift, Award } from "lucide-react"
 import { BookOpen } from "lucide-react"
 import SEOHead from "../components/SEOHead"
 import { generateNovelStructuredData, generateBreadcrumbStructuredData } from "../utils/structuredData"
@@ -38,12 +38,14 @@ interface Comment {
   userId: string
   userName: string
   userPhoto?: string
-  content: string
+  text?: string
+  content?: string
   createdAt: string
   likes: number
   likedBy: string[]
   parentId?: string // For replies
   replies?: Comment[]
+  followersCount?: number
 }
 
 const NovelOverview = () => {
@@ -123,7 +125,7 @@ const NovelOverview = () => {
       try {
         setLoading(true)
         setError("")
-        
+
         const novelData = await withCache(`novel_overview_${id}`, async () => {
           const novelDocRef = doc(db, "novels", id)
           const novelDoc = await getDoc(novelDocRef)
@@ -200,7 +202,7 @@ const NovelOverview = () => {
           uniqueUserIds.add(comment.userId)
         })
         // Fetch user data for all unique user IDs
-        const usersMap = new Map<string, { displayName: string; photoURL?: string }>()
+        const usersMap = new Map<string, { displayName: string; photoURL?: string; followersCount: number }>()
         const userPromises = Array.from(uniqueUserIds).map(async (uid) => {
           const userDoc = await getDoc(doc(db, "users", uid))
           if (userDoc.exists()) {
@@ -208,10 +210,11 @@ const NovelOverview = () => {
             usersMap.set(uid, {
               displayName: userData.displayName || "Anonymous",
               photoURL: userData.photoURL || undefined,
+              followersCount: userData.followers?.length || 0,
             })
           } else {
             // Handle case where user might have been deleted
-            usersMap.set(uid, { displayName: "Deleted User", photoURL: undefined })
+            usersMap.set(uid, { displayName: "Deleted User", photoURL: undefined, followersCount: 0 })
           }
         })
         await Promise.all(userPromises)
@@ -222,6 +225,7 @@ const NovelOverview = () => {
             ...comment,
             userName: userData?.displayName || comment.userName, // Fallback to stored if not found
             userPhoto: userData?.photoURL || comment.userPhoto, // Fallback to stored if not found
+            followersCount: userData?.followersCount || 0,
           }
         })
         // Filter for top-level comments and then build the nested tree
@@ -271,7 +275,7 @@ const NovelOverview = () => {
       })
       // Update user's library
       await updateUserLibrary(novel.id, newLikeStatus, novel.title, novel.authorId)
-      
+
       // 🔥 Invalidate cache for this novel and the general lists using centralized helper
       await invalidateNovelCache(novel.id)
 
@@ -732,13 +736,18 @@ const NovelOverview = () => {
           </Link>
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-1">
-              <h4 className="text-white text-sm font-semibold">
+              <h4 className="text-white text-sm font-semibold flex items-center flex-wrap">
                 {isReply && comment.parentId ? (
-                  <span>
-                    <Link to={`/profile/${comment.userId}`} className="hover:underline">
+                  <span className="flex items-center">
+                    <Link to={`/profile/${comment.userId}`} className="hover:underline flex items-center">
                       {comment.userName}
+                      {(comment.followersCount || 0) >= 100 && (
+                        <span title="Rising Star" className="ml-1 text-yellow-400 bg-yellow-400/10 p-0.5 rounded-full inline-flex">
+                          <Award className="h-3 w-3" />
+                        </span>
+                      )}
                     </Link>
-                    <span className="text-gray-400 font-normal"> &gt; </span>
+                    <span className="text-gray-400 font-normal mx-1"> &gt; </span>
                     {(() => {
                       const parent = getParentCommentData(comment.parentId)
                       return parent ? (
@@ -749,8 +758,13 @@ const NovelOverview = () => {
                     })()}
                   </span>
                 ) : (
-                  <Link to={`/profile/${comment.userId}`} className="hover:underline">
+                  <Link to={`/profile/${comment.userId}`} className="hover:underline flex items-center">
                     {comment.userName}
+                    {(comment.followersCount || 0) >= 100 && (
+                      <span title="Rising Star" className="ml-1 text-yellow-400 bg-yellow-400/10 p-0.5 rounded-full inline-flex">
+                        <Award className="h-3 w-3" />
+                      </span>
+                    )}
                   </Link>
                 )}
               </h4>
@@ -761,14 +775,14 @@ const NovelOverview = () => {
                 </span>
               )}
             </div>
-            <p className="text-gray-300 text-sm leading-relaxed mb-2">{comment.content}</p>
+            <p className="text-gray-300 text-sm leading-relaxed mb-2">{comment.text || comment.content}</p>
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => handleCommentLike(comment.id, comment.likedBy?.includes(currentUser?.uid || ""))}
                 disabled={!currentUser}
                 className={`inline-flex items-center text-xs ${comment.likedBy?.includes(currentUser?.uid || "")
-                    ? "text-red-400"
-                    : "text-gray-400 hover:text-red-400"
+                  ? "text-red-400"
+                  : "text-gray-400 hover:text-red-400"
                   } transition-colors ${!currentUser ? "cursor-not-allowed" : ""}`}
               >
                 <svg
@@ -981,11 +995,18 @@ const NovelOverview = () => {
     <div className="min-h-screen py-4 sm:py-8">
       {novel && (
         <SEOHead
-          title={`${novel.title} by ${novel.authorName || 'Unknown Author'} - Free Online Novel | NovlNest`}
-          description={novel.description || `Read ${novel.title} by ${novel.authorName || 'Unknown Author'} for free on NovlNest. ${novel.genres?.join(', ')} novel with ${novel.chapters?.length || 0} chapters.`}
+          title={`${novel.title} by ${novel.authorName || "Unknown Author"} | Novlnest`}
+          description={
+            (() => {
+              const text = novel.description || novel.summary || ""
+              const match = text.match(/[^.!?]+[.!?]/)
+              const firstSentence = match ? match[0].trim() : text.trim()
+              return firstSentence || `Read ${novel.title} by ${novel.authorName} for free on Novlnest.`
+            })()
+          }
           canonicalUrl={`https://novlnest.com/novel/${novel.id}`}
-          keywords={`${novel.title}, ${novel.authorName}, ${novel.genres?.join(', ')}, free novel, online reading, ${novel.genres?.map(g => `${g} novel`).join(', ')}, digital book`}
-          image={novel.coverImage ? `https://novlnest.com${novel.coverImage}` : "https://novlnest.com/images/logo.png"}
+          keywords={`${novel.title}, ${novel.authorName}, ${novel.genres?.join(", ")}, free novel, online reading, ${novel.genres?.map((g) => `${g} novel`).join(", ")}, digital book`}
+          image={novel.coverImage || "https://novlnest.com/images/logo.png"}
           url={`https://novlnest.com/novel/${novel.id}`}
           type="article"
           structuredData={[generateNovelStructuredData(novel), generateBreadcrumbStructuredData(breadcrumbItems)]}
@@ -1040,12 +1061,29 @@ const NovelOverview = () => {
                   </p>
                   <Link
                     to={`/profile/${novel.authorId}`}
-                    className="block mb-3 sm:mb-4 text-sm text-purple-400 hover:text-purple-300"
+                    className="flex items-center mb-3 sm:mb-4 text-sm text-purple-400 hover:text-purple-300 w-fit"
                   >
                     By {novel.authorName}
+                    {(authorData?.followers?.length || 0) >= 100 && (
+                      <span title="Rising Star" className="ml-1.5 text-yellow-400 bg-yellow-400/10 p-0.5 rounded-full flex items-center justify-center">
+                        <Award className="h-3 w-3" />
+                      </span>
+                    )}
                   </Link>
-                  {/* Genres */}
-                  <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
+                  {/* Genres and Status */}
+                  <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6">
+                    {novel.status === 'completed' && (
+                      <span className="px-3 py-1 bg-green-500/20 text-green-300 font-bold text-sm rounded-full border border-green-500/30 flex items-center shadow-[0_0_10px_rgba(34,197,94,0.2)]">
+                        <svg className="w-3 h-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
+                        Completed
+                      </span>
+                    )}
+                    {novel.status === 'ongoing' && (
+                      <span className="px-3 py-1 bg-blue-500/20 text-blue-300 font-bold text-sm rounded-full border border-blue-500/30 flex items-center">
+                        <svg className="w-3 h-3 mr-1.5 animate-pulse" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"></path></svg>
+                        Ongoing
+                      </span>
+                    )}
                     {novel.genres.map((genre) => (
                       <span
                         key={genre}
@@ -1143,8 +1181,8 @@ const NovelOverview = () => {
                         onClick={handleMarkAsFinished}
                         disabled={!currentUser}
                         className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold rounded-xl transition-all duration-200 border transform hover:scale-105 ${isFinished
-                            ? "bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30"
-                            : "bg-white/10 hover:bg-white/20 text-white border-white/20 hover:border-white/30"
+                          ? "bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30"
+                          : "bg-white/10 hover:bg-white/20 text-white border-white/20 hover:border-white/30"
                           }`}
                       >
                         {isFinished ? (
@@ -1238,7 +1276,7 @@ const NovelOverview = () => {
                     d="M4 6h16M4 10h16M4 14h16M4 18h16"
                   />
                 </svg>
-                Chapters ({(novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + (novel.chapters?.length || 0)})
+                Chapters ({(novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + (novel.chapters?.length || 0) + (novel.epilogue ? 1 : 0)})
               </h2>
               <div className="space-y-3 max-h-[50vh] overflow-y-auto">
                 {/* Author's Note */}
@@ -1370,6 +1408,31 @@ const NovelOverview = () => {
                       <p className="text-gray-400">No chapters available yet.</p>
                     </div>
                   )}
+
+                {/* Epilogue */}
+                {novel.epilogue && (
+                  <div className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group mt-2">
+                    <Link
+                      to={`/novel/${novel.id}/read?chapter=${(novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + (novel.chapters?.length || 0)}`}
+                      className="flex-1 flex items-center justify-between pr-4"
+                    >
+                      <div className="flex-1">
+                        <h3 className="text-green-400 font-semibold group-hover:text-green-300 transition-colors flex items-center">
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                          Epilogue
+                        </h3>
+                      </div>
+                      <svg
+                        className="h-5 w-5 text-gray-400 group-hover:text-green-300 transition-colors flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </div>
