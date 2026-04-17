@@ -144,7 +144,7 @@ function AppContent() {
           <Route path="/submit-poem" element={<SubmitPoem />} />
           <Route path="/novel/:id/edit-chapter/:chapterIndex" element={<EditChapter />} />
           <Route path="/my-tickets" element={<MyTickets />} />
-          <Route path="/admin-support" element={<AdminSupport />} />
+          <Route path="/admin-support" element={<AdminRoute><AdminSupport /></AdminRoute>} />
           <Route path="/best-wattpad-alternative" element={<WattpadAlternative />} />
           <Route path="/top-novel-websites" element={<TopNovelWebsites />} />
           <Route path="/free-novel-platform" element={<TopNovelWebsites />} />
