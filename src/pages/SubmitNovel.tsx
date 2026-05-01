@@ -17,6 +17,7 @@ import InlineChatEditor from "../components/InlineChatEditor"
 import type { ChatMessage } from "../types/novel"
 import SEOHead from "../components/SEOHead"
 import { invalidateProfileCache, invalidateNovelCache } from "../utils/cache"
+import { incrementStat } from "../services/statsService"
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -597,9 +598,10 @@ const SubmitNovel = () => {
         views: 0,
       })
 
-      // 🔥 Invalidate relevant caches
+      // 🔥 Invalidate relevant caches + update stats
       await invalidateNovelCache(docRef.id)
       await invalidateProfileCache(currentUser?.uid || "")
+      incrementStat({ totalNovels: 1, pendingNovels: 1 })
 
       navigate(`/profile/${currentUser?.uid}`)
       alert("Your novel has been submitted for review!")

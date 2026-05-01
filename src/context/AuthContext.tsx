@@ -37,6 +37,7 @@ import {
 import { auth, db, googleProvider, actionCodeSettings } from "../firebase/config"
 import { trackUserRegistration } from "../utils/Analytics-utils"
 import { invalidateProfileCache } from "../utils/cache"
+import { incrementStat } from "../services/statsService"
 
 // Extend the Firebase User type with our custom properties
 export interface ExtendedUser extends User {
@@ -785,7 +786,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Validate email domain
     const allowedDomains = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "icloud.com", "aol.com", "zoho.com", "protonmail.com"]
     const emailDomain = email.split("@")[1]?.toLowerCase()
-    
+
     if (!emailDomain || !allowedDomains.includes(emailDomain)) {
       throw new Error(`Registration restricted to standard email providers. Allowed domains: ${allowedDomains.join(", ")}`)
     }
@@ -831,6 +832,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isVerified: false,
     }
     await setDoc(doc(db, "users", user.uid), newUserData)
+    // Auto-update global stats — 1 write, no reads
+    incrementStat({ totalUsers: 1, activeUsers: 1 })
     // NOT setting current user here because we are logging them out immediately
     // sendEmailVerification(user, actionCodeSettings) was already called above
     await signOut(auth)
@@ -844,46 +847,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password)
       const user = userCredential.user
-    
-    // Fetch Firestore data specifically to check account status before allowing entry
-    const userDoc = await getDoc(doc(db, "users", user.uid))
-    if (userDoc.exists()) {
-      const data = userDoc.data()
-      
-      // Check if account is disabled by admin
-      if (data.isActive === false) {
-        await signOut(auth)
-        throw new Error("ACCOUNT_DISABLED")
-      }
-      
-      // Check for email verification
-      if (data.isVerified === false) {
-        // Double check with Firebase Auth - they might have verified while logged out
-        if (user.emailVerified) {
-          await updateDoc(doc(db, "users", user.uid), {
-            isVerified: true,
-            updatedAt: new Date().toISOString(),
-          })
-          // Sync successful, proceed with login
-        } else {
-          // Check for 24-hour grace period from mobile app approach
-          const createdAt = data.createdAt ? new Date(data.createdAt).getTime() : new Date().getTime()
-          const now = new Date().getTime()
-          const isWithinGracePeriod = (now - createdAt) < GRACE_PERIOD_MS
 
-          if (isWithinGracePeriod) {
-            console.log("User is unverified but within 24h grace period. Allowing login.")
-            // Proceed with login
+      // Fetch Firestore data specifically to check account status before allowing entry
+      const userDoc = await getDoc(doc(db, "users", user.uid))
+      if (userDoc.exists()) {
+        const data = userDoc.data()
+
+        // Check if account is disabled by admin
+        if (data.isActive === false) {
+          await signOut(auth)
+          throw new Error("ACCOUNT_DISABLED")
+        }
+
+        // Check for email verification
+        if (data.isVerified === false) {
+          // Double check with Firebase Auth - they might have verified while logged out
+          if (user.emailVerified) {
+            await updateDoc(doc(db, "users", user.uid), {
+              isVerified: true,
+              updatedAt: new Date().toISOString(),
+            })
+            // Sync successful, proceed with login
           } else {
-            await signOut(auth)
-            throw new Error("ACCOUNT_UNVERIFIED")
+            // Check for 24-hour grace period from mobile app approach
+            const createdAt = data.createdAt ? new Date(data.createdAt).getTime() : new Date().getTime()
+            const now = new Date().getTime()
+            const isWithinGracePeriod = (now - createdAt) < GRACE_PERIOD_MS
+
+            if (isWithinGracePeriod) {
+              console.log("User is unverified but within 24h grace period. Allowing login.")
+              // Proceed with login
+            } else {
+              await signOut(auth)
+              throw new Error("ACCOUNT_UNVERIFIED")
+            }
           }
         }
       }
-    }
-    
+
       await fetchUserData(user)
-      
+
       // Explicitly allowed background listeners to resume now that we're verified and ready
       isSystemAuthAction = false
     } catch (error) {
@@ -902,7 +905,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAdmin(false)
     setCurrentUser(null)
     setFirebaseUser(null)
-    
+
     // Clear all active cooldowns and unfollow timestamps on logout
     notificationCooldowns.forEach((timeout) => clearTimeout(timeout))
     notificationCooldowns.clear()
@@ -970,7 +973,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           emailToMatch.trim().toLowerCase()
         ]
         const uniqueStrategies = [...new Set(strategies)]
-        
+
         let foundDoc = null
         for (const strategy of uniqueStrategies) {
           const q = query(collection(db, "users"), where("email", "==", strategy))
@@ -994,7 +997,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           })
         }
       }
-      
+
       if (firebaseUser) {
         await fetchUserData(firebaseUser)
       }
@@ -1100,29 +1103,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isVerified: false, // Force Google users to verify too (strict anti-bot)
         }
         await setDoc(doc(db, "users", user.uid), newUserData)
+        incrementStat({ totalUsers: 1, activeUsers: 1 })
         trackUserRegistration(user.uid, "google")
-        
+
         // Send verification email to Google user
         await sendEmailVerification(user, actionCodeSettings)
-        
+
         await signOut(auth)
         throw new Error("ACCOUNT_UNVERIFIED")
       } else {
         // User already exists, check their account status
         const data = userDoc.data()
-        
+
         if (data.isActive === false) {
           await signOut(auth)
           throw new Error("ACCOUNT_DISABLED")
         }
-        
+
         if (data.isVerified === false) {
           // Double check with Firebase Auth
           if (user.emailVerified) {
-             await updateDoc(doc(db, "users", user.uid), {
-               isVerified: true,
-               updatedAt: new Date().toISOString()
-             })
+            await updateDoc(doc(db, "users", user.uid), {
+              isVerified: true,
+              updatedAt: new Date().toISOString()
+            })
           } else {
             await signOut(auth)
             throw new Error("ACCOUNT_UNVERIFIED")
@@ -1134,7 +1138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error("Error signing in with Google:", error)
-      await signOut(auth).catch(() => {}) // Ensure signed out on error
+      await signOut(auth).catch(() => { }) // Ensure signed out on error
       throw error
     } finally {
       // Use a delay to ensure any pending signOut's onAuthStateChanged call is ignored
@@ -1210,9 +1214,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (user) {
         // Manual reload to ensure we have the absolute latest verification status from Firebase
-        await user.reload().catch(() => {}) 
+        await user.reload().catch(() => { })
         await fetchUserData(user)
-        
+
         // Self-healing: If user is verified in Auth (via reload) but not in Firestore, sync it now
         if (user.emailVerified) {
           const userRef = doc(db, "users", user.uid)
@@ -1227,7 +1231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await fetchUserData(user)
           }
         }
-        
+
         // Listen for real-time account status changes (isActive)
         if (unsubscribeUserDoc) unsubscribeUserDoc()
         unsubscribeUserDoc = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
@@ -1302,7 +1306,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setLoading(false)
     })
-    
+
     return () => {
       unsubscribeAuth()
       if (unsubscribeUserDoc) unsubscribeUserDoc()

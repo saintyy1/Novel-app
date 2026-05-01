@@ -176,7 +176,7 @@ const EditChapter = () => {
   const insertChatIntoChapter = (messages: ChatMessage[]) => {
     // Create simple JSON marker for chat messages
     const chatData = `[CHAT_START]${JSON.stringify(messages)}[CHAT_END]`
-    
+
     // Insert at cursor position or at the end
     const newContent = chapterContent + '\n\n' + chatData + '\n\n'
     setChapterContent(newContent)

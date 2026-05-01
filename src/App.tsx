@@ -52,6 +52,8 @@ import ToastContainer from "./components/ToastContainer"
 import MobileChatButton from "./components/MobileChatButton"
 import NavigationLoader from "./components/NavigationLoader"
 import AppDownloadModal from "./components/AppDownloadModal"
+import MaintenancePage from "./pages/MaintenancePage"
+import { IS_MAINTENANCE_MODE } from "./config"
 
 function AppContent() {
   const location = useLocation()
@@ -99,6 +101,15 @@ function AppContent() {
       })
     }
   }, [location, currentUser])
+
+  const isBypassed = sessionStorage.getItem('maintenance_bypass') === 'true'
+  const isLoginPage = location.pathname === '/login'
+  const isVerifyEmailPage = location.pathname === '/verify-email'
+  const isAuthActionPage = location.pathname === '/auth-action'
+
+  if (IS_MAINTENANCE_MODE && !isBypassed && !isLoginPage && !isVerifyEmailPage && !isAuthActionPage) {
+    return <MaintenancePage />
+  }
 
   return (
     <div className="min-h-screen bg-[#121212] flex flex-col">

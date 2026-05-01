@@ -10,6 +10,7 @@ import { db, storage } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import SEOHead from "../components/SEOHead"
 import { invalidateCache, invalidateByPrefix, invalidateProfileCache } from "../utils/cache"
+import { incrementStat } from "../services/statsService"
 
 const SubmitPoem = () => {
   const { currentUser } = useAuth()
@@ -254,11 +255,12 @@ const SubmitPoem = () => {
         views: 0,
       })
 
-      // 🔥 Invalidate relevant caches
+      // 🔥 Invalidate relevant caches + update stats
       await invalidateByPrefix("poems_")
       await invalidateByPrefix("home_")
       await invalidateCache("home_trending_poems")
       await invalidateProfileCache(currentUser?.uid || "")
+      incrementStat({ totalPoems: 1, pendingPoems: 1 })
 
       navigate(`/profile/${currentUser?.uid}`)
       alert("Your poem has been submitted for review!")
