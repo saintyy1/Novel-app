@@ -2,7 +2,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
-import { doc, getDoc, updateDoc, arrayUnion, collection, query, where, getDocs, addDoc } from "firebase/firestore"
+import { doc, getDoc, collection, query, where, getDocs, addDoc, writeBatch } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel, ChatMessage } from "../types/novel"
@@ -80,10 +80,10 @@ const AddChapters = () => {
   const insertChatIntoChapter = (index: number, messages: ChatMessage[]) => {
     const updatedChapters = [...newChapters]
     const currentContent = updatedChapters[index].content
-    
+
     // Create simple JSON marker for chat messages
     const chatData = `[CHAT_START]${JSON.stringify(messages)}[CHAT_END]`
-    
+
     // Insert at cursor position or at the end
     updatedChapters[index].content = currentContent + '\n\n' + chatData + '\n\n'
     setNewChapters(updatedChapters)
@@ -120,11 +120,33 @@ const AddChapters = () => {
       setSubmitting(true)
       setError("")
 
-      // Update the novel with new chapters
-      await updateDoc(doc(db, "novels", novelId), {
-        chapters: arrayUnion(...validChapters),
+      const currentCount = novel.chapterCount || novel.chapters?.length || 0
+      const currentTitles = novel.chapterTitles || novel.chapters?.map(c => c.title) || []
+
+      const batch = writeBatch(db)
+      const newTitles = [...currentTitles]
+
+      // 1. Add chapters to subcollection
+      validChapters.forEach((chapter, index) => {
+        const chapterIdx = currentCount + index
+        const chapterRef = doc(db, "novels", novelId, "chapters", chapterIdx.toString())
+        batch.set(chapterRef, {
+          ...chapter,
+          order: chapterIdx,
+          createdAt: new Date().toISOString()
+        })
+        newTitles.push(chapter.title)
+      })
+
+      // 2. Update novel root document metadata
+      const novelRef = doc(db, "novels", novelId)
+      batch.update(novelRef, {
+        chapterCount: currentCount + validChapters.length,
+        chapterTitles: newTitles,
         updatedAt: new Date().toISOString(),
       })
+
+      await batch.commit()
 
       try {
         // Find all users who have this novel in their library
@@ -218,20 +240,20 @@ const AddChapters = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 bg-gray-900 min-h-screen">
+    <div className="w-full max-w-4xl mx-auto px-0 sm:px-4 py-4 sm:py-8 bg-gray-900 min-h-screen">
       {/* Header */}
       <div className="mb-8">
-        <Link to={`/novel/${novelId}`} className="inline-flex items-center text-purple-400 hover:text-purple-300 my-4">
+        <Link to={`/novel/${novelId}`} className="inline-flex items-center text-purple-400 hover:text-purple-300 my-4 px-4 sm:px-0">
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
           </svg>
           Back to Novel
         </Link>
-        <h1 className="text-3xl font-bold text-white">Add New Chapters</h1>
-        <p className="text-gray-400 mt-2">Continue your story by adding new chapters to "{novel?.title}"</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white px-4 sm:px-0">Add New Chapters</h1>
+        <p className="text-gray-400 mt-2 px-4 sm:px-0">Continue your story by adding new chapters to "{novel?.title}"</p>
       </div>
       {/* Novel Info */}
-      <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-8">
+      <div className="bg-gray-800 rounded-xl shadow-md p-4 sm:p-6 mb-6 sm:mb-8 mx-4 sm:mx-0">
         <div className="flex items-start space-x-4">
           {novel?.coverImage && (
             <CachedImage
@@ -244,7 +266,7 @@ const AddChapters = () => {
           <div className="flex-1">
             <h2 className="text-xl font-bold text-white">{novel?.title}</h2>
             <p className="text-gray-400 mt-1">By {novel?.authorName}</p>
-            <p className="text-sm text-gray-400 mt-2">Current chapters: {novel?.chapters?.length || 0}</p>
+            <p className="text-sm text-gray-400 mt-2">Current chapters: {novel?.chapterCount || novel?.chapters?.length || 0}</p>
           </div>
         </div>
       </div>
@@ -275,9 +297,9 @@ const AddChapters = () => {
             </button>
           </div>
           {newChapters.map((chapter, index) => {
-            const chapterNumber = (novel?.chapters?.length || 0) + index + 1
+            const chapterNumber = (novel?.chapterCount || novel?.chapters?.length || 0) + index + 1
             return (
-              <div key={index} className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500">
+              <div key={index} className="bg-gray-800 rounded-xl shadow-md px-3 sm:px-6 py-4 sm:py-6 mb-6 border-l-4 border-purple-500 mx-0">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-bold text-white">New Chapter {chapterNumber}</h3>
                   {newChapters.length > 1 && (
@@ -329,11 +351,13 @@ const AddChapters = () => {
                   <MDEditor
                     value={chapter.content}
                     onChange={(val) => handleChapterContentChange(index, val || "")}
-                    height={250}
+                    style={{ width: "100%", overflow: "hidden" }}
+                    minHeight={400}
                     textareaProps={{
                       id: `chapter-content-${index}`,
                       required: true,
                       placeholder: "Write your chapter content here...",
+                      style: { minHeight: 400, resize: "vertical" },
                     }}
                     previewOptions={{
                       rehypePlugins: [[rehypeSanitize]],
@@ -346,7 +370,7 @@ const AddChapters = () => {
           })}
         </div>
         {/* Submit Button */}
-        <div className="flex justify-end space-x-4">
+        <div className="flex justify-end space-x-4 px-4 sm:px-0 mt-4">
           <Link
             to={`/novel/${novelId}`}
             className="inline-flex items-center px-6 py-3 border border-gray-600 text-base font-medium rounded-md text-gray-300 bg-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"

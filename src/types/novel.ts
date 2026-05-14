@@ -4,6 +4,13 @@ export type ChatMessage = {
   content: string
 }
 
+export interface Character {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl?: string | null;
+}
+
 export interface Novel {
   id: string
   title: string
@@ -16,8 +23,12 @@ export interface Novel {
   chapters: {
     title: string
     content: string
+    comments?: any[]
     chatMessages?: ChatMessage[]
   }[]
+  chapterTitles?: string[]
+  chapterCount?: number
+  characters?: Character[]
   authorId: string
   authorName: string
   isPromoted: boolean

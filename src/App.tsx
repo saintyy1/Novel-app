@@ -24,6 +24,7 @@ import PoemOverview from "./pages/PoemOverview"
 import PoemRead from "./pages/PoemRead"
 import AddChapters from "./pages/add-chapters"
 import EditChapter from "./pages/EditChapter"
+import CharacterManager from "./pages/CharacterManager"
 import RegisterPage from "./pages/RegisterPage"
 import SubmitNovel from "./pages/SubmitNovel"
 import SubmitPoem from "./pages/SubmitPoem"
@@ -154,6 +155,7 @@ function AppContent() {
           <Route path="/submit" element={<SubmitNovel />} />
           <Route path="/submit-poem" element={<SubmitPoem />} />
           <Route path="/novel/:id/edit-chapter/:chapterIndex" element={<EditChapter />} />
+          <Route path="/novel/:id/characters" element={<CharacterManager />} />
           <Route path="/my-tickets" element={<MyTickets />} />
           <Route path="/admin-support" element={<AdminRoute><AdminSupport /></AdminRoute>} />
           <Route path="/best-wattpad-alternative" element={<WattpadAlternative />} />

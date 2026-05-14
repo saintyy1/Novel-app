@@ -346,7 +346,7 @@ const Promote = () => {
                           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
                             <div className="text-center">
                                 <div className="text-2xl font-bold text-purple-600">
-                                {Array.isArray(book.chapters) ? book.chapters.length : 0}
+                                {book.chapterCount ?? (Array.isArray(book.chapters) ? book.chapters.length : 0)}
                                 </div>
                                 <div className="text-sm text-gray-500">Chapters</div>
                             </div>

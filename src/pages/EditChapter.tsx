@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
-import { doc, getDoc, updateDoc } from "firebase/firestore"
+import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import type { Novel, ChatMessage } from "../types/novel"
@@ -58,19 +58,29 @@ const EditChapter = () => {
             return
           }
 
-          // Check if chapter index is valid
-          if (chapterIdx < 0 || chapterIdx >= novelData.chapters.length) {
-            setError("Chapter not found.")
-            setLoading(false)
-            return
-          }
-
-          const chapter = novelData.chapters[chapterIdx]
           setNovel(novelData)
-          setChapterTitle(chapter.title)
-          setChapterContent(chapter.content)
-          setOriginalTitle(chapter.title)
-          setOriginalContent(chapter.content)
+
+          // 1. Try to fetch from subcollection first
+          const chapterRef = doc(db, "novels", novelId, "chapters", chapterIdx.toString())
+          const chapterDoc = await getDoc(chapterRef)
+
+          if (chapterDoc.exists()) {
+            const chapterData = chapterDoc.data()
+            setChapterTitle(chapterData.title)
+            setChapterContent(chapterData.content)
+            setOriginalTitle(chapterData.title)
+            setOriginalContent(chapterData.content)
+          }
+          // 2. Fallback to legacy root array
+          else if (novelData.chapters && chapterIdx >= 0 && chapterIdx < novelData.chapters.length) {
+            const chapter = novelData.chapters[chapterIdx]
+            setChapterTitle(chapter.title)
+            setChapterContent(chapter.content)
+            setOriginalTitle(chapter.title)
+            setOriginalContent(chapter.content)
+          } else {
+            setError("Chapter not found.")
+          }
         } else {
           setError("Novel not found.")
         }
@@ -119,16 +129,22 @@ const EditChapter = () => {
       setSaving(true)
       setError("")
 
-      // Create updated chapters array
-      const updatedChapters = [...novel.chapters]
-      updatedChapters[chapterIdx] = {
+      // 1. Update the chapter in subcollection
+      const chapterRef = doc(db, "novels", novelId, "chapters", chapterIdx.toString())
+      await setDoc(chapterRef, {
         title: chapterTitle.trim(),
         content: chapterContent.trim(),
-      }
+        order: chapterIdx,
+        updatedAt: new Date().toISOString()
+      }, { merge: true })
 
-      // Update the novel with modified chapter
+      // 2. Update the root document metadata (chapterTitles)
+      const currentTitles = novel.chapterTitles || novel.chapters?.map(c => c.title) || []
+      const newTitles = [...currentTitles]
+      newTitles[chapterIdx] = chapterTitle.trim()
+
       await updateDoc(doc(db, "novels", novelId), {
-        chapters: updatedChapters,
+        chapterTitles: newTitles,
         updatedAt: new Date().toISOString(),
       })
 
@@ -224,7 +240,7 @@ const EditChapter = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 bg-gray-900 min-h-screen">
+    <div className="max-w-4xl mx-auto px-0 sm:px-4 py-4 sm:py-8 bg-gray-900 min-h-screen">
       {/* Header */}
       <div className="mb-8">
         <Link to={`/novel/${novelId}`} className="inline-flex items-center text-purple-400 hover:text-purple-300 my-4">
@@ -270,7 +286,7 @@ const EditChapter = () => {
           <div className="flex-1">
             <h2 className="text-xl font-bold text-white">{novel?.title}</h2>
             <p className="text-gray-400 mt-1">By {novel?.authorName}</p>
-            <p className="text-sm text-gray-400 mt-2">Total chapters: {novel?.chapters?.length || 0}</p>
+            <p className="text-sm text-gray-400 mt-2">Total chapters: {novel?.chapterCount || novel?.chapters?.length || 0}</p>
           </div>
         </div>
       </div>
@@ -282,7 +298,7 @@ const EditChapter = () => {
 
       {/* Edit Chapter Form */}
       <form onSubmit={handleSave}>
-        <div className="bg-gray-800 rounded-xl shadow-md p-6 mb-6 border-l-4 border-purple-500">
+        <div className="bg-gray-800 rounded-xl shadow-md p-3 sm:p-6 mb-6 border-l-4 border-purple-500">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-white">Chapter {chapterIdx + 1}</h3>
             <div className="flex space-x-2">
@@ -337,11 +353,13 @@ const EditChapter = () => {
             <MDEditor
               value={chapterContent}
               onChange={(val) => setChapterContent(val || "")}
-              height={400}
+              minHeight={500}
+              style={{ width: '100%', overflow: 'hidden' }}
               textareaProps={{
                 id: "chapter-content",
                 required: true,
-                placeholder: "Write your chapter content here..."
+                placeholder: "Write your chapter content here...",
+                style: { minHeight: '500px' }
               }}
               previewOptions={{
                 rehypePlugins: [[rehypeSanitize]]

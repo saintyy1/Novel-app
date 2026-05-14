@@ -17,6 +17,7 @@ import {
   addDoc,
   deleteDoc,
   getDocs,
+  writeBatch,
 } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
@@ -1140,7 +1141,7 @@ const NovelOverview = () => {
                           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                         />
                       </svg>
-                      {novel.chapters?.length || 0}
+                      {novel.chapterCount || novel.chapters?.length || 0}
                     </div>
                   </div>
                   {/* Action Buttons */}
@@ -1214,6 +1215,15 @@ const NovelOverview = () => {
                           </svg>
                           Add Chapters
                         </Link>
+                        <Link
+                          to={`/novel/${novel.id}/characters`}
+                          className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 font-semibold rounded-xl transition-all duration-200 border border-purple-500/30 hover:border-purple-500/50 transform hover:scale-105"
+                        >
+                          <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          Manage Characters
+                        </Link>
                       </>
                     )}
                   </div>
@@ -1276,7 +1286,7 @@ const NovelOverview = () => {
                     d="M4 6h16M4 10h16M4 14h16M4 18h16"
                   />
                 </svg>
-                Chapters ({(novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + (novel.chapters?.length || 0) + (novel.epilogue ? 1 : 0)})
+                Chapters ({(novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + (novel.chapterCount || novel.chapters?.length || 0) + (novel.epilogue ? 1 : 0)})
               </h2>
               <div className="space-y-3 max-h-[50vh] overflow-y-auto">
                 {/* Author's Note */}
@@ -1327,10 +1337,34 @@ const NovelOverview = () => {
                   </div>
                 )}
 
+                {/* Characters */}
+                {novel.characters && novel.characters.length > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group">
+                    <Link
+                      to={`/novel/${novel.id}/read?chapter=${(novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0)}`}
+                      className="flex-1 flex items-center justify-between"
+                    >
+                      <div>
+                        <h3 className="text-white font-semibold group-hover:text-purple-300 transition-colors">
+                          Cast & Characters
+                        </h3>
+                      </div>
+                      <svg
+                        className="h-5 w-5 text-gray-400 group-hover:text-purple-300 transition-colors"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                )}
+
                 {/* Chapters */}
-                {novel.chapters?.map((chapter, index) => {
+                {(novel.chapterTitles || novel.chapters?.map(c => c.title))?.map((title, index) => {
                   // Calculate the reading order index for this chapter
-                  const readingOrderIndex = (novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + index
+                  const readingOrderIndex = (novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + (novel.characters && novel.characters.length > 0 ? 1 : 0) + index
                   return (
                     <div
                       key={index}
@@ -1342,7 +1376,7 @@ const NovelOverview = () => {
                       >
                         <div className="flex-1">
                           <h3 className="text-white font-semibold group-hover:text-purple-300 transition-colors">
-                            Chapter {index + 1}: {chapter.title}
+                            Chapter {index + 1}: {title}
                           </h3>
                         </div>
                         <svg
@@ -1377,11 +1411,55 @@ const NovelOverview = () => {
                               e.stopPropagation()
                               if (!window.confirm("Are you sure you want to delete this chapter? This action cannot be undone.")) return
                               try {
-                                const updatedChapters = [...novel.chapters]
-                                updatedChapters.splice(index, 1)
-                                await updateDoc(doc(db, "novels", novel.id), { chapters: updatedChapters })
-                                setNovel({ ...novel, chapters: updatedChapters })
+                                const chapterCount = novel.chapterCount || novel.chapters?.length || 0
+                                const currentTitles = novel.chapterTitles || novel.chapters?.map(c => c.title) || []
+
+                                const batch = writeBatch(db)
+
+                                // 1. Handle subcollection deletion and shifting
+                                // This is expensive if there are many chapters, but necessary for index continuity
+                                for (let i = index; i < chapterCount; i++) {
+                                  const currentRef = doc(db, "novels", novel.id, "chapters", i.toString())
+                                  const nextRef = doc(db, "novels", novel.id, "chapters", (i + 1).toString())
+
+                                  if (i === chapterCount - 1) {
+                                    batch.delete(currentRef)
+                                  } else {
+                                    const nextDoc = await getDoc(nextRef)
+                                    if (nextDoc.exists()) {
+                                      batch.set(currentRef, { ...nextDoc.data(), order: i })
+                                    }
+                                  }
+                                }
+
+                                // 2. Update root document
+                                const updatedTitles = [...currentTitles]
+                                updatedTitles.splice(index, 1)
+
+                                const novelUpdate: any = {
+                                  chapterTitles: updatedTitles,
+                                  chapterCount: chapterCount - 1,
+                                  updatedAt: new Date().toISOString()
+                                }
+
+                                // If it was a legacy novel, also update the chapters array
+                                if (novel.chapters) {
+                                  const updatedChapters = [...novel.chapters]
+                                  updatedChapters.splice(index, 1)
+                                  novelUpdate.chapters = updatedChapters
+                                }
+
+                                batch.update(doc(db, "novels", novel.id), novelUpdate)
+
+                                await batch.commit()
+
+                                setNovel({
+                                  ...novel,
+                                  ...novelUpdate
+                                })
+
                                 showSuccessToast("Chapter deleted successfully!")
+                                await invalidateNovelCache(novel.id)
                               } catch (err) {
                                 console.error("Error deleting chapter:", err)
                                 showErrorToast("Failed to delete chapter.")
@@ -1413,7 +1491,7 @@ const NovelOverview = () => {
                 {novel.epilogue && (
                   <div className="flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 group mt-2">
                     <Link
-                      to={`/novel/${novel.id}/read?chapter=${(novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + (novel.chapters?.length || 0)}`}
+                      to={`/novel/${novel.id}/read?chapter=${(novel.authorsNote ? 1 : 0) + (novel.prologue ? 1 : 0) + (novel.characters ? 1 : 0) + (novel.chapterCount || novel.chapters?.length || 0)}`}
                       className="flex-1 flex items-center justify-between pr-4"
                     >
                       <div className="flex-1">

@@ -3,7 +3,10 @@ import type React from "react"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom"
 import { trackPageView, trackEngagementTime } from '../utils/Analytics-utils';
-import { doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove, setDoc, collection, query, where, getDocs, addDoc } from "firebase/firestore"
+import {
+  doc, getDoc, updateDoc, increment, arrayUnion, arrayRemove,
+  setDoc, collection, query, where, getDocs, addDoc, orderBy, deleteDoc
+} from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import { useTranslation } from "../context/TranslationContext"
@@ -15,6 +18,7 @@ import { BookOpen, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Trash2, R
 import { withCache, CACHE_TTL, invalidateNovelCache } from "../utils/cache"
 import AppDownloadModal from "../components/AppDownloadModal"
 import SEOHead from "../components/SEOHead"
+import { showSuccessToast, showErrorToast } from "../utils/toast-utils"
 
 interface Comment {
   id: string
@@ -501,6 +505,7 @@ const NovelRead = () => {
   const [deletingComment, setDeletingComment] = useState<string | null>(null)
   const [submittingComment, setSubmittingComment] = useState(false)
   const [submittingReply, setSubmittingReply] = useState<string | null>(null)
+  const allCommentsFlat = useMemo(() => comments.flatMap(c => [c, ...(c.replies || [])]), [comments])
   const replyInputRef = useRef<HTMLInputElement>(null)
   const [currentPage, setCurrentPage] = useState(0)
   const [pageFade, setPageFade] = useState(false)
@@ -512,6 +517,73 @@ const NovelRead = () => {
   const [hasSeenAuthWall, setHasSeenAuthWall] = useState(false)
   const [translatedContent, setTranslatedContent] = useState<string[]>([])
   const [isTranslating, setIsTranslating] = useState(false)
+  const [activeChapterContent, setActiveChapterContent] = useState<string>("")
+
+  // Get current content info
+  const getContentInfo = useCallback((readingOrderIndex: number) => {
+    if (!novel) return { type: "none", chapterIndex: -1, content: "" }
+
+    let currentIndex = 0
+
+    // Check Author's Note (index 0)
+    if (novel.authorsNote) {
+      if (readingOrderIndex === currentIndex) {
+        return { type: "authors-note", chapterIndex: -1, content: novel.authorsNote }
+      }
+      currentIndex++
+    }
+
+    // Check Prologue (index 1 if author's note exists, 0 if not)
+    if (novel.prologue) {
+      if (readingOrderIndex === currentIndex) {
+        return { type: "prologue", chapterIndex: -1, content: novel.prologue }
+      }
+      currentIndex++
+    }
+
+    // Check Characters (starting from currentIndex)
+    if (novel.characters && novel.characters.length > 0) {
+      if (readingOrderIndex === currentIndex) {
+        return { type: "characters", chapterIndex: -1, content: novel.characters }
+      }
+      currentIndex++
+    }
+
+    // Check Chapters (starting from currentIndex)
+    const chapterIndex = readingOrderIndex - currentIndex
+    const chapterCount = novel.chapterCount || novel.chapters?.length || 0
+
+    if (chapterIndex >= 0 && chapterIndex < chapterCount) {
+      return {
+        type: "chapter",
+        chapterIndex: chapterIndex,
+        content: novel.chapters?.[chapterIndex]?.content || activeChapterContent || ""
+      }
+    }
+
+    // Check Epilogue (index after all chapters)
+    if (novel.epilogue) {
+      if (readingOrderIndex === currentIndex + chapterCount) {
+        return { type: "epilogue", chapterIndex: -1, content: novel.epilogue.content }
+      }
+    }
+
+    return { type: "none", chapterIndex: -1, content: "" }
+  }, [novel, activeChapterContent])
+
+  const getChapterTitle = useCallback((info: any) => {
+    if (info.type === "chapter") {
+      return novel?.chapterTitles?.[info.chapterIndex] || novel?.chapters?.[info.chapterIndex]?.title || `Chapter ${info.chapterIndex + 1}`
+    }
+    if (info.type === "authors-note") return "Author's Note"
+    if (info.type === "prologue") return "Prologue"
+    if (info.type === "epilogue") return "Epilogue"
+    if (info.type === "characters") return "Characters"
+    return "Section"
+  }, [novel])
+
+  const currentContentInfo = useMemo(() => getContentInfo(currentChapter), [currentChapter, getContentInfo])
+
   // Determine permission to copy/paste: allowed if admin or the novel's author
   const [selectedQuote, setSelectedQuote] = useState("")
   const [showShareButton, setShowShareButton] = useState(false)
@@ -643,7 +715,10 @@ const NovelRead = () => {
 
       if (contentInfo.type === "chapter") {
         chapterNumber = contentInfo.chapterIndex + 1
-        title = novel.chapters[contentInfo.chapterIndex]?.title || `Chapter ${contentInfo.chapterIndex + 1}`
+        title =
+          novel.chapterTitles?.[contentInfo.chapterIndex] ||
+          novel.chapters?.[contentInfo.chapterIndex]?.title ||
+          `Chapter ${contentInfo.chapterIndex + 1}`
       } else if (contentInfo.type === "authors-note") {
         title = "Author's Note"
       } else if (contentInfo.type === "prologue") {
@@ -656,7 +731,7 @@ const NovelRead = () => {
         novel_title: novel.title,
         chapter_number: chapterNumber,
         chapter_title: title,
-        total_chapters: novel.chapters.length,
+        total_chapters: novel.chapterCount || novel.chapters?.length || 0,
         is_anonymous: !currentUser,
         reader_id: currentUser?.uid || 'anonymous',
         session_id: localStorage.getItem('anonymous_session_id') || 'unknown',
@@ -826,10 +901,15 @@ const NovelRead = () => {
     const contentInfo = getContentInfo(readingOrderIndex)
     if (contentInfo.type === "none") return 0
 
+    if (contentInfo.type === "characters") {
+      const chars = (contentInfo.content as any[]) || []
+      return 1 + Math.ceil(chars.length / 4) // 1 title + N content pages
+    }
+
     const chatMessages = contentInfo.type === "chapter"
-      ? novel.chapters[contentInfo.chapterIndex]?.chatMessages || []
+      ? novel.chapters?.[contentInfo.chapterIndex]?.chatMessages || []
       : []
-    const formattedParagraphs = formatContent(contentInfo.content, chatMessages)
+    const formattedParagraphs = formatContent(contentInfo.content as string, chatMessages)
     const contentPages = paginateContentIntoPages(formattedParagraphs, 6)
     return 1 + contentPages.length // 1 for title page + content pages
   }
@@ -848,59 +928,17 @@ const NovelRead = () => {
     return totalPreviousPages + currentPage + 1 // +1 because currentPage is 0-indexed
   }
 
-  // Helper function to get the content type and actual chapter index for a given reading order index
-  const getContentInfo = (readingOrderIndex: number) => {
-    if (!novel) return { type: "none", chapterIndex: -1, content: "" }
-
-    let currentIndex = 0
-
-    // Check Author's Note (index 0)
-    if (novel.authorsNote) {
-      if (readingOrderIndex === currentIndex) {
-        return { type: "authors-note", chapterIndex: -1, content: novel.authorsNote }
-      }
-      currentIndex++
-    }
-
-    // Check Prologue (index 1 if author's note exists, 0 if not)
-    if (novel.prologue) {
-      if (readingOrderIndex === currentIndex) {
-        return { type: "prologue", chapterIndex: -1, content: novel.prologue }
-      }
-      currentIndex++
-    }
-
-    // Check Chapters (starting from currentIndex)
-    const chapterIndex = readingOrderIndex - currentIndex
-    if (chapterIndex >= 0 && chapterIndex < novel.chapters.length) {
-      return {
-        type: "chapter",
-        chapterIndex: chapterIndex,
-        content: novel.chapters[chapterIndex]?.content || ""
-      }
-    }
-
-    // Check Epilogue (index after all chapters)
-    if (novel.epilogue) {
-      if (readingOrderIndex === currentIndex + novel.chapters.length) {
-        return { type: "epilogue", chapterIndex: -1, content: novel.epilogue.content }
-      }
-    }
-
-    return { type: "none", chapterIndex: -1, content: "" }
-  }
-
-  // Get current content info
-  const currentContentInfo = useMemo(() => getContentInfo(currentChapter), [currentChapter, novel])
-
   const sectionContent = useMemo(() => currentContentInfo.content, [currentContentInfo])
   const chatMessages = useMemo(() =>
     currentContentInfo.type === "chapter" && novel
-      ? novel.chapters[currentContentInfo.chapterIndex]?.chatMessages || []
+      ? novel.chapters?.[currentContentInfo.chapterIndex]?.chatMessages || []
       : [],
     [currentContentInfo, novel]
   )
-  const formattedParagraphs = useMemo(() => formatContent(sectionContent, chatMessages), [sectionContent, chatMessages])
+  const formattedParagraphs = useMemo(() => {
+    if (currentContentInfo.type === "characters") return []
+    return formatContent(sectionContent as string, chatMessages)
+  }, [sectionContent, chatMessages, currentContentInfo.type])
 
   // Translate content when language changes or chapter changes
   useEffect(() => {
@@ -926,8 +964,19 @@ const NovelRead = () => {
     translateChapterContent()
   }, [formattedParagraphs, language, translateParagraphs])
 
-  const contentPages = paginateContentIntoPages(translatedContent, 6) // 6 paragraphs per page
-  const sectionPages: ("title" | string[])[] = []
+  const contentPages = useMemo(() => {
+    if (currentContentInfo.type === "characters") {
+      const chars = (sectionContent as any[]) || []
+      const pages: any[][] = []
+      for (let i = 0; i < chars.length; i += 4) {
+        pages.push(chars.slice(i, i + 4))
+      }
+      return pages
+    }
+    return paginateContentIntoPages(translatedContent, 6)
+  }, [currentContentInfo.type, sectionContent, translatedContent])
+
+  const sectionPages: ("title" | string[] | any[])[] = []
   if (novel) {
     sectionPages.push("title") // First page is always the section title page
     contentPages.forEach((page) => sectionPages.push(page))
@@ -948,7 +997,8 @@ const NovelRead = () => {
       let count = 0
       if (novel.authorsNote) count++
       if (novel.prologue) count++
-      count += novel.chapters.length
+      if (novel.characters && novel.characters.length > 0) count++;
+      count += (novel.chapterCount || novel.chapters?.length || 0)
       if (novel.epilogue) count++
       return count
     }
@@ -962,13 +1012,21 @@ const NovelRead = () => {
         const prevReadingOrderIndex = currentChapter - 1
         const prevContentInfo = getContentInfo(prevReadingOrderIndex)
         if (prevContentInfo.type !== "none") {
-          const prevChatMessages = prevContentInfo.type === "chapter" && novel
-            ? novel.chapters[prevContentInfo.chapterIndex]?.chatMessages || []
-            : []
-          const prevFormattedParagraphs = formatContent(prevContentInfo.content, prevChatMessages)
-          const prevContentPages = paginateContentIntoPages(prevFormattedParagraphs, 6)
-          const prevSectionPages = ["title", ...prevContentPages]
-          const targetPage = prevSectionPages.length - 1
+          let targetPage = 0
+
+          if (prevContentInfo.type === "characters") {
+            const chars = (prevContentInfo.content as any[]) || []
+            const contentPagesCount = Math.ceil(chars.length / 4)
+            targetPage = 1 + contentPagesCount - 1 // Title page + content pages - 1 (last page index)
+          } else {
+            const prevChatMessages = prevContentInfo.type === "chapter" && novel
+              ? novel.chapters[prevContentInfo.chapterIndex]?.chatMessages || []
+              : []
+            const prevFormattedParagraphs = formatContent(prevContentInfo.content as string, prevChatMessages)
+            const prevContentPages = paginateContentIntoPages(prevFormattedParagraphs, 6)
+            const prevSectionPages = ["title", ...prevContentPages]
+            targetPage = prevSectionPages.length - 1
+          }
           setPageFade(true)
           setTimeout(() => {
             setCurrentChapter(prevReadingOrderIndex)
@@ -1033,7 +1091,8 @@ const NovelRead = () => {
       let count = 0
       if (novel.authorsNote) count++
       if (novel.prologue) count++
-      count += novel.chapters.length
+      if (novel.characters && novel.characters.length > 0) count++
+      count += novel.chapterCount || novel.chapters?.length || 0
       if (novel.epilogue) count++
       return count
     }
@@ -1057,11 +1116,22 @@ const NovelRead = () => {
         sectionTitle = "Prologue"
         sectionSubtitle = `${novel.authorName}`
       } else if (currentContentInfo.type === "chapter") {
-        sectionTitle = novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`
+        if (!activeChapterContent) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+              <p className="text-gray-400 mt-4">Loading chapter content...</p>
+            </div>
+          )
+        }
+        sectionTitle = novel.chapterTitles?.[currentContentInfo.chapterIndex] || novel.chapters?.[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`
         sectionSubtitle = `${novel.authorName}`
       } else if (currentContentInfo.type === "epilogue") {
         sectionTitle = "Epilogue"
         sectionSubtitle = novel.epilogue?.title || `${novel.authorName}`
+      } else if (currentContentInfo.type === "characters") {
+        sectionTitle = "Characters"
+        sectionSubtitle = `Cast of ${novel.title}`
       }
 
       return (
@@ -1074,10 +1144,35 @@ const NovelRead = () => {
         </div>
       )
     } else if (Array.isArray(pageContent)) {
-      // This is a content page
+      // Handle Character Pages
+      if (currentContentInfo.type === "characters" && pageContent.length > 0 && typeof pageContent[0] === 'object') {
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-full p-2">
+            {(pageContent as any[]).map((char: any) => (
+              <div key={char.id} className="bg-gray-800/40 backdrop-blur-sm border border-gray-700/50 p-4 rounded-xl flex flex-col items-center group hover:border-purple-500/50 transition-all">
+                <div className="relative mb-3">
+                  {char.imageUrl ? (
+                    <img src={char.imageUrl} alt={char.name} className="w-20 h-20 rounded-full object-cover border-2 border-purple-500/30 group-hover:border-purple-500 shadow-lg" />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center border-2 border-gray-600">
+                      <span className="text-2xl text-gray-400 font-bold">{char.name[0]}</span>
+                    </div>
+                  )}
+                </div>
+                <h4 className="font-bold text-purple-300 mb-1 text-center">{char.name}</h4>
+                <p className="text-xs text-gray-400 text-center line-clamp-3 leading-relaxed">
+                  {char.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        )
+      }
+
+      // Handle Regular Content Pages
       return (
         <div className="prose dark:prose-invert max-w-none mx-auto px-4 sm:px-6 pt-2 md:px-8">
-          {pageContent.map((paragraph, idx) => {
+          {(pageContent as string[]).map((paragraph, idx) => {
             // Check if this paragraph contains chat message markers
             if (paragraph.includes('[CHAT_MESSAGE_START]') && paragraph.includes('[CHAT_MESSAGE_END]')) {
               try {
@@ -1234,7 +1329,7 @@ const NovelRead = () => {
           const chapterParam = searchParams.get("chapter")
           if (chapterParam) {
             const readingOrderIndex = Number.parseInt(chapterParam, 10)
-            const totalItems = (novelData.authorsNote ? 1 : 0) + (novelData.prologue ? 1 : 0) + novelData.chapters.length + (novelData.epilogue ? 1 : 0)
+            const totalItems = (novelData.authorsNote ? 1 : 0) + (novelData.prologue ? 1 : 0) + (novelData.characters && novelData.characters.length > 0 ? 1 : 0) + (novelData.chapterCount || novelData.chapters?.length || 0) + (novelData.epilogue ? 1 : 0)
             if (readingOrderIndex >= 0 && readingOrderIndex < totalItems) {
               setCurrentChapter(readingOrderIndex)
             } else {
@@ -1246,11 +1341,20 @@ const NovelRead = () => {
             setCurrentChapter(0)
           }
           if (currentUser) {
-            await updateDoc(doc(db, "novels", id), {
-              views: increment(1),
-            })
-            // 🔥 Invalidate cache to show updated views
-            await invalidateNovelCache(id)
+            // ✅ Same 24-hour deduplication key used by NovelOverview —
+            // so visiting overview then reader in the same day only counts once.
+            const viewKey = `novel_view_${id}_${currentUser.uid}`
+            const lastViewTimestamp = localStorage.getItem(viewKey)
+            const now = Date.now()
+            const twentyFourHours = 24 * 60 * 60 * 1000
+            if (!lastViewTimestamp || now - Number(lastViewTimestamp) > twentyFourHours) {
+              await updateDoc(doc(db, "novels", id), {
+                views: increment(1),
+              })
+              localStorage.setItem(viewKey, now.toString())
+              // 🔥 Invalidate cache to show updated views
+              await invalidateNovelCache(id)
+            }
           }
         } else {
           setError("Novel not found")
@@ -1266,6 +1370,8 @@ const NovelRead = () => {
     fetchNovel()
   }, [id, currentUser, searchParams])
 
+
+
   useEffect(() => {
     // Reset states when chapter changes
     setChapterLiked(false)
@@ -1273,22 +1379,68 @@ const NovelRead = () => {
     setComments([])
     setReplyingTo(null)
     setReplyContent("")
+    setActiveChapterContent("")
+
     const fetchChapterData = async () => {
       if (!novel) return
+
+      const contentInfo = getContentInfo(currentChapter)
+      if (contentInfo.type !== "chapter") {
+        return
+      }
+
+      const chapterIdx = contentInfo.chapterIndex
+
       try {
-        const chapterData = await withCache(`chapter_${novel.id}_${currentChapter}`, async () => {
-          const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+        const chapterData = await withCache(`chapter_${novel.id}_${chapterIdx}`, async () => {
+          const chapterRef = doc(db, "novels", novel.id, "chapters", chapterIdx.toString())
           const chapterDoc = await getDoc(chapterRef)
-          return chapterDoc.exists() ? chapterDoc.data() : { chapterLikes: 0, chapterLikedBy: [], comments: [] }
+
+          let data: any = { chapterLikes: 0, chapterLikedBy: [], comments: [], content: "" }
+
+          if (chapterDoc.exists()) {
+            data = { ...data, ...chapterDoc.data() }
+          } else if (novel.chapters && novel.chapters[chapterIdx]) {
+            // Fallback to legacy root array
+            data = {
+              ...novel.chapters[chapterIdx],
+              chapterLikes: 0,
+              chapterLikedBy: [],
+              comments: novel.chapters[chapterIdx].comments || []
+            }
+          }
+
+          // Fetch from comments subcollection (Platform Parity)
+          try {
+            const commentsRef = collection(db, "novels", novel.id, "chapters", chapterIdx.toString(), "comments")
+            const commentsQuery = query(commentsRef, orderBy("createdAt", "desc"))
+            const commentsSnap = await getDocs(commentsQuery)
+
+            const subcollectionComments: Comment[] = []
+            commentsSnap.forEach(doc => {
+              subcollectionComments.push({ id: doc.id, ...doc.data() } as Comment)
+            })
+
+            // Merge: Subcollection takes priority
+            const subIds = new Set(subcollectionComments.map(c => c.id))
+            const legacyComments = (data.comments || []).filter((c: any) => !subIds.has(c.id))
+            data.comments = [...subcollectionComments, ...legacyComments]
+          } catch (e) {
+            console.log("Error fetching comments subcollection:", e)
+          }
+
+          return data
         }, CACHE_TTL.CONTENT)
 
         if (chapterData) {
           setChapterLiked(currentUser ? chapterData.chapterLikedBy?.includes(currentUser.uid) || false : false)
           setChapterLikes(chapterData.chapterLikes || 0)
+          setActiveChapterContent(chapterData.content || "")
+
           // Organize comments with replies
           const allComments = chapterData.comments || []
 
-          // Fetch missing user data (specifically followers count for badges)
+          // Fetch missing user data
           const uniqueUserIds = new Set<string>()
           allComments.forEach((c: Comment) => uniqueUserIds.add(c.userId))
           const usersMap = new Map<string, { followersCount: number }>()
@@ -1313,7 +1465,7 @@ const NovelRead = () => {
       }
     }
     fetchChapterData()
-  }, [novel, currentUser, currentChapter])
+  }, [novel, currentUser, currentChapter, getContentInfo])
 
   // Instead, add this modified useEffect that only resets the page when the chapter changes from URL params or initial load:
 
@@ -1349,7 +1501,9 @@ const NovelRead = () => {
   const handleChapterLike = async () => {
     if (!novel?.id || !currentUser) return
     try {
-      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+      const contentInfo = getContentInfo(currentChapter)
+      const chapterId = contentInfo.type === "chapter" ? contentInfo.chapterIndex.toString() : contentInfo.type
+      const chapterRef = doc(db, "novels", novel.id, "chapters", chapterId)
       const chapterDoc = await getDoc(chapterRef)
       const newLikeStatus = !chapterLiked
       setChapterLiked(newLikeStatus)
@@ -1390,8 +1544,8 @@ const NovelRead = () => {
           type: "chapter_like",
           novelId: novel.id,
           novelTitle: novel.title,
-          chapterNumber: currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1,
-          chapterTitle: currentContentInfo.type === "chapter" ? (novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`) : (currentContentInfo.type === "authors-note" ? "Author's Note" : "Prologue"),
+          chapterNumber: contentInfo.type === "chapter" ? contentInfo.chapterIndex + 1 : currentChapter + 1,
+          chapterTitle: getChapterTitle(contentInfo),
           createdAt: new Date().toISOString(),
           read: false,
         })
@@ -1404,13 +1558,18 @@ const NovelRead = () => {
 
   const handleAddComment = async () => {
     if (!novel?.id || !currentUser || !newComment.trim() || submittingComment) return
+
     try {
       setSubmittingComment(true)
-      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
-      const chapterDoc = await getDoc(chapterRef)
+      const contentInfo = getContentInfo(currentChapter)
+      const chapterId = contentInfo.type === "chapter" ? contentInfo.chapterIndex.toString() : contentInfo.type
+
+      const commentId = Date.now().toString()
+      const commentRef = doc(db, "novels", novel.id, "chapters", chapterId, "comments", commentId)
+
       const comment: Comment = {
-        id: Date.now().toString(),
-        text: newComment.trim(),
+        id: commentId,
+        content: newComment.trim(),
         userId: currentUser.uid,
         userName: currentUser.displayName || "Anonymous",
         userPhoto: currentUser.photoURL || undefined,
@@ -1418,23 +1577,16 @@ const NovelRead = () => {
         likes: 0,
         likedBy: [],
       }
-      let updatedComments: Comment[]
-      if (!chapterDoc.exists()) {
-        // Create the chapter document if it doesn't exist
-        await setDoc(chapterRef, {
-          chapterLikes: 0,
-          chapterLikedBy: [],
-          comments: [comment],
-        })
-        updatedComments = [comment]
-      } else {
-        // Update existing document
-        const existingComments = chapterDoc.data().comments || []
-        updatedComments = [...existingComments, comment]
-        await updateDoc(chapterRef, {
-          comments: updatedComments,
-        })
-      }
+
+      await setDoc(commentRef, comment)
+
+      // Also update the chapter doc's commentCount if possible
+      const chapterRef = doc(db, "novels", novel.id, "chapters", chapterId)
+      await updateDoc(chapterRef, {
+        commentCount: increment(1)
+      }).catch(() => {
+        // If chapter doc doesn't exist yet, it will be created by a like or just ignored
+      })
 
       // 🔥 Invalidate relevant caches
       await invalidateNovelCache(novel.id)
@@ -1449,18 +1601,24 @@ const NovelRead = () => {
           novelId: novel.id,
           novelTitle: novel.title,
           commentContent: newComment.trim(),
-          chapterNumber: currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1,
-          chapterTitle: currentContentInfo.type === "chapter" ? (novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`) : (currentContentInfo.type === "authors-note" ? "Author's Note" : "Prologue"),
+          chapterNumber: contentInfo.type === "chapter" ? contentInfo.chapterIndex + 1 : currentChapter + 1,
+          chapterTitle: getChapterTitle(contentInfo),
           createdAt: new Date().toISOString(),
           read: false,
         })
       }
 
+      // Update local state by re-fetching or optimistic update
+      // For simplicity, we add it to the list
+      const enrichedComment = { ...comment, followersCount: 0 }
+      const updatedComments = [...comments.flatMap(c => [c, ...(c.replies || [])]), enrichedComment]
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
       setNewComment("")
+      showSuccessToast("Comment added successfully!")
     } catch (error) {
       console.error("Error adding comment:", error)
+      showErrorToast("Failed to add comment.")
     } finally {
       setSubmittingComment(false)
     }
@@ -1470,18 +1628,19 @@ const NovelRead = () => {
     if (!novel?.id || !currentUser || !replyContent.trim() || submittingReply === parentId) return
     try {
       setSubmittingReply(parentId)
-      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
-      const chapterDoc = await getDoc(chapterRef)
-      if (!chapterDoc.exists()) return
+      const contentInfo = getContentInfo(currentChapter)
+      const chapterId = contentInfo.type === "chapter" ? contentInfo.chapterIndex.toString() : contentInfo.type
 
       // Find the parent comment to get its author
-      const existingComments = chapterDoc.data().comments || []
-      const parentComment = existingComments.find((comment: Comment) => String(comment.id) === String(parentId))
+      const parentComment = allCommentsFlat.find((comment: Comment) => String(comment.id) === String(parentId))
       const parentCommentAuthorId = parentComment?.userId
 
+      const replyId = Date.now().toString()
+      const replyRef = doc(db, "novels", novel.id, "chapters", chapterId, "comments", replyId)
+
       const reply: Comment = {
-        id: Date.now().toString(),
-        text: replyContent.trim(),
+        id: replyId,
+        content: replyContent.trim(),
         userId: currentUser.uid,
         userName: currentUser.displayName || "Anonymous",
         userPhoto: currentUser.photoURL || undefined,
@@ -1490,10 +1649,14 @@ const NovelRead = () => {
         likes: 0,
         likedBy: [],
       }
-      const updatedComments = [...existingComments, reply]
+
+      await setDoc(replyRef, reply)
+
+      // Also update the chapter doc's commentCount
+      const chapterRef = doc(db, "novels", novel.id, "chapters", chapterId)
       await updateDoc(chapterRef, {
-        comments: updatedComments,
-      })
+        commentCount: increment(1)
+      }).catch(() => {})
 
       // 🔥 Invalidate relevant caches
       await invalidateNovelCache(novel.id)
@@ -1509,8 +1672,8 @@ const NovelRead = () => {
           novelTitle: novel.title,
           commentContent: replyContent.trim(),
           parentId: parentId,
-          chapterNumber: currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1,
-          chapterTitle: currentContentInfo.type === "chapter" ? (novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`) : (currentContentInfo.type === "authors-note" ? "Author's Note" : "Prologue"),
+          chapterNumber: contentInfo.type === "chapter" ? contentInfo.chapterIndex + 1 : currentChapter + 1,
+          chapterTitle: getChapterTitle(contentInfo),
           createdAt: new Date().toISOString(),
           read: false,
         })
@@ -1530,19 +1693,21 @@ const NovelRead = () => {
           novelTitle: novel.title,
           commentContent: replyContent.trim(),
           parentId: parentId,
-          chapterNumber: currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1,
-          chapterTitle: currentContentInfo.type === "chapter" ? (novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`) : (currentContentInfo.type === "authors-note" ? "Author's Note" : "Prologue"),
+          chapterNumber: contentInfo.type === "chapter" ? contentInfo.chapterIndex + 1 : currentChapter + 1,
+          chapterTitle: getChapterTitle(contentInfo),
           createdAt: new Date().toISOString(),
           read: false,
         })
       }
 
+      const updatedComments = [...allCommentsFlat, { ...reply, followersCount: 0 }]
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
       setReplyContent("")
       setReplyingTo(null)
     } catch (error) {
       console.error("Error adding reply:", error)
+      showErrorToast("Failed to add reply.")
     } finally {
       setSubmittingReply(null)
     }
@@ -1554,23 +1719,49 @@ const NovelRead = () => {
     if (!confirmDelete) return
     try {
       setDeletingComment(commentId)
-      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
+      const contentInfo = getContentInfo(currentChapter)
+      const chapterId = contentInfo.type === "chapter" ? contentInfo.chapterIndex.toString() : contentInfo.type
+
+      const commentRef = doc(db, "novels", novel.id, "chapters", chapterId, "comments", commentId)
+
+      // We also need to delete replies from subcollection if any
+      // For simplicity, we just delete the main comment from subcollection
+      // Mobile app handles recursive deletion or just lets them orphan?
+      await deleteDoc(commentRef)
+
+      // Also try to delete from legacy array if it exists AND decrement the comment count
+      const chapterRef = doc(db, "novels", novel.id, "chapters", chapterId)
       const chapterDoc = await getDoc(chapterRef)
-      if (!chapterDoc.exists()) return
-      const existingComments = chapterDoc.data().comments || []
-      // Remove the comment and its replies
-      const updatedComments = existingComments.filter(
-        (comment: Comment) => comment.id !== commentId && comment.parentId !== commentId,
-      )
-      await updateDoc(chapterRef, {
-        comments: updatedComments,
-      })
+      if (chapterDoc.exists()) {
+        const data = chapterDoc.data()
+        const legacyComments = data.comments || []
+        const filteredLegacy = legacyComments.filter((c: any) => c.id !== commentId && c.parentId !== commentId)
+        
+        const updates: any = {
+          commentCount: increment(-1)
+        }
+        
+        if (filteredLegacy.length !== legacyComments.length) {
+          updates.comments = filteredLegacy
+        }
+        
+        await updateDoc(chapterRef, updates)
+      } else {
+        // If chapter doc doesn't exist (unlikely if we just deleted a comment from its subcollection),
+        // we might still want to try updating the count if the doc is created on the fly
+        await updateDoc(chapterRef, {
+          commentCount: increment(-1)
+        }).catch(() => {})
+      }
 
-      // 🔥 Invalidate relevant caches
-      await invalidateNovelCache(novel.id)
-
+      // Update local state
+      const allCommentsFlat = comments.flatMap(c => [c, ...(c.replies || [])])
+      const updatedComments = allCommentsFlat.filter(c => c.id !== commentId && c.parentId !== commentId)
       const organizedComments = organizeCommentsWithReplies(updatedComments)
       setComments(organizedComments)
+
+      showSuccessToast("Comment deleted.")
+      await invalidateNovelCache(novel.id)
     } catch (error) {
       console.error("Error deleting comment:", error)
     } finally {
@@ -1581,47 +1772,71 @@ const NovelRead = () => {
   const handleCommentLike = async (commentId: string, isLiked: boolean) => {
     if (!novel?.id || !currentUser) return
     try {
-      const chapterRef = doc(db, "novels", novel.id, "chapters", currentChapter.toString())
-      const chapterDoc = await getDoc(chapterRef)
-      if (!chapterDoc.exists()) return
-      const existingComments = chapterDoc.data().comments || []
+      const contentInfo = getContentInfo(currentChapter)
+      const chapterId = contentInfo.type === "chapter" ? contentInfo.chapterIndex.toString() : contentInfo.type
 
-      // Find the comment to get author info
-      const targetComment = existingComments.find((c: Comment) => String(c.id) === String(commentId))
-      if (!targetComment) return
+      const commentRef = doc(db, "novels", novel.id, "chapters", chapterId, "comments", commentId)
+      const commentDoc = await getDoc(commentRef)
 
-      const commentAuthorId = targetComment.userId
+      let targetComment: any = null
+      let commentAuthorId: string | null = null
 
-      const updatedComments = existingComments.map((comment: Comment) => {
-        if (comment.id === commentId) {
-          const likedBy = comment.likedBy || []
-          if (isLiked) {
-            return {
-              ...comment,
-              likes: (comment.likes || 0) - 1,
-              likedBy: likedBy.filter((uid: string) => uid !== currentUser.uid),
+      if (commentDoc.exists()) {
+        const data = commentDoc.data()
+        targetComment = data
+        commentAuthorId = data.userId
+        // Update in subcollection
+        await updateDoc(commentRef, {
+          likes: increment(isLiked ? -1 : 1),
+          likedBy: isLiked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid)
+        })
+      } else {
+        // Fallback to legacy array update
+        const chapterRef = doc(db, "novels", novel.id, "chapters", chapterId)
+        const chapterDoc = await getDoc(chapterRef)
+        if (chapterDoc.exists()) {
+          const comments = chapterDoc.data().comments || []
+          targetComment = comments.find((c: any) => c.id === commentId)
+          commentAuthorId = targetComment?.userId
+          const updatedComments = comments.map((c: any) => {
+            if (c.id === commentId) {
+              const likedBy = c.likedBy || []
+              return {
+                ...c,
+                likes: isLiked ? (c.likes || 0) - 1 : (c.likes || 0) + 1,
+                likedBy: isLiked ? likedBy.filter((u: string) => u !== currentUser.uid) : [...likedBy, currentUser.uid]
+              }
             }
-          } else {
-            return {
-              ...comment,
-              likes: (comment.likes || 0) + 1,
-              likedBy: [...likedBy, currentUser.uid],
-            }
-          }
+            return c
+          })
+          await updateDoc(chapterRef, { comments: updatedComments })
         }
-        return comment
-      })
+      }
 
-      await updateDoc(chapterRef, {
-        comments: updatedComments,
+      // Optimistic local update
+      setComments(prevComments => {
+        const updateInList = (list: Comment[]): Comment[] => {
+          return list.map(c => {
+            if (c.id === commentId) {
+              const likedBy = c.likedBy || []
+              return {
+                ...c,
+                likes: isLiked ? (c.likes || 0) - 1 : (c.likes || 0) + 1,
+                likedBy: isLiked ? likedBy.filter(u => u !== currentUser.uid) : [...likedBy, currentUser.uid]
+              }
+            }
+            if (c.replies) {
+              return { ...c, replies: updateInList(c.replies) }
+            }
+            return c
+          })
+        }
+        return updateInList(prevComments)
       })
-
-      // 🔥 Invalidate relevant caches
-      await invalidateNovelCache(novel.id)
 
       // Send notification only when liking (not unliking) and only to comment author if different from current user
-      if (!isLiked && commentAuthorId !== currentUser.uid) {
-        // Check if notification already exists to prevent spam (check both read and unread)
+      if (!isLiked && commentAuthorId && commentAuthorId !== currentUser.uid) {
+        // Check if notification already exists to prevent spam
         const notificationQuery = query(
           collection(db, "notifications"),
           where("toUserId", "==", commentAuthorId),
@@ -1632,7 +1847,6 @@ const NovelRead = () => {
 
         const existingNotifications = await getDocs(notificationQuery)
 
-        // Only send notification if none exists (regardless of read status)
         if (existingNotifications.empty) {
           await addDoc(collection(db, "notifications"), {
             toUserId: commentAuthorId,
@@ -1642,17 +1856,15 @@ const NovelRead = () => {
             novelId: novel.id,
             novelTitle: novel.title,
             commentId: commentId,
-            commentContent: targetComment.text || targetComment.content,
-            chapterNumber: currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1,
-            chapterTitle: currentContentInfo.type === "chapter" ? (novel.chapters[currentContentInfo.chapterIndex]?.title || `Chapter ${currentContentInfo.chapterIndex + 1}`) : (currentContentInfo.type === "authors-note" ? "Author's Note" : "Prologue"),
+            commentContent: targetComment?.content || targetComment?.text || "",
+            chapterNumber: contentInfo.type === "chapter" ? contentInfo.chapterIndex + 1 : currentChapter + 1,
+            chapterTitle: getChapterTitle(contentInfo),
             createdAt: new Date().toISOString(),
             read: false,
           })
         }
       }
 
-      const organizedComments = organizeCommentsWithReplies(updatedComments)
-      setComments(organizedComments)
     } catch (error) {
       console.error("Error updating comment like:", error)
     }
@@ -1876,8 +2088,9 @@ const NovelRead = () => {
           {/* Chapter indicator */}
           <div className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 text-xs sm:text-sm">
             {currentContentInfo.type === "authors-note" ? "Author's Note" :
-              currentContentInfo.type === "prologue" ? "Prologue" :
-                `${t("chapter")} ${currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1}`}
+              currentContentInfo.type === "characters" ? "Characters" :
+                currentContentInfo.type === "prologue" ? "Prologue" :
+                  `${t("chapter")} ${currentContentInfo.type === "chapter" ? currentContentInfo.chapterIndex + 1 : currentChapter + 1}`}
             {isTranslating && (
               <div className="flex items-center mt-1 text-purple-400">
                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-400 mr-1"></div>
@@ -2017,7 +2230,7 @@ const NovelRead = () => {
           getUserInitials={getUserInitials}
           formatDate={formatDate}
           replyInputRef={replyInputRef}
-          allComments={comments.flatMap(comment => [comment, ...(comment.replies || [])])}
+          allComments={allCommentsFlat}
         />
       )}
       <AppDownloadModal />

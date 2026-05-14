@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { collection, query, where, getDocs } from 'firebase/firestore'
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import type { Novel } from '../types/novel'
 import type { Poem } from '../types/poem'
@@ -94,18 +94,28 @@ const CreatorTools: React.FC = () => {
   const personalPoems = currentUser ? myPoems.filter(n => n.poetId === currentUser.uid) : []
   const totalPlatformPoemsReads = personalPoems.reduce((sum, poem) => sum + (poem.views || 0), 0)
 
-  const findHooks = (novel: Novel) => {
+  const findHooks = async (novel: Novel) => {
     setScanningNovelId(novel.id)
     setHooks([])
 
     // Intensity triggers (words that make quotes feel profound)
     const powerWords = ["world", "life", "death", "film", "reality", "nothing", "everything", "never", "always", "inherited", "movies", "sunset", "picturesque", "mysterious", "heart", "shadow", "silence"]
 
-    // Simulate a scan for effect
-    setTimeout(() => {
+    try {
+      let chaptersToScan = novel.chapters || []
+
+      // If no legacy chapters, fetch from subcollection
+      if (chaptersToScan.length === 0) {
+        const chaptersRef = collection(db, "novels", novel.id, "chapters")
+        const chaptersSnap = await getDocs(query(chaptersRef, orderBy("index", "asc")))
+        chaptersToScan = chaptersSnap.docs.map(doc => doc.data() as any)
+      }
+
       const allPossibleHooks: Hook[] = []
 
-      novel.chapters.forEach((chapter) => {
+      chaptersToScan.forEach((chapter) => {
+        if (!chapter.content) return
+        
         const blocks: string[] = []
         // Split by single newlines first
         const lines = chapter.content.split(/\n/).filter(p => p.trim().length > 0)
@@ -149,7 +159,7 @@ const CreatorTools: React.FC = () => {
           // CONTENT SCORING
           const lowerText = text.toLowerCase()
 
-          // Comparative structures (like the user's example: "looked nothing like")
+          // Comparative structures
           if (lowerText.includes("nothing like") || lowerText.includes("nothing but") || lowerText.includes("instead of")) {
             score += 8
           }
@@ -159,7 +169,7 @@ const CreatorTools: React.FC = () => {
             if (lowerText.includes(word)) score += 3
           })
 
-          // Dialogue cleaning (Remove tags if they are external)
+          // Dialogue cleaning
           if (text.startsWith('"') || text.startsWith('“')) {
             score += 5 // Dialogue is high engagement
           }
@@ -177,11 +187,18 @@ const CreatorTools: React.FC = () => {
         .slice(0, 6)
 
       setHooks(sortedHooks)
-      setScanningNovelId(null)
       setCurrentNovelTitle(novel.title)
       setCurrentNovelAuthor(novel.authorName || "Author")
-      showSuccessToast(`Discovered ${sortedHooks.length} high-impact hooks!`)
-    }, 1800)
+      if (sortedHooks.length > 0) {
+        showSuccessToast(`Discovered ${sortedHooks.length} high-impact hooks!`)
+      } else {
+        showSuccessToast("Scan complete. No high-impact hooks found yet.")
+      }
+    } catch (error) {
+      console.error("Error scanning for hooks:", error)
+    } finally {
+      setScanningNovelId(null)
+    }
   }
 
   const handleCreateHookCard = (hook: Hook) => {
