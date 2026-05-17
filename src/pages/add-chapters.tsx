@@ -5,10 +5,9 @@ import { useParams, useNavigate, Link } from "react-router-dom"
 import { doc, getDoc, collection, query, where, getDocs, addDoc, writeBatch } from "firebase/firestore"
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
-import type { Novel, ChatMessage } from "../types/novel"
+import type { Novel } from "../types/novel"
 import MDEditor from "@uiw/react-md-editor"
 import rehypeSanitize from "rehype-sanitize"
-import InlineChatEditor from "../components/InlineChatEditor"
 import CachedImage from "../components/CachedImage"
 import { invalidateNovelCache } from "../utils/cache"
 
@@ -74,18 +73,6 @@ const AddChapters = () => {
   const handleChapterContentChange = (index: number, content: string) => {
     const updatedChapters = [...newChapters]
     updatedChapters[index].content = content
-    setNewChapters(updatedChapters)
-  }
-
-  const insertChatIntoChapter = (index: number, messages: ChatMessage[]) => {
-    const updatedChapters = [...newChapters]
-    const currentContent = updatedChapters[index].content
-
-    // Create simple JSON marker for chat messages
-    const chatData = `[CHAT_START]${JSON.stringify(messages)}[CHAT_END]`
-
-    // Insert at cursor position or at the end
-    updatedChapters[index].content = currentContent + '\n\n' + chatData + '\n\n'
     setNewChapters(updatedChapters)
   }
 
@@ -346,7 +333,6 @@ const AddChapters = () => {
                     >
                       {showPreview ? "Show Preview" : "Hide Preview"}
                     </button>
-                    <InlineChatEditor onAddChat={(messages) => insertChatIntoChapter(index, messages)} />
                   </div>
                   <MDEditor
                     value={chapter.content}

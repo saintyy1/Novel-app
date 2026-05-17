@@ -1,9 +1,3 @@
-export type ChatMessage = {
-  id: string
-  sender: string
-  content: string
-}
-
 export interface Character {
   id: string;
   name: string;
@@ -24,7 +18,6 @@ export interface Novel {
     title: string
     content: string
     comments?: any[]
-    chatMessages?: ChatMessage[]
   }[]
   chapterTitles?: string[]
   chapterCount?: number

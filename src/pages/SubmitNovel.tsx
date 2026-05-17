@@ -498,12 +498,12 @@ const SubmitNovel = () => {
                 <div className="flex items-center gap-4">
                   <div className="w-32 h-44 bg-gray-900/50 border border-purple-900/30 rounded-lg overflow-hidden flex items-center justify-center relative group">
                     {coverPreview ? <img src={coverPreview} className="w-full h-full object-cover" /> : <svg className="w-12 h-12 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
-                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleCoverImageChange} required />
+                    <input type="file" ref={fileInputRef} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleCoverImageChange} required />
                   </div>
                   <div className="flex-1 text-xs text-gray-500 space-y-2">
                     <p>PNG, JPG, WEBP</p>
                     <p>Recommended: 600 x 900</p>
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="text-purple-400 font-bold hover:underline">Select Image</button>
+                    <button type="button" onClick={() => { fileInputRef.current?.click() }} className="text-purple-400 font-bold hover:underline cursor-pointer">Select Image</button>
                   </div>
                 </div>
               </div>

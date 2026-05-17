@@ -10,7 +10,7 @@ import {
 import { db } from "../firebase/config"
 import { useAuth } from "../context/AuthContext"
 import { useTranslation } from "../context/TranslationContext"
-import type { Novel, ChatMessage } from "../types/novel"
+import type { Novel } from "../types/novel"
 import ReactMarkdown from "react-markdown"
 import { useSwipeable } from "react-swipeable"
 import { useRef as useReactRef } from "react"
@@ -746,80 +746,14 @@ const NovelRead = () => {
   }, [novel, currentChapter, currentUser]);
 
   // Helper: Split content into readable paragraphs
-  const formatContent = (content: string, chatMessages?: ChatMessage[]) => {
+  const formatContent = (content: string) => {
     if (!content) return []
 
     // First, check if we have text message groups to insert
     let processedContent = content
 
-
-    // Then, check if we have simple chat messages to insert
-    if (chatMessages && chatMessages.length > 0) {
-      // Group chat messages by sender for better organization
-      const messageGroups: { sender: string; messages: ChatMessage[] }[] = []
-      let currentGroup: { sender: string; messages: ChatMessage[] } | null = null
-
-      chatMessages.forEach(message => {
-        if (!currentGroup || currentGroup.sender !== message.sender) {
-          currentGroup = { sender: message.sender, messages: [message] }
-          messageGroups.push(currentGroup)
-        } else {
-          currentGroup.messages.push(message)
-        }
-      })
-
-      // Try to find text triggers first, otherwise use default insertion
-      let insertedCount = 0
-      const lines = processedContent.split('\n')
-
-      // Look for conversation triggers in the text
-      const conversationTriggers = [
-        'texted', 'messaged', 'called', 'phoned', 'contacted',
-        'received a message', 'got a text', 'checked her phone',
-        'opened her phone', 'looked at her phone', 'saw a message'
-      ]
-
-      for (let i = 0; i < lines.length && insertedCount < messageGroups.length; i++) {
-        const line = lines[i]
-        const hasTrigger = conversationTriggers.some(trigger =>
-          line.toLowerCase().includes(trigger.toLowerCase())
-        )
-
-        if (hasTrigger) {
-          const chatMessageData = `[CHAT_MESSAGE_START]${JSON.stringify(messageGroups[insertedCount])}[CHAT_MESSAGE_END]`
-          lines[i] = line + '\n\n' + chatMessageData + '\n\n'
-          insertedCount++
-        }
-      }
-
-      // If we didn't find enough triggers, insert remaining groups at default positions
-      if (insertedCount < messageGroups.length) {
-        const remainingGroups = messageGroups.slice(insertedCount)
-        remainingGroups.forEach((group, index) => {
-          const chatMessageData = `[CHAT_MESSAGE_START]${JSON.stringify(group)}[CHAT_MESSAGE_END]`
-          // Insert after every 3rd paragraph or at the end
-          const insertPosition = Math.min((insertedCount + index + 1) * 3, processedContent.length)
-          processedContent = processedContent.slice(0, insertPosition) +
-            '\n\n' + chatMessageData + '\n\n' +
-            processedContent.slice(insertPosition)
-        })
-      } else {
-        processedContent = lines.join('\n')
-      }
-    }
-
-    // First, extract JSON chat content to prevent it from being split
-    const chatRegex = /\[CHAT_START\][\s\S]*?\[CHAT_END\]/g
-    const chatMatches = processedContent.match(chatRegex) || []
-
-    // Replace chat content with placeholders
-    let contentWithPlaceholders = processedContent
-    chatMatches.forEach((match, index) => {
-      contentWithPlaceholders = contentWithPlaceholders.replace(match, `[CHAT_PLACEHOLDER_${index}]`)
-    })
-
     // Split by existing paragraph breaks (double newlines, <br>, </n>, etc.)
-    const paragraphs = contentWithPlaceholders
+    const paragraphs = processedContent
       .split(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi)
       .filter((para) => para.trim() && !para.match(/(<\/n>|\\n\\n|\n\n|<br\s*\/?>)/gi))
 
@@ -828,22 +762,8 @@ const NovelRead = () => {
       const cleanPara = paragraph.trim()
       if (!cleanPara) return
 
-      // Check if this is a chat placeholder
-      const chatMatch = cleanPara.match(/\[CHAT_PLACEHOLDER_(\d+)\]/)
-      if (chatMatch) {
-        const chatIndex = parseInt(chatMatch[1])
-        formattedParagraphs.push(chatMatches[chatIndex])
-        return
-      }
-
       // Check if this is a text message group
       if (cleanPara.includes('[TEXT_MESSAGE_START]') && cleanPara.includes('[TEXT_MESSAGE_END]')) {
-        formattedParagraphs.push(cleanPara)
-        return
-      }
-
-      // Check if this is a chat message
-      if (cleanPara.includes('[CHAT_MESSAGE_START]') && cleanPara.includes('[CHAT_MESSAGE_END]')) {
         formattedParagraphs.push(cleanPara)
         return
       }
@@ -906,10 +826,7 @@ const NovelRead = () => {
       return 1 + Math.ceil(chars.length / 4) // 1 title + N content pages
     }
 
-    const chatMessages = contentInfo.type === "chapter"
-      ? novel.chapters?.[contentInfo.chapterIndex]?.chatMessages || []
-      : []
-    const formattedParagraphs = formatContent(contentInfo.content as string, chatMessages)
+    const formattedParagraphs = formatContent(contentInfo.content as string)
     const contentPages = paginateContentIntoPages(formattedParagraphs, 6)
     return 1 + contentPages.length // 1 for title page + content pages
   }
@@ -929,16 +846,11 @@ const NovelRead = () => {
   }
 
   const sectionContent = useMemo(() => currentContentInfo.content, [currentContentInfo])
-  const chatMessages = useMemo(() =>
-    currentContentInfo.type === "chapter" && novel
-      ? novel.chapters?.[currentContentInfo.chapterIndex]?.chatMessages || []
-      : [],
-    [currentContentInfo, novel]
-  )
+
   const formattedParagraphs = useMemo(() => {
     if (currentContentInfo.type === "characters") return []
-    return formatContent(sectionContent as string, chatMessages)
-  }, [sectionContent, chatMessages, currentContentInfo.type])
+    return formatContent(sectionContent as string)
+  }, [sectionContent, currentContentInfo.type])
 
   // Translate content when language changes or chapter changes
   useEffect(() => {
@@ -1019,10 +931,7 @@ const NovelRead = () => {
             const contentPagesCount = Math.ceil(chars.length / 4)
             targetPage = 1 + contentPagesCount - 1 // Title page + content pages - 1 (last page index)
           } else {
-            const prevChatMessages = prevContentInfo.type === "chapter" && novel
-              ? novel.chapters[prevContentInfo.chapterIndex]?.chatMessages || []
-              : []
-            const prevFormattedParagraphs = formatContent(prevContentInfo.content as string, prevChatMessages)
+            const prevFormattedParagraphs = formatContent(prevContentInfo.content as string)
             const prevContentPages = paginateContentIntoPages(prevFormattedParagraphs, 6)
             const prevSectionPages = ["title", ...prevContentPages]
             targetPage = prevSectionPages.length - 1
@@ -1173,109 +1082,6 @@ const NovelRead = () => {
       return (
         <div className="prose dark:prose-invert max-w-none mx-auto px-4 sm:px-6 pt-2 md:px-8">
           {(pageContent as string[]).map((paragraph, idx) => {
-            // Check if this paragraph contains chat message markers
-            if (paragraph.includes('[CHAT_MESSAGE_START]') && paragraph.includes('[CHAT_MESSAGE_END]')) {
-              try {
-                const startIndex = paragraph.indexOf('[CHAT_MESSAGE_START]') + '[CHAT_MESSAGE_START]'.length
-                const endIndex = paragraph.indexOf('[CHAT_MESSAGE_END]')
-                const jsonData = paragraph.substring(startIndex, endIndex)
-                const messageGroup: { sender: string; messages: ChatMessage[] } = JSON.parse(jsonData)
-
-                return (
-                  <div key={idx} className="mb-6">
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium text-gray-300">
-                        {messageGroup.sender}:
-                      </div>
-                      <div className="space-y-2 ml-4">
-                        {messageGroup.messages.map((message, msgIdx) => (
-                          <div key={msgIdx} className="bg-gray-200 border border-gray-300 rounded-lg p-3 text-gray-800">
-                            {message.content}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )
-              } catch (error) {
-                console.error('Error parsing chat message:', error)
-                // Fallback to regular paragraph rendering
-                return (
-                  <div
-                    key={idx}
-                    className="mb-4 sm:mb-6 text-gray-300 leading-relaxed text-sm sm:text-base indent-4 sm:indent-8 text-justify font-serif"
-                  >
-                    <ReactMarkdown
-                      components={{
-                        p: ({ children }) => <span>{children}</span>,
-                      }}
-                    >
-                      {paragraph}
-                    </ReactMarkdown>
-                  </div>
-                )
-              }
-            }
-
-            // Check if this paragraph contains chat messages
-            if (paragraph.includes('[CHAT_START]') && paragraph.includes('[CHAT_END]')) {
-              try {
-                const startIndex = paragraph.indexOf('[CHAT_START]') + '[CHAT_START]'.length
-                const endIndex = paragraph.indexOf('[CHAT_END]')
-                const jsonData = paragraph.substring(startIndex, endIndex)
-                const messages: ChatMessage[] = JSON.parse(jsonData)
-
-                // Group consecutive messages by sender
-                const messageGroups: { sender: string; messages: ChatMessage[] }[] = []
-                let currentGroup: { sender: string; messages: ChatMessage[] } | null = null
-
-                messages.forEach(message => {
-                  if (!currentGroup || currentGroup.sender !== message.sender) {
-                    currentGroup = { sender: message.sender, messages: [message] }
-                    messageGroups.push(currentGroup)
-                  } else {
-                    currentGroup.messages.push(message)
-                  }
-                })
-
-                return (
-                  <div key={`chat-${idx}`} className="mb-4 sm:mb-6">
-                    <div className="chat-conversation">
-                      {messageGroups.map((group, groupIdx) => (
-                        <div key={groupIdx} className="chat-group">
-                          <div className="chat-sender">{group.sender}:</div>
-                          <div className="chat-messages">
-                            {group.messages.map((message, msgIdx) => (
-                              <div key={msgIdx} className="chat-bubble">
-                                {message.content}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              } catch (error) {
-                console.error('Error parsing chat messages:', error)
-                // Fallback to regular paragraph rendering
-                return (
-                  <div
-                    key={idx}
-                    className="mb-4 sm:mb-6 text-gray-300 leading-relaxed text-sm sm:text-base indent-4 sm:indent-8 text-justify font-serif"
-                  >
-                    <ReactMarkdown
-                      components={{
-                        p: ({ children }) => <span>{children}</span>,
-                      }}
-                    >
-                      {paragraph}
-                    </ReactMarkdown>
-                  </div>
-                )
-              }
-            }
-
             // Regular paragraph rendering
             return (
               <div
@@ -1656,7 +1462,7 @@ const NovelRead = () => {
       const chapterRef = doc(db, "novels", novel.id, "chapters", chapterId)
       await updateDoc(chapterRef, {
         commentCount: increment(1)
-      }).catch(() => {})
+      }).catch(() => { })
 
       // 🔥 Invalidate relevant caches
       await invalidateNovelCache(novel.id)
@@ -1736,22 +1542,22 @@ const NovelRead = () => {
         const data = chapterDoc.data()
         const legacyComments = data.comments || []
         const filteredLegacy = legacyComments.filter((c: any) => c.id !== commentId && c.parentId !== commentId)
-        
+
         const updates: any = {
           commentCount: increment(-1)
         }
-        
+
         if (filteredLegacy.length !== legacyComments.length) {
           updates.comments = filteredLegacy
         }
-        
+
         await updateDoc(chapterRef, updates)
       } else {
         // If chapter doc doesn't exist (unlikely if we just deleted a comment from its subcollection),
         // we might still want to try updating the count if the doc is created on the fly
         await updateDoc(chapterRef, {
           commentCount: increment(-1)
-        }).catch(() => {})
+        }).catch(() => { })
       }
 
       // Update local state
