@@ -9,6 +9,7 @@ import { db } from "../firebase/config"
 import type { Novel } from "../types/novel"
 import type { Poem } from "../types/poem"
 import { invalidateNovelCache, invalidatePoemCache } from "../utils/cache"
+import { sendNotification } from "../services/notificationService"
 import type { ExtendedUser } from "../context/AuthContext"
 import {
   FaChartBar,
@@ -244,6 +245,38 @@ const AdminDashboard = () => {
       // Update local state
       setNovels((prev) => prev.map((novel) => (novel.id === id ? { ...novel, published: true } : novel)))
 
+      // Send notifications to the author
+      const novel = novels.find((n) => n.id === id)
+      if (novel && novel.authorId) {
+        // Send Firestore Notification
+        await sendNotification({
+          type: "novel_published",
+          toUserId: novel.authorId,
+          fromUserId: currentUser.uid,
+          fromUserName: currentUser.displayName || "Admin",
+          novelId: novel.id,
+          novelTitle: novel.title,
+        })
+
+        // Trigger Push Notification via API
+        try {
+          fetch("https://novlnest-pdf-parser.vercel.app/api/notify-user", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              toUserId: novel.authorId,
+              title: "Novel Published! 🎉",
+              body: `Your novel "${novel.title}" has been reviewed and published.`,
+              data: { url: `novlnest://novel/${novel.id}` },
+            }),
+          }).catch((err) => console.error("Error sending push notification async:", err))
+        } catch (pushErr) {
+          console.error("Error calling push notification fetch:", pushErr)
+        }
+      }
+
       // 🔥 Invalidate cache + update stats
       await invalidateNovelCache(id)
       incrementStat({ pendingNovels: -1, publishedNovels: 1 })
@@ -320,6 +353,38 @@ const AdminDashboard = () => {
 
       // Update local state
       setPoems((prev) => prev.map((poem) => (poem.id === id ? { ...poem, published: true } : poem)))
+
+      // Send notifications to the poet
+      const poem = poems.find((p) => p.id === id)
+      if (poem && poem.poetId) {
+        // Send Firestore Notification
+        await sendNotification({
+          type: "poem_published",
+          toUserId: poem.poetId,
+          fromUserId: currentUser.uid,
+          fromUserName: currentUser.displayName || "Admin",
+          poemId: poem.id,
+          poemTitle: poem.title,
+        })
+
+        // Trigger Push Notification via API
+        try {
+          fetch("https://novlnest-pdf-parser.vercel.app/api/notify-user", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              toUserId: poem.poetId,
+              title: "Poem Published! 🌹",
+              body: `Your poem "${poem.title}" has been reviewed and published.`,
+              data: { url: `novlnest://poem/${poem.id}` },
+            }),
+          }).catch((err) => console.error("Error sending push notification async:", err))
+        } catch (pushErr) {
+          console.error("Error calling push notification fetch:", pushErr)
+        }
+      }
 
       // 🔥 Invalidate cache + update stats
       await invalidatePoemCache(id)

@@ -25,24 +25,26 @@ import {
 interface Notification {
   id: string
   type:
-    | "follow"
-    | "novel_like"
-    | "novel_comment"
-    | "novel_reply"
-    | "comment_reply"
-    | "comment_like"
-    | "chapter_like"
-    | "novel_added_to_library"
-    | "novel_finished"
-    | "followed_author_announcement"
-    | "new_chapter"
-    | "poem_like"
-    | "poem_comment"
-    | "poem_reply"
-    | "poem_added_to_library"
-    | "promotion_approved"
-    | "promotion_ended"
-    | "support_response"
+  | "novel_published"
+  | "poem_published"
+  | "follow"
+  | "novel_like"
+  | "novel_comment"
+  | "novel_reply"
+  | "comment_reply"
+  | "comment_like"
+  | "chapter_like"
+  | "novel_added_to_library"
+  | "novel_finished"
+  | "followed_author_announcement"
+  | "new_chapter"
+  | "poem_like"
+  | "poem_comment"
+  | "poem_reply"
+  | "poem_added_to_library"
+  | "promotion_approved"
+  | "promotion_ended"
+  | "support_response"
   fromUserId?: string
   fromUserName?: string
   toUserId: string
@@ -192,6 +194,9 @@ const NotificationsPage = () => {
       )
     } else {
       switch (notification.type) {
+        case "novel_published":
+        case "poem_published":
+          return <BookOpen className="h-5 w-5 text-yellow-500" />
         case "follow":
           return <UserPlus className="h-5 w-5 text-purple-400" />
         case "novel_like":
@@ -248,6 +253,34 @@ const NotificationsPage = () => {
     switch (notification.type) {
       case "follow":
         return <>{fromUserLink} started following you.</>
+      case "novel_published":
+        return (
+          <>
+            Your novel{" "}
+            <Link
+              to={`/novel/${notification.novelId}`}
+              className="text-purple-400 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              "{notification.novelTitle}"
+            </Link>{" "}
+            has been reviewed and published!
+          </>
+        )
+      case "poem_published":
+        return (
+          <>
+            Your poem{" "}
+            <Link
+              to={`/poem/${notification.poemId}`}
+              className="text-purple-400 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              "{notification.poemTitle}"
+            </Link>{" "}
+            has been reviewed and published!
+          </>
+        )
       case "novel_like":
         return (
           <>
@@ -554,13 +587,14 @@ const NotificationsPage = () => {
       case "novel_added_to_library":
       case "novel_finished":
       case "new_chapter":
+      case "novel_published":
         return `/novel/${notification.novelId}`
       case "comment_like":
         // Check if it's a poem or novel comment
         if (notification.poemId) {
           return `/poem/${notification.poemId}`
         }
-        return notification.chapterNumber 
+        return notification.chapterNumber
           ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}`
           : `/novel/${notification.novelId}`
       case "comment_reply":
@@ -568,20 +602,21 @@ const NotificationsPage = () => {
         if (notification.poemId) {
           return `/poem/${notification.poemId}`
         }
-        return notification.chapterNumber 
+        return notification.chapterNumber
           ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}`
           : `/novel/${notification.novelId}`
       case "chapter_like":
       case "novel_comment":
       case "novel_reply":
         // For chapter-specific notifications, go to the specific chapter
-        return notification.chapterNumber 
+        return notification.chapterNumber
           ? `/novel/${notification.novelId}/read?chapter=${notification.chapterNumber - 1}`
           : `/novel/${notification.novelId}`
       case "poem_like":
       case "poem_added_to_library":
       case "poem_comment":
       case "poem_reply":
+      case "poem_published":
         return `/poem/${notification.poemId}`
       case "followed_author_announcement":
         return `/profile/${notification.fromUserId}`
@@ -668,7 +703,7 @@ const NotificationsPage = () => {
         url="https://novlnest.com/notifications"
         canonicalUrl="https://novlnest.com/notifications"
       />
-      
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
           <h1 className="text-3xl font-bold text-white mb-4 sm:mb-0">Notifications</h1>
@@ -728,11 +763,10 @@ const NotificationsPage = () => {
               <div // Changed from Link to div
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)} // Handle click for navigation and mark as read
-                className={`flex items-start p-4 rounded-xl shadow-sm transition-all duration-200 group cursor-pointer ${
-                  notification.read
-                    ? "bg-gray-800 text-gray-400"
-                    : "bg-purple-900/20 text-white border border-purple-700 hover:bg-purple-900/30"
-                }`}
+                className={`flex items-start p-4 rounded-xl shadow-sm transition-all duration-200 group cursor-pointer ${notification.read
+                  ? "bg-gray-800 text-gray-400"
+                  : "bg-purple-900/20 text-white border border-purple-700 hover:bg-purple-900/30"
+                  }`}
               >
                 <div className="flex-shrink-0 mr-4 mt-1">{renderNotificationAvatarOrIcon(notification)}</div>
                 <div className="flex-1">
