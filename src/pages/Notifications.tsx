@@ -176,60 +176,70 @@ const NotificationsPage = () => {
   )
 
   const renderNotificationAvatarOrIcon = (notification: Notification) => {
-    const fromUserData = notification.fromUserId ? fromUsersData[notification.fromUserId] : null
+    const isSystemNotification = [
+      "novel_published",
+      "poem_published",
+      "promotion_approved",
+      "promotion_ended",
+      "support_response"
+    ].includes(notification.type)
 
-    if (fromUserData?.photoURL) {
-      return (
-        <img
-          src={fromUserData.photoURL || "/placeholder.svg"}
-          alt={fromUserData.displayName}
-          className="h-8 w-8 rounded-full object-cover flex-shrink-0"
-        />
-      )
-    } else if (fromUserData?.displayName) {
-      return (
-        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-          {getUserInitials(fromUserData.displayName)}
-        </div>
-      )
-    } else {
-      switch (notification.type) {
-        case "novel_published":
-        case "poem_published":
-          return <BookOpen className="h-5 w-5 text-yellow-500" />
-        case "follow":
-          return <UserPlus className="h-5 w-5 text-purple-400" />
-        case "novel_like":
-        case "poem_like":
-          return <Heart className="h-5 w-5 text-red-400" />
-        case "comment_like":
-          return <Heart className="h-5 w-5 text-red-400" />
-        case "chapter_like":
-          return <Heart className="h-5 w-5 text-red-400" />
-        case "novel_comment":
-        case "novel_reply":
-        case "comment_reply":
-        case "poem_comment":
-        case "poem_reply":
-          return <MessageSquare className="h-5 w-5 text-blue-400" />
-        case "followed_author_announcement":
-          return <Megaphone className="h-5 w-5 text-yellow-400" />
-        case "novel_added_to_library":
-        case "poem_added_to_library":
-          return <BookOpen className="h-5 w-5 text-green-400" />
-        case "novel_finished":
-          return <CheckCircle className="h-5 w-5 text-green-400" />
-        case "new_chapter":
-          return <FileText className="h-5 w-5 text-blue-400" />
-        case "promotion_approved":
-          return <TrendingUp className="h-5 w-5 text-green-400" />
-        case "promotion_ended":
-          return <Clock className="h-5 w-5 text-orange-400" />
-        case "support_response":
-          return <Headphones className="h-5 w-5 text-blue-400" />
-        default:
-          return <Mail className="h-5 w-5 text-gray-400" />
+    if (!isSystemNotification) {
+      const fromUserData = notification.fromUserId ? fromUsersData[notification.fromUserId] : null
+
+      if (fromUserData?.photoURL) {
+        return (
+          <img
+            src={fromUserData.photoURL || "/placeholder.svg"}
+            alt={fromUserData.displayName}
+            className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+          />
+        )
+      } else if (fromUserData?.displayName) {
+        return (
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+            {getUserInitials(fromUserData.displayName)}
+          </div>
+        )
       }
+    }
+
+    switch (notification.type) {
+      case "novel_published":
+      case "poem_published":
+        return <BookOpen className="h-5 w-5 text-yellow-500" />
+      case "follow":
+        return <UserPlus className="h-5 w-5 text-purple-400" />
+      case "novel_like":
+      case "poem_like":
+        return <Heart className="h-5 w-5 text-red-400" />
+      case "comment_like":
+        return <Heart className="h-5 w-5 text-red-400" />
+      case "chapter_like":
+        return <Heart className="h-5 w-5 text-red-400" />
+      case "novel_comment":
+      case "novel_reply":
+      case "comment_reply":
+      case "poem_comment":
+      case "poem_reply":
+        return <MessageSquare className="h-5 w-5 text-blue-400" />
+      case "followed_author_announcement":
+        return <Megaphone className="h-5 w-5 text-yellow-400" />
+      case "novel_added_to_library":
+      case "poem_added_to_library":
+        return <BookOpen className="h-5 w-5 text-green-400" />
+      case "novel_finished":
+        return <CheckCircle className="h-5 w-5 text-green-400" />
+      case "new_chapter":
+        return <FileText className="h-5 w-5 text-blue-400" />
+      case "promotion_approved":
+        return <TrendingUp className="h-5 w-5 text-green-400" />
+      case "promotion_ended":
+        return <Clock className="h-5 w-5 text-orange-400" />
+      case "support_response":
+        return <Headphones className="h-5 w-5 text-blue-400" />
+      default:
+        return <Mail className="h-5 w-5 text-gray-400" />
     }
   }
 
