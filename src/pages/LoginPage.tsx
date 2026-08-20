@@ -28,7 +28,7 @@ const LoginPage = () => {
       navigate("/")
     } catch (err: any) {
       if (err.message === "ACCOUNT_DISABLED") {
-        setError("Your account has been disabled by an administrator. Please contact info@novlnest.com if you believe this is an error.")
+        setError("Your account has been disabled by an administrator. Please contact info@novel-app-flame.vercel.app if you believe this is an error.")
       } else if (err.message === "ACCOUNT_UNVERIFIED") {
         setError("ACCOUNT_UNVERIFIED")
       } else {
@@ -58,7 +58,7 @@ const LoginPage = () => {
           return
         }
       } else if (err.message === "ACCOUNT_DISABLED") {
-        setError("Your account has been disabled by an administrator. Please contact info@novlnest.com if you believe this is an error.")
+        setError("Your account has been disabled by an administrator. Please contact info@novel-app-flame.vercel.app if you believe this is an error.")
       } else if (err.message === "ACCOUNT_UNVERIFIED") {
         setError("ACCOUNT_UNVERIFIED")
       } else {
@@ -90,8 +90,8 @@ const LoginPage = () => {
           title="Login - NovlNest"
           description="Sign in to your NovlNest account to access your library, write novels, and connect with the community of readers and writers."
           keywords="login, sign in, account, NovlNest, novel platform, reading community"
-          url="https://novlnest.com/login"
-          canonicalUrl="https://novlnest.com/login"
+          url="https://novel-app-flame.vercel.app/login"
+          canonicalUrl="https://novel-app-flame.vercel.app/login"
         />
 
         <div className="max-w-md w-full space-y-8">

@@ -7,7 +7,7 @@ const SitemapIndex = () => {
             <SEOHead
                 title="Sitemap - NovlNest Free Novel Platform"
                 description="Navigate all sections of NovlNest. Find novels, poems, author tools, and community links in our comprehensive sitemap."
-                canonicalUrl="https://novlnest.com/sitemap"
+                canonicalUrl="https://novel-app-flame.vercel.app/sitemap"
             />
 
             <h1 className="text-4xl font-bold text-white mb-12 border-b border-white/10 pb-4">Sitemap</h1>

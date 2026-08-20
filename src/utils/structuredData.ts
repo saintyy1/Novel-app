@@ -4,20 +4,20 @@ export const generateWebsiteStructuredData = () => ({
   "@context": "https://schema.org",
   "@type": "WebSite",
   "name": "NovlNest",
-  "url": "https://novlnest.com",
+  "url": "https://novel-app-flame.vercel.app",
   "description": "From new voices to hidden gems, explore novels created and shared by real storytellers. Read free novels online, discover trending stories, and share your own writing.",
   "potentialAction": {
     "@type": "SearchAction",
-    "target": "https://novlnest.com/novels?search={search_term_string}",
+    "target": "https://novel-app-flame.vercel.app/novels?search={search_term_string}",
     "query-input": "required name=search_term_string"
   },
   "publisher": {
     "@type": "Organization",
     "name": "NovlNest",
-    "url": "https://novlnest.com",
+    "url": "https://novel-app-flame.vercel.app",
     "logo": {
       "@type": "ImageObject",
-      "url": "https://novlnest.com/images/logo.jpg"
+      "url": "https://novel-app-flame.vercel.app/images/logo.jpg"
     }
   }
 })
@@ -37,8 +37,8 @@ export const generateNovelStructuredData = (novel: Novel) => ({
   },
   "datePublished": novel.createdAt ? new Date(novel.createdAt).toISOString() : undefined,
   "dateModified": novel.updatedAt ? new Date(novel.updatedAt).toISOString() : undefined,
-  "url": `https://novlnest.com/novel/${novel.id}`,
-  "image": novel.coverImage ? `https://novlnest.com${novel.coverImage}` : "https://novlnest.com/images/logo.jpg",
+  "url": `https://novel-app-flame.vercel.app/novel/${novel.id}`,
+  "image": novel.coverImage ? `https://novel-app-flame.vercel.app${novel.coverImage}` : "https://novel-app-flame.vercel.app/images/logo.jpg",
   "genre": novel.genres || [],
   "inLanguage": "en",
   "isAccessibleForFree": true,
@@ -57,7 +57,7 @@ export const generateNovelStructuredData = (novel: Novel) => ({
   }
 })
 
-export const generateBreadcrumbStructuredData = (items: Array<{name: string, url: string}>) => ({
+export const generateBreadcrumbStructuredData = (items: Array<{ name: string, url: string }>) => ({
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": items.map((item, index) => ({
@@ -73,7 +73,7 @@ export const generateCollectionStructuredData = (novels: Novel[], pageTitle: str
   "@type": "CollectionPage",
   "name": pageTitle,
   "description": `Discover ${novels.length} novels on NovlNest - ${pageTitle.toLowerCase()}`,
-  "url": `https://novlnest.com/novels`,
+  "url": `https://novel-app-flame.vercel.app/novels`,
   "mainEntity": {
     "@type": "ItemList",
     "numberOfItems": novels.length,
@@ -81,12 +81,12 @@ export const generateCollectionStructuredData = (novels: Novel[], pageTitle: str
       "@type": "Book",
       "position": index + 1,
       "name": novel.title,
-      "url": `https://novlnest.com/novel/${novel.id}`,
+      "url": `https://novel-app-flame.vercel.app/novel/${novel.id}`,
       "author": {
         "@type": "Person",
         "name": novel.authorName || "Unknown Author"
       },
-      "image": novel.coverImage ? `https://novlnest.com${novel.coverImage}` : "https://novlnest.com/images/logo.jpg"
+      "image": novel.coverImage ? `https://novel-app-flame.vercel.app${novel.coverImage}` : "https://novel-app-flame.vercel.app/images/logo.jpg"
     }))
   }
 })

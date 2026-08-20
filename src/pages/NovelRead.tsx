@@ -1873,8 +1873,8 @@ const NovelRead = () => {
         title={`Reading: ${novel.title} by ${novel.authorName} - NovlNest`}
         description={novel.description || ""}
         keywords={`read novel, fiction, ${novel.genres?.join(", ")}, ${novel.authorName}`}
-        url={`https://novlnest.com/novel/${novel.id}/read`}
-        canonicalUrl={`https://novlnest.com/novel/${novel.id}/read`}
+        url={`https://novel-app-flame.vercel.app/novel/${novel.id}/read`}
+        canonicalUrl={`https://novel-app-flame.vercel.app/novel/${novel.id}/read`}
       />
       <AuthWallModal />
       {/* Top navigation */}

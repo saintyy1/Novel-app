@@ -236,8 +236,8 @@ const Messages: React.FC = () => {
         title="Messages - NovlNest"
         description="Connect with fellow readers and writers. Send messages, share your thoughts, and build meaningful connections within the NovlNest community."
         keywords="messages, chat, direct messages, communication, community, readers, writers, conversations"
-        url="https://novlnest.com/messages"
-        canonicalUrl="https://novlnest.com/messages"
+        url="https://novel-app-flame.vercel.app/messages"
+        canonicalUrl="https://novel-app-flame.vercel.app/messages"
         type="website"
       />
       <div className="h-screen bg-gray-900 flex flex-col pt-8" style={{ paddingTop: 'calc(2rem + env(safe-area-inset-top))' }}>
@@ -383,8 +383,8 @@ const Messages: React.FC = () => {
                         key={conversation.id}
                         onClick={() => handleConversationSelect(conversation)}
                         className={`p-4 rounded-xl cursor-pointer transition-all duration-200 group ${isActive
-                            ? "bg-purple-600/20 border border-purple-500/30 shadow-sm"
-                            : "hover:bg-gray-700/30 hover:shadow-sm"
+                          ? "bg-purple-600/20 border border-purple-500/30 shadow-sm"
+                          : "hover:bg-gray-700/30 hover:shadow-sm"
                           }`}
                       >
                         <div className="flex items-center space-x-4">
@@ -556,8 +556,8 @@ const Messages: React.FC = () => {
                             <div className="flex items-end max-w-[80%]">
                               <div
                                 className={`px-4 py-3 rounded-2xl shadow-sm ${isOwn
-                                    ? "bg-purple-600 text-white rounded-br-md"
-                                    : "bg-gray-700 text-gray-100 border border-gray-600 rounded-bl-md"
+                                  ? "bg-purple-600 text-white rounded-br-md"
+                                  : "bg-gray-700 text-gray-100 border border-gray-600 rounded-bl-md"
                                   }`}
                               >
                                 <p className="break-words leading-relaxed">{message.content}</p>

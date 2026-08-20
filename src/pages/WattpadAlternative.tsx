@@ -9,7 +9,7 @@ const WattpadAlternative = () => {
                 title="Best Wattpad Alternative 2026 - Free Online Novel Platform | NovlNest"
                 description="Looking for the best Wattpad alternative? NovlNest offers a premium, ad-free experience for readers and writers. Discover trending fiction and share your stories today."
                 keywords="wattpad alternative, best novel platform, free reading apps, write novels online, storytelling community, NovlNest"
-                canonicalUrl="https://novlnest.com/best-wattpad-alternative"
+                canonicalUrl="https://novel-app-flame.vercel.app/best-wattpad-alternative"
             />
 
             <div className="text-center mb-16">

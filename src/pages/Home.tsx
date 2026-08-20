@@ -110,7 +110,7 @@ const Home = () => {
           }
           return dataList
         }, CACHE_TTL.FEED, (data) => data.map(n => n.coverImage), 'feed')
-        
+
         setPromotionalNovels(promotionalData)
       } catch (error) {
         console.error("Error fetching promotional novels:", error)
@@ -273,9 +273,9 @@ const Home = () => {
         title="NovlNest - Free Online Novels & Stories | Read & Write Fiction"
         description="Discover thousands of free novels and stories on NovlNest. Read trending fiction, new releases, and share your own creative writing. The best platform for readers and writers."
         keywords="free novels, online stories, fiction reading, creative writing, novel platform, digital books, trending novels, new releases, wattpad alternative, storytelling community"
-        url="https://novlnest.com"
-        canonicalUrl="https://novlnest.com"
-        structuredData={[generateWebsiteStructuredData(), generateBreadcrumbStructuredData([{ name: "Home", url: "https://novlnest.com" }]), generateCollectionStructuredData(uniqueNovels, "Free Online Novels & Stories | Read & Write Fiction"), generateCollectionStructuredData(uniqueNovels, "Promotional Novels"), generateCollectionStructuredData(uniqueNovels, "Trending Novels"), generateCollectionStructuredData(uniqueNovels, "New Releases")]}
+        url="https://novel-app-flame.vercel.app"
+        canonicalUrl="https://novel-app-flame.vercel.app"
+        structuredData={[generateWebsiteStructuredData(), generateBreadcrumbStructuredData([{ name: "Home", url: "https://novel-app-flame.vercel.app" }]), generateCollectionStructuredData(uniqueNovels, "Free Online Novels & Stories | Read & Write Fiction"), generateCollectionStructuredData(uniqueNovels, "Promotional Novels"), generateCollectionStructuredData(uniqueNovels, "Trending Novels"), generateCollectionStructuredData(uniqueNovels, "New Releases")]}
       />
 
       <VerificationBanner />

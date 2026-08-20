@@ -15,8 +15,8 @@ const SEOHead = ({
   title = "NovlNest - Discover Extraordinary Stories",
   description = "From new voices to hidden gems, explore novels created and shared by real storytellers. Read free novels online, discover trending stories, and share your own writing.",
   keywords = "novels, free novels, online novels, stories, fiction, reading, books, wattpad alternative, novel platform, digital books, ebooks, creative writing, storytelling",
-  image = "https://novlnest.com/images/logo.jpg",
-  url = "https://novlnest.com",
+  image = "https://novel-app-flame.vercel.app/images/logo.jpg",
+  url = "https://novel-app-flame.vercel.app",
   type = "website",
   structuredData,
   canonicalUrl

@@ -115,7 +115,7 @@ const CreatorTools: React.FC = () => {
 
       chaptersToScan.forEach((chapter) => {
         if (!chapter.content) return
-        
+
         const blocks: string[] = []
         // Split by single newlines first
         const lines = chapter.content.split(/\n/).filter(p => p.trim().length > 0)
@@ -212,7 +212,7 @@ const CreatorTools: React.FC = () => {
   }
 
   const handleCopyLink = (novelId: string) => {
-    const link = `https://novlnest.com/novel/${novelId}`
+    const link = `https://novel-app-flame.vercel.app/novel/${novelId}`
     navigator.clipboard.writeText(link)
     showSuccessToast('Story link copied to clipboard!')
   }

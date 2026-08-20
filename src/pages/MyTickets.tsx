@@ -4,10 +4,10 @@ import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
 import { Link } from 'react-router-dom'
 import SEOHead from '../components/SEOHead'
-import { 
-  MessageCircle, 
-  Clock, 
-  CheckCircle, 
+import {
+  MessageCircle,
+  Clock,
+  CheckCircle,
   AlertCircle,
   Ticket,
   ArrowLeft
@@ -109,15 +109,15 @@ const MyTickets = () => {
         title="My Support Tickets - NovlNest"
         description="View and manage your support tickets on NovlNest."
         keywords="support tickets, help, customer service"
-        url="https://novlnest.com/my-tickets"
-        canonicalUrl="https://novlnest.com/my-tickets"
+        url="https://novel-app-flame.vercel.app/my-tickets"
+        canonicalUrl="https://novel-app-flame.vercel.app/my-tickets"
       />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <Link 
-            to="/support" 
+          <Link
+            to="/support"
             className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 mb-6 text-lg font-medium transition-all hover:gap-3"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -155,11 +155,10 @@ const MyTickets = () => {
                 <div
                   key={ticket.id}
                   onClick={() => setSelectedTicket(ticket)}
-                  className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-5 border cursor-pointer transition-all transform hover:scale-[1.02] shadow-lg ${
-                    selectedTicket?.id === ticket.id 
-                      ? 'border-purple-500 shadow-purple-500/30 scale-[1.02]' 
+                  className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-5 border cursor-pointer transition-all transform hover:scale-[1.02] shadow-lg ${selectedTicket?.id === ticket.id
+                      ? 'border-purple-500 shadow-purple-500/30 scale-[1.02]'
                       : 'border-gray-700 hover:border-purple-500/50'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 pr-2">

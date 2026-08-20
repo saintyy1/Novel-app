@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { auth, db } from "../firebase/config"
-import { 
-  verifyPasswordResetCode, 
-  confirmPasswordReset, 
+import {
+  verifyPasswordResetCode,
+  confirmPasswordReset,
   applyActionCode,
   checkActionCode
 } from "firebase/auth"
@@ -68,7 +68,7 @@ const AuthAction = () => {
     try {
       const info = await checkActionCode(auth, code)
       await applyActionCode(auth, code)
-      
+
       // Reload current user if they happen to be signed in
       const currentUser = auth.currentUser
       if (currentUser) {
@@ -79,7 +79,7 @@ const AuthAction = () => {
       if (info.data.email) {
         const emailToMatch = info.data.email
         console.log("Attempting to sync Firestore for email:", emailToMatch)
-        
+
         // Try multiple matching strategies for robustness
         const strategies = [
           emailToMatch,
@@ -87,10 +87,10 @@ const AuthAction = () => {
           emailToMatch.toLowerCase(),
           emailToMatch.trim().toLowerCase()
         ]
-        
+
         // Remove duplicates
         const uniqueStrategies = [...new Set(strategies)]
-        
+
         let foundDoc = null
         for (const strategy of uniqueStrategies) {
           console.log(`Trying match strategy: "${strategy}"`)
@@ -122,7 +122,7 @@ const AuthAction = () => {
           }
         }
       }
-      
+
       setStatus('success')
       setTimeout(() => {
         navigate('/novels')
@@ -147,16 +147,16 @@ const AuthAction = () => {
   const handleEmailChange = async (code: string) => {
     await checkActionCode(auth, code)
     await applyActionCode(auth, code)
-    
+
     // Reload user to get updated email
     const currentUser = auth.currentUser
     if (currentUser) {
       await currentUser.reload()
-      
+
       // Update Firestore with new email and clear pendingEmail
       const userRef = doc(db, "users", currentUser.uid)
       const userDoc = await getDoc(userRef)
-      
+
       if (userDoc.exists()) {
         // Update the email in Firestore and clear pendingEmail
         await updateDoc(userRef, {
@@ -164,11 +164,11 @@ const AuthAction = () => {
           pendingEmail: null, // Clear pending email
           updatedAt: new Date().toISOString(),
         })
-        
+
         console.log('Email updated in Firestore:', currentUser.email)
       }
     }
-    
+
     setStatus('success')
     setTimeout(() => {
       navigate('/settings')
@@ -267,10 +267,10 @@ const AuthAction = () => {
         title={`${getTitle()} - NovlNest`}
         description="Complete your authentication action on NovlNest."
         keywords="authentication, verification, password reset, NovlNest"
-        url="https://novlnest.com/auth-action"
-        canonicalUrl="https://novlnest.com/auth-action"
+        url="https://novel-app-flame.vercel.app/auth-action"
+        canonicalUrl="https://novel-app-flame.vercel.app/auth-action"
       />
-      
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="h-12 w-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">

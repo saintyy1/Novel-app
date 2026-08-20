@@ -23,6 +23,6 @@ Allow: /privacy
 # Crawl delay (optional)
 Crawl-delay: 1
 
-Sitemap: https://novlnest.com/sitemap.xml
+Sitemap: https://novel-app-flame.vercel.app/sitemap.xml
 
 

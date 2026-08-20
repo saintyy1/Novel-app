@@ -3,12 +3,12 @@ import { collection, addDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
 import SEOHead from '../components/SEOHead'
-import { 
-  HelpCircle, 
-  Mail, 
-  MessageCircle, 
-  Clock, 
-  CheckCircle, 
+import {
+  HelpCircle,
+  Mail,
+  MessageCircle,
+  Clock,
+  CheckCircle,
   AlertCircle,
   ChevronDown,
   ChevronUp,
@@ -145,7 +145,7 @@ const Support = () => {
 
     try {
       const ticketId = generateTicketId()
-      
+
       await addDoc(collection(db, 'support_messages'), {
         name: currentUser?.displayName || 'Guest User',
         email: currentUser?.email || 'no-email@example.com',
@@ -161,7 +161,7 @@ const Support = () => {
 
       setSuccess(true)
       setFormData({ name: '', email: '', subject: '', message: '' })
-      
+
       // Show ticket ID to user
       alert(`Your support ticket has been submitted!\nTicket ID: ${ticketId}\n\nYou can track your ticket in "My Tickets" page.`)
       navigate('/my-tickets')
@@ -175,7 +175,7 @@ const Support = () => {
 
   const filteredFAQs = faqData.filter(faq => {
     const matchesSearch = faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
+      faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = selectedCategory === 'all' || faq.category === selectedCategory
     return matchesSearch && matchesCategory
   })
@@ -190,10 +190,10 @@ const Support = () => {
         title="Support & Help Center - NovlNest"
         description="Get help and support for NovlNest. Find answers to common questions, troubleshooting guides, and contact our support team for assistance."
         keywords="support, help center, NovlNest support, troubleshooting, FAQ, customer service, technical support"
-        url="https://novlnest.com/support"
-        canonicalUrl="https://novlnest.com/support"
+        url="https://novel-app-flame.vercel.app/support"
+        canonicalUrl="https://novel-app-flame.vercel.app/support"
       />
-      
+
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">

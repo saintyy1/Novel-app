@@ -987,9 +987,9 @@ const NovelOverview = () => {
 
   // Generate breadcrumb data
   const breadcrumbItems = [
-    { name: "Home", url: "https://novlnest.com" },
-    { name: "Novels", url: "https://novlnest.com/novels" },
-    { name: novel?.title || "Novel", url: `https://novlnest.com/novel/${id}` }
+    { name: "Home", url: "https://novel-app-flame.vercel.app" },
+    { name: "Novels", url: "https://novel-app-flame.vercel.app/novels" },
+    { name: novel?.title || "Novel", url: `https://novel-app-flame.vercel.app/novel/${id}` }
   ]
 
   return (
@@ -1005,10 +1005,10 @@ const NovelOverview = () => {
               return firstSentence || `Read ${novel.title} by ${novel.authorName} for free on Novlnest.`
             })()
           }
-          canonicalUrl={`https://novlnest.com/novel/${novel.id}`}
+          canonicalUrl={`https://novel-app-flame.vercel.app/novel/${novel.id}`}
           keywords={`${novel.title}, ${novel.authorName}, ${novel.genres?.join(", ")}, free novel, online reading, ${novel.genres?.map((g) => `${g} novel`).join(", ")}, digital book`}
-          image={novel.coverImage || "https://novlnest.com/images/logo.png"}
-          url={`https://novlnest.com/novel/${novel.id}`}
+          image={novel.coverImage || "https://novel-app-flame.vercel.app/images/logo.png"}
+          url={`https://novel-app-flame.vercel.app/novel/${novel.id}`}
           type="article"
           structuredData={[generateNovelStructuredData(novel), generateBreadcrumbStructuredData(breadcrumbItems)]}
         />

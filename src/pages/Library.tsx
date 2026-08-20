@@ -13,22 +13,22 @@ import SEOHead from "../components/SEOHead"
 import CachedImage from "../components/CachedImage"
 
 const getFirebaseDownloadUrl = (url: string) => {
-    if (!url || !url.includes("firebasestorage.app")) {
-      return url
-    }
-
-    try {
-      // Convert Firebase Storage URL to download URL format that bypasses CORS
-      const urlParts = url.split("/")
-      const bucketName = urlParts[3] // Extract bucket name
-      const filePath = urlParts.slice(4).join("/") // Extract file path
-
-      // Create download URL format that doesn't require CORS
-      return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media`
-    } catch (error) {
-      return url
-    }
+  if (!url || !url.includes("firebasestorage.app")) {
+    return url
   }
+
+  try {
+    // Convert Firebase Storage URL to download URL format that bypasses CORS
+    const urlParts = url.split("/")
+    const bucketName = urlParts[3] // Extract bucket name
+    const filePath = urlParts.slice(4).join("/") // Extract file path
+
+    // Create download URL format that doesn't require CORS
+    return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media`
+  } catch (error) {
+    return url
+  }
+}
 
 // Get poetry genre-based color gradients
 const getPoemGenreColorClass = (genres: string[]) => {
@@ -76,7 +76,7 @@ const LibraryPage = () => {
 
         const novelPromises = allNovelIds.map((novelId) => getDoc(doc(db, "novels", novelId)))
         const poemPromises = likedPoemIds.map((poemId) => getDoc(doc(db, "poems", poemId)))
-        
+
         const [novelDocs, poemDocs] = await Promise.all([
           Promise.all(novelPromises),
           Promise.all(poemPromises)
@@ -378,10 +378,10 @@ const LibraryPage = () => {
         title="My Library - NovlNest"
         description="Access your personal library on NovlNest. View your liked novels, reading history, and manage your book collection in one place."
         keywords="library, my books, reading list, liked novels, book collection, personal library, NovlNest"
-        url="https://novlnest.com/library"
-        canonicalUrl="https://novlnest.com/library"
+        url="https://novel-app-flame.vercel.app/library"
+        canonicalUrl="https://novel-app-flame.vercel.app/library"
       />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">
         <h1 className="text-3xl font-bold text-white mb-8 flex items-center">
           <BookOpen className="h-8 w-8 mr-3 text-purple-400" />

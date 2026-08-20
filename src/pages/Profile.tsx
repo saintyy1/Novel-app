@@ -1231,9 +1231,9 @@ const Profile = () => {
         title={`${profileUser?.displayName || 'User'} - Profile | NovlNest`}
         description={`View ${profileUser?.displayName || 'user'}'s profile on NovlNest. ${profileUser?.bio || 'Discover their novels, poems, and creative works.'}`}
         keywords={`${profileUser?.displayName}, profile, author, novelist, poet, NovlNest, user profile`}
-        image={profileUser?.photoURL || "https://novlnest.com/images/logo.jpg"}
-        url={`https://novlnest.com/profile/${userId}`}
-        canonicalUrl={`https://novlnest.com/profile/${userId}`}
+        image={profileUser?.photoURL || "https://novel-app-flame.vercel.app/images/logo.jpg"}
+        url={`https://novel-app-flame.vercel.app/profile/${userId}`}
+        canonicalUrl={`https://novel-app-flame.vercel.app/profile/${userId}`}
         type="profile"
         structuredData={{
           "@context": "https://schema.org",
@@ -1241,9 +1241,9 @@ const Profile = () => {
           "mainEntity": {
             "@type": "Person",
             "name": profileUser?.displayName || "User",
-            "image": profileUser?.photoURL || "https://novlnest.com/images/logo.jpg",
+            "image": profileUser?.photoURL || "https://novel-app-flame.vercel.app/images/logo.jpg",
             "description": profileUser?.bio || "NovlNest user profile",
-            "url": `https://novlnest.com/profile/${userId}`
+            "url": `https://novel-app-flame.vercel.app/profile/${userId}`
           }
         }}
       />

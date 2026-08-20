@@ -294,8 +294,8 @@ const SubmitPoem = () => {
         title="Submit Your Poem - NovlNest"
         description="Share your poetry with the world on NovlNest. Submit your poems and connect with readers who appreciate your art."
         keywords="submit poem, publish poetry, creative writing, share poems, poetry platform, poet tools, NovlNest"
-        url="https://novlnest.com/submit-poem"
-        canonicalUrl="https://novlnest.com/submit-poem"
+        url="https://novel-app-flame.vercel.app/submit-poem"
+        canonicalUrl="https://novel-app-flame.vercel.app/submit-poem"
       />
 
       {/* Header with poetic styling */}

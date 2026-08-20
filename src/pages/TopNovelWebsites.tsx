@@ -9,7 +9,7 @@ const TopNovelWebsites = () => {
                 title="Top 5 Best Novel Websites for Free Reading in 2026 | NovlNest"
                 description="Discover why NovlNest is ranked among the top novel websites for free online reading. Access thousands of webnovels, light novels, and original fiction."
                 keywords="top novel websites, free novel platform, best sites to read novels, online webnovels, free ebooks, light novels online"
-                canonicalUrl="https://novlnest.com/top-novel-websites"
+                canonicalUrl="https://novel-app-flame.vercel.app/top-novel-websites"
             />
 
             <div className="max-w-4xl mx-auto">

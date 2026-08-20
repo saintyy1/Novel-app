@@ -7,10 +7,10 @@ const TermsOfService = () => {
         title="Terms of Service - NovlNest"
         description="Read NovlNest's Terms of Service to understand the rules and guidelines for using our platform. Learn about user responsibilities and platform policies."
         keywords="terms of service, user agreement, NovlNest terms, platform rules, user guidelines, legal terms"
-        url="https://novlnest.com/terms-of-service"
-        canonicalUrl="https://novlnest.com/terms-of-service"
+        url="https://novel-app-flame.vercel.app/terms-of-service"
+        canonicalUrl="https://novel-app-flame.vercel.app/terms-of-service"
       />
-      
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-10">
@@ -55,15 +55,15 @@ const TermsOfService = () => {
             </p>
             <div className="text-gray-300 mb-6">
               <p className="font-bold mb-4">License to NovlNest: </p>
-                <ul className="list-disc list-inside text-gray-300 mb-6 space-y-2">
-                  <li>By posting your work, you grant NovlNest a non-exclusive, revocable, worldwide license to host, display, and share your content only on the NovlNest platform and its related services.</li>
-                  <li>This license does not give NovlNest permission to sell, republish, or license your work outside the platform.</li>
-                  <li>You may remove your content at any time, and the license will end once it is deleted.</li>
-                </ul>
+              <ul className="list-disc list-inside text-gray-300 mb-6 space-y-2">
+                <li>By posting your work, you grant NovlNest a non-exclusive, revocable, worldwide license to host, display, and share your content only on the NovlNest platform and its related services.</li>
+                <li>This license does not give NovlNest permission to sell, republish, or license your work outside the platform.</li>
+                <li>You may remove your content at any time, and the license will end once it is deleted.</li>
+              </ul>
             </div>
             <p className="text-gray-300 mb-6">
               <span className="font-bold">Publishing Rights Disclaimer: </span>
-                Posting your work on NovlNest may count as a form of publication. This can affect your ability to sell “first publication rights” to traditional publishers. If you plan to submit your work to publishers, you should carefully consider whether to share the full text on NovlNest.
+              Posting your work on NovlNest may count as a form of publication. This can affect your ability to sell “first publication rights” to traditional publishers. If you plan to submit your work to publishers, you should carefully consider whether to share the full text on NovlNest.
             </p>
 
             <h3 className="text-xl font-semibold text-white mb-4">Content Standards</h3>

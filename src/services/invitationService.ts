@@ -48,7 +48,7 @@ export const sendInvitationEmail = async (
       where('inviteeEmail', '==', inviteeEmail.toLowerCase()),
       where('status', 'in', ['pending', 'sent'])
     )
-    
+
     const existingInvitations = await getDocs(existingInvitationQuery)
     if (!existingInvitations.empty) {
       return { success: false, error: 'You have already sent an invitation to this email address' }
@@ -68,7 +68,7 @@ export const sendInvitationEmail = async (
 
     // Store invitation in Firestore first
     const docRef = await addDoc(collection(db, 'invitations'), invitationData)
-    
+
     // Send actual email using EmailJS
     const emailServiceResponse = await sendActualEmail({
       inviterName,
@@ -76,17 +76,17 @@ export const sendInvitationEmail = async (
       inviteeEmail,
       message: message || '',
     })
-    
+
     if (emailServiceResponse.success) {
       // Update invitation status to 'sent' after successful email
       await updateDoc(doc(db, 'invitations', docRef.id), {
         status: 'sent',
         sentAt: new Date().toISOString()
       })
-      
+
       // Track invitation sent event
       trackInvitationSent(inviterId, inviteeEmail, !!message)
-      
+
       return { success: true }
     } else {
       // If email fails, keep status as 'pending' but still return success
@@ -119,7 +119,7 @@ const sendActualEmail = async (emailData: {
   try {
     // For now, we'll use a fallback method since EmailJS requires setup
     // In production, you would configure EmailJS with your service ID, template ID, and public key
-    
+
     // Fallback: Use a simple email service or Firebase Functions
     const emailContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -143,7 +143,7 @@ const sendActualEmail = async (emailData: {
           ` : ''}
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://novlnest.com/register" 
+            <a href="https://novel-app-flame.vercel.app/register" 
                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block; font-size: 16px;">
               Join NovlNest Now
             </a>
@@ -175,28 +175,28 @@ const sendActualEmail = async (emailData: {
         from_name: emailData.inviterName, // Use the actual inviter's name
         from_email: emailData.inviterEmail, // This matches your {{from_email}} field
         message: emailData.message,
-        invitation_link: `https://novlnest.com/register`,
+        invitation_link: `https://novel-app-flame.vercel.app/register`,
         reply_to: emailData.inviterEmail
       }
-     
+
       await emailjs.send(
         EMAILJS_SERVICE_ID,
         EMAILJS_TEMPLATE_ID,
         emailParams
       )
-      
+
       return { success: true }
-      
+
     } catch (emailError) {
       console.error('📧 Email sending failed:', emailError)
-      
+
       // Fallback: Log the email content for debugging
       console.log('📧 Email content (fallback):', emailContent)
-      
+
       // Still return success since the invitation is saved
       return { success: true }
     }
-    
+
   } catch (error) {
     console.error('Email sending error:', error)
     return { success: false, error: 'Failed to send email' }
@@ -211,16 +211,16 @@ export const getInvitationStats = async (userId: string): Promise<InvitationStat
       where('inviterId', '==', userId),
       orderBy('createdAt', 'desc')
     )
-    
+
     const invitationsSnapshot = await getDocs(invitationsQuery)
     const invitations = invitationsSnapshot.docs.map(doc => doc.data() as InvitationData)
-    
+
     const stats: InvitationStats = {
       totalSent: invitations.length,
       totalAccepted: invitations.filter(inv => inv.status === 'accepted').length,
       pendingInvitations: invitations.filter(inv => inv.status === 'pending' || inv.status === 'sent').length
     }
-    
+
     return stats
   } catch (error) {
     console.error('Error fetching invitation stats:', error)
@@ -237,7 +237,7 @@ export const getRecentInvitations = async (userId: string, limitCount: number = 
       orderBy('createdAt', 'desc'),
       limit(limitCount)
     )
-    
+
     const invitationsSnapshot = await getDocs(invitationsQuery)
     return invitationsSnapshot.docs.map(doc => doc.data() as InvitationData)
   } catch (error) {

@@ -35,14 +35,14 @@ const ForgotPassword = () => {
         title="Forgot Password - NovlNest"
         description="Reset your NovlNest password. Enter your email address and we'll send you a link to create a new password for your account."
         keywords="forgot password, reset password, NovlNest account, password recovery, account access"
-        url="https://novlnest.com/forgot-password"
-        canonicalUrl="https://novlnest.com/forgot-password"
+        url="https://novel-app-flame.vercel.app/forgot-password"
+        canonicalUrl="https://novel-app-flame.vercel.app/forgot-password"
       />
-      
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="w-20 h-20 mx-auto flex items-center justify-center">
-              <img src="../images/logo.png" alt="NovlNest Logo" />
+            <img src="../images/logo.png" alt="NovlNest Logo" />
           </div>
         </div>
         <h2 className="text-center text-3xl font-extrabold text-white">Reset your password</h2>

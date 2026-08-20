@@ -202,7 +202,7 @@ const QuoteStudio: React.FC = () => {
                   <span className="opacity-50">by</span> {authorName}
                 </div>
                 <div className={`mt-8 text-[9px] font-black tracking-[0.4em] uppercase opacity-30 ${themes[selectedTheme].text}`}>
-                  Exclusive on NovlNest.com
+                  Exclusive on novel-app-flame.vercel.app
                 </div>
               </div>
             </div>

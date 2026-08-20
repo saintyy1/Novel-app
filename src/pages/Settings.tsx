@@ -163,10 +163,10 @@ const Settings: React.FC = () => {
         title="Account Settings - NovlNest"
         description="Manage your NovlNest account settings. Update your profile, change password, manage privacy settings, and customize your reading experience."
         keywords="account settings, profile settings, NovlNest settings, user preferences, account management"
-        url="https://novlnest.com/settings"
-        canonicalUrl="https://novlnest.com/settings"
+        url="https://novel-app-flame.vercel.app/settings"
+        canonicalUrl="https://novel-app-flame.vercel.app/settings"
       />
-      
+
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-2xl font-bold text-white text-center my-2">Settings</h1>
         <p className="text-sm text-gray-400 text-center mb-2">@{currentUser.displayName}</p>

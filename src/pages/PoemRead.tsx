@@ -29,12 +29,12 @@ const PoemRead = () => {
 
   const handleCreateCard = () => {
     if (!poem) return
-    navigate('/creator-studio/quote', { 
-      state: { 
+    navigate('/creator-studio/quote', {
+      state: {
         quote: selectedQuote,
         novelTitle: poem.title,
         authorName: poem.poetName || "Author"
-      } 
+      }
     })
   }
 
@@ -78,37 +78,37 @@ const PoemRead = () => {
           }
           return null
         }, CACHE_TTL.CONTENT)
-        
-          if (poemData) {
-            setPoem(poemData)
 
-            if (poemData.poetId) {
-              const poetDoc = await getDoc(doc(db, "users", poemData.poetId))
-              if (poetDoc.exists()) setPoetData(poetDoc.data())
-            }
+        if (poemData) {
+          setPoem(poemData)
 
-            // Handle unique view count increment
-            if (currentUser) {
-              const poemDocRef = doc(db, "poems", id)
-              const viewKey = `poem_view_${id}_${currentUser.uid}`
-              const lastViewTimestamp = localStorage.getItem(viewKey)
-              const now = Date.now()
-              const twentyFourHours = 24 * 60 * 60 * 1000
-              
-              if (!lastViewTimestamp || now - Number(lastViewTimestamp) > twentyFourHours) {
-                try {
-                  await updateDoc(poemDocRef, {
-                    views: increment(1),
-                  })
-                  localStorage.setItem(viewKey, now.toString())
-                  // 🔥 Invalidate cache to show updated views
-                  await invalidatePoemCache(id)
-                } catch (updateError) {
-                  console.error("Failed to update view count:", updateError)
-                }
+          if (poemData.poetId) {
+            const poetDoc = await getDoc(doc(db, "users", poemData.poetId))
+            if (poetDoc.exists()) setPoetData(poetDoc.data())
+          }
+
+          // Handle unique view count increment
+          if (currentUser) {
+            const poemDocRef = doc(db, "poems", id)
+            const viewKey = `poem_view_${id}_${currentUser.uid}`
+            const lastViewTimestamp = localStorage.getItem(viewKey)
+            const now = Date.now()
+            const twentyFourHours = 24 * 60 * 60 * 1000
+
+            if (!lastViewTimestamp || now - Number(lastViewTimestamp) > twentyFourHours) {
+              try {
+                await updateDoc(poemDocRef, {
+                  views: increment(1),
+                })
+                localStorage.setItem(viewKey, now.toString())
+                // 🔥 Invalidate cache to show updated views
+                await invalidatePoemCache(id)
+              } catch (updateError) {
+                console.error("Failed to update view count:", updateError)
               }
             }
           }
+        }
       } catch (error) {
         console.error("Error fetching poem:", error)
       } finally {
@@ -160,7 +160,7 @@ const PoemRead = () => {
     const previousUserSelect = document.body.style.userSelect
     const previousWebkitUserSelect = (document.body.style as any).webkitUserSelect
     document.body.style.userSelect = "none"
-    ;(document.body.style as any).webkitUserSelect = "none"
+      ; (document.body.style as any).webkitUserSelect = "none"
 
     return () => {
       document.removeEventListener("copy", prevent, true)
@@ -182,7 +182,7 @@ const PoemRead = () => {
       }
 
       document.body.style.userSelect = previousUserSelect
-      ;(document.body.style as any).webkitUserSelect = previousWebkitUserSelect
+        ; (document.body.style as any).webkitUserSelect = previousWebkitUserSelect
     }
   }, [poemContentRef, canCopyContent])
 
@@ -219,8 +219,8 @@ const PoemRead = () => {
         title={`Reading: ${poem.title} by ${poem.poetName} - NovlNest`}
         description={poem.description}
         keywords={`read poetry, poem, ${poem.genres.join(", ")}, ${poem.poetName}`}
-        url={`https://novlnest.com/poem/${poem.id}/read`}
-        canonicalUrl={`https://novlnest.com/poem/${poem.id}/read`}
+        url={`https://novel-app-flame.vercel.app/poem/${poem.id}/read`}
+        canonicalUrl={`https://novel-app-flame.vercel.app/poem/${poem.id}/read`}
       />
 
       {/* Header Controls */}
@@ -278,7 +278,7 @@ const PoemRead = () => {
           <div
             ref={poemContentRef}
             className={`text-gray-200 whitespace-pre-wrap leading-relaxed text-center font-serif ${canCopyContent ? "" : "select-none"}`}
-            style={{ 
+            style={{
               fontSize: `${fontSize}px`,
               ...(canCopyContent ? {} : { userSelect: "none", WebkitUserSelect: "none" as any })
             }}

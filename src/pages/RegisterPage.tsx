@@ -79,7 +79,7 @@ const RegisterPage = () => {
           return
         }
       } else if (err.message === "ACCOUNT_DISABLED") {
-        setError("Your account has been disabled by an administrator. Please contact info@novlnest.com if you believe this is an error.")
+        setError("Your account has been disabled by an administrator. Please contact info@novel-app-flame.vercel.app if you believe this is an error.")
       } else if (err.message === "ACCOUNT_UNVERIFIED") {
         setError("ACCOUNT_UNVERIFIED")
       } else {
@@ -97,8 +97,8 @@ const RegisterPage = () => {
           title="Sign Up - NovlNest"
           description="Join NovlNest today! Create your free account to start reading and writing novels, connect with authors, and be part of our creative community."
           keywords="sign up, register, create account, join NovlNest, free account, novel platform, writing community"
-          url="https://novlnest.com/register"
-          canonicalUrl="https://novlnest.com/register"
+          url="https://novel-app-flame.vercel.app/register"
+          canonicalUrl="https://novel-app-flame.vercel.app/register"
         />
 
         <div className="max-w-md w-full space-y-8">

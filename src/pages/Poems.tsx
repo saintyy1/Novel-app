@@ -125,8 +125,8 @@ const Poems = () => {
         title="Browse Poems - NovlNest"
         description="Discover amazing poetry from talented poets. Browse by genre, search for your favorites, and enjoy beautiful verse."
         keywords="poetry, poems, browse poems, romantic poetry, nature poems, haiku, sonnet, free verse"
-        url="https://novlnest.com/poems"
-        canonicalUrl="https://novlnest.com/poems"
+        url="https://novel-app-flame.vercel.app/poems"
+        canonicalUrl="https://novel-app-flame.vercel.app/poems"
       />
 
       {/* Poetic Header */}
